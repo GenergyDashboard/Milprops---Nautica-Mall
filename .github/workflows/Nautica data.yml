@@ -6,6 +6,9 @@ on:
     - cron: '0 16 * * *'
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: write
+
 jobs:
   download-and-process:
     runs-on: ubuntu-latest
@@ -13,25 +16,27 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-      
-      - name: Install Playwright
-        run: |
-          npm install playwright
-          npx playwright install chromium
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       
-      - name: Install Python dependencies
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-nautica-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
         run: |
-          pip install pandas openpyxl
+          pip install playwright pandas openpyxl
+          playwright install chromium
+          playwright install-deps
       
       - name: Create data directory
         run: mkdir -p data
@@ -40,7 +45,8 @@ jobs:
         env:
           FUSIONSOLAR_USERNAME: ${{ secrets.FUSIONSOLAR_USERNAME }}
           FUSIONSOLAR_PASSWORD: ${{ secrets.FUSIONSOLAR_PASSWORD }}
-        run: node download_nautica_data.js
+        run: |
+          python download_nautica_data.py
       
       - name: Upload error screenshot if download failed
         if: failure()
@@ -55,7 +61,7 @@ jobs:
       
       - name: Commit and push if changed
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git add data/nautica_processed.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Nautica data - $(date +'%Y-%m-%d %H:%M:%S SAST')" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Nautica data - $(date +'%Y-%m-%d %H:%M SAST')" && git pull --rebase origin main && git push)
