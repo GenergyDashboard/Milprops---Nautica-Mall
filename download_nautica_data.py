@@ -308,7 +308,7 @@ def download_nautica_data():
             # =========================================================
             print("💾 Step 11: Downloading file...")
             with portal_page.expect_download(timeout=30000) as download_info:
-                portal_page.get_by_title("Download").click()
+                portal_page.get_by_title("Download").first.click()
             download = download_info.value
 
             # Save to data directory
