@@ -246,10 +246,18 @@ def main():
     total_pv = all_time.get("PV Yield (kWh)", 0)
     print(f"  ⚡ All-time PV Yield:     {total_pv:,.2f} kWh")
     
+    # ── Load previous today as yesterday ─────────────────────────────────
+    yesterday_data = starting.get("previous_today", None)
+    yesterday_date = starting.get("previous_today_date", "")
+    
     # ── Build output ───────────────────────────────────────────────────────
     output = {
         "plant": "Nautica Shopping Centre",
         "last_updated": now.strftime("%Y-%m-%d %H:%M"),
+        "yesterday": {
+            "date": yesterday_date,
+            "data": {k: round(v, 2) for k, v in yesterday_data.items()}
+        } if yesterday_data else None,
         "today": {
             "date": now.strftime("%Y-%m-%d"),
             "data": {k: round(v, 2) for k, v in daily_data.items()}
@@ -278,6 +286,8 @@ def main():
     starting["monthly"] = monthly
     starting["lifetime"] = lifetime
     starting["last_updated"] = now.strftime("%Y-%m-%d")
+    starting["previous_today"] = daily_data
+    starting["previous_today_date"] = now.strftime("%Y-%m-%d")
     
     with open(starting_file, "w") as f:
         json.dump(starting, f, indent=2)
