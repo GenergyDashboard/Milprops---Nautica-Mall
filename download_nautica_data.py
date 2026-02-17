@@ -13,11 +13,8 @@ from playwright.sync_api import sync_playwright
 # =============================================================================
 FUSIONSOLAR_HOST = "intl.fusionsolar.huawei.com"
 FUSIONSOLAR_BASE = f"https://{FUSIONSOLAR_HOST}"
-
-# Login URL - just the base domain, FusionSolar redirects to login page
 LOGIN_URL = FUSIONSOLAR_BASE
 
-# Portal home URL (navigated to after login)
 PORTAL_HOME = (
     f"{FUSIONSOLAR_BASE}/uniportal/pvmswebsite/assets/build/cloud.html"
     "?app-id=smartpvms&instance-id=smartpvms&zone-id=region-7-075ad9fd-a8fc-46e6-8d88-e829f96a09b7"
@@ -159,7 +156,6 @@ def download_nautica_data():
         """)
 
         page = context.new_page()
-        portal_page = None  # Will be set if a popup opens
 
         try:
             # =========================================================
@@ -175,7 +171,7 @@ def download_nautica_data():
             print("📸 Login page screenshot saved")
 
             # =========================================================
-            # Step 2: Enter username (from recording)
+            # Step 2: Enter username
             # =========================================================
             print("👤 Step 2: Entering username...")
             username_field = page.get_by_role("textbox", name="Username or email")
@@ -184,7 +180,7 @@ def download_nautica_data():
             human_delay(2, 4)
 
             # =========================================================
-            # Step 3: Enter password (from recording)
+            # Step 3: Enter password
             # =========================================================
             print("🔑 Step 3: Entering password...")
             password_field = page.get_by_role("textbox", name="Password")
@@ -193,7 +189,7 @@ def download_nautica_data():
             human_delay(2, 4)
 
             # =========================================================
-            # Step 4: Click Log In (from recording)
+            # Step 4: Click Log In
             # =========================================================
             print("🔓 Step 4: Clicking Log In...")
             page.get_by_text("Log In").click()
@@ -207,108 +203,71 @@ def download_nautica_data():
             print("📸 After-login screenshot saved")
 
             # =========================================================
-            # Step 5: Get to the portal
-            # After login with base URL, we may need to:
-            #   a) Click a link that opens a popup (like recording)
-            #   b) Already be in the portal (direct redirect)
-            #   c) Navigate manually to portal home
+            # Step 5: Navigate directly to portal
+            # Skip popup — go straight to portal in same tab
+            # Auth cookies are already set from login
             # =========================================================
-            print("🔗 Step 5: Getting to portal...")
-
-            current_url = page.url
-
-            if "uniportal" in current_url or "cloud.html" in current_url:
-                # Already in portal
-                print("  ✅ Already in portal")
-                portal_page = page
-            else:
-                # Try popup approach from the recording
-                try:
-                    with page.expect_popup(timeout=15000) as popup_info:
-                        page.get_by_role("link").nth(2).click()
-                        print("  ✅ Clicked link to open portal popup")
-                    portal_page = popup_info.value
-                    print(f"📍 Popup opened: {portal_page.url[:80]}...")
-                except Exception as popup_err:
-                    print(f"  ⚠️  Popup approach failed: {popup_err}")
-
-                    # Check if same-tab navigation happened
-                    if "uniportal" in page.url or "cloud.html" in page.url:
-                        portal_page = page
-                        print("  ✅ Portal loaded in same tab")
-                    else:
-                        # Navigate directly to portal home
-                        print("  ℹ️  Navigating directly to portal home...")
-                        page.goto(PORTAL_HOME, wait_until="networkidle", timeout=60000)
-                        portal_page = page
-
-            portal_page.wait_for_load_state("networkidle", timeout=60000)
+            print("🏠 Step 5: Navigating to portal...")
+            page.goto(PORTAL_HOME, wait_until="networkidle", timeout=60000)
             human_delay(5, 8)
+            random_mouse_movement(page)
 
-            # =========================================================
-            # Step 6: Navigate to plant list (from recording)
-            # =========================================================
-            print("🏠 Step 6: Navigating to plant list...")
-            portal_page.goto(PORTAL_HOME, wait_until="networkidle", timeout=60000)
-            human_delay(5, 8)
-            random_mouse_movement(portal_page)
-
-            print(f"📍 Portal: {portal_page.url[:80]}...")
-            portal_page.screenshot(path="03_portal_home.png", full_page=True)
+            print(f"📍 Portal: {page.url[:100]}")
+            page.screenshot(path="03_portal_home.png", full_page=True)
             print("📸 Portal home screenshot saved")
 
             # =========================================================
-            # Step 7: Search for Nautica (from recording)
+            # Step 6: Search for Nautica
             # =========================================================
-            print("🔎 Step 7: Searching for Nautica...")
-            search_field = portal_page.get_by_role("textbox", name="Plant name")
+            print("🔎 Step 6: Searching for Nautica...")
+            search_field = page.get_by_role("textbox", name="Plant name")
             search_field.wait_for(state="visible", timeout=30000)
             search_field.click()
             human_delay(1, 2)
             type_human_like(search_field, "Nautica")
             human_delay(2, 3)
 
-            portal_page.get_by_role("button", name="Search").click()
-            portal_page.wait_for_load_state("networkidle", timeout=30000)
+            page.get_by_role("button", name="Search").click()
+            page.wait_for_load_state("networkidle", timeout=30000)
             human_delay(5, 8)
 
             # =========================================================
-            # Step 8: Click Nautica Shopping Centre (from recording)
+            # Step 7: Click Nautica Shopping Centre
             # =========================================================
-            print("🏢 Step 8: Selecting Nautica Shopping Centre...")
-            portal_page.get_by_role("link", name="Nautica Shopping Centre").click()
-            portal_page.wait_for_load_state("networkidle", timeout=60000)
+            print("🏢 Step 7: Selecting Nautica Shopping Centre...")
+            page.get_by_role("link", name="Nautica Shopping Centre").click()
+            page.wait_for_load_state("networkidle", timeout=60000)
             human_delay(5, 8)
-            random_mouse_movement(portal_page)
+            random_mouse_movement(page)
 
-            portal_page.screenshot(path="04_nautica_station.png", full_page=True)
+            page.screenshot(path="04_nautica_station.png", full_page=True)
             print("📸 Nautica station screenshot saved")
 
             # =========================================================
-            # Step 9: Click Report Management (from recording)
+            # Step 8: Click Report Management
             # =========================================================
-            print("📊 Step 9: Opening Report Management...")
-            portal_page.get_by_text("Report Management").click()
-            portal_page.wait_for_load_state("networkidle", timeout=60000)
+            print("📊 Step 8: Opening Report Management...")
+            page.get_by_text("Report Management").click()
+            page.wait_for_load_state("networkidle", timeout=60000)
             human_delay(5, 8)
-            random_mouse_movement(portal_page)
+            random_mouse_movement(page)
 
-            portal_page.screenshot(path="05_report_page.png", full_page=True)
+            page.screenshot(path="05_report_page.png", full_page=True)
             print("📸 Report page screenshot saved")
 
             # =========================================================
-            # Step 10: Export report (from recording)
+            # Step 9: Export report
             # =========================================================
-            print("📤 Step 10: Clicking Export...")
-            portal_page.get_by_role("button", name="Export").click()
+            print("📤 Step 9: Clicking Export...")
+            page.get_by_role("button", name="Export").click()
             human_delay(5, 8)
 
             # =========================================================
-            # Step 11: Download the file (from recording)
+            # Step 10: Download the file
             # =========================================================
-            print("💾 Step 11: Downloading file...")
-            with portal_page.expect_download(timeout=30000) as download_info:
-                portal_page.get_by_title("Download").first.click()
+            print("💾 Step 10: Downloading file...")
+            with page.expect_download(timeout=30000) as download_info:
+                page.get_by_title("Download").first.click()
             download = download_info.value
 
             # Save to data directory
@@ -320,32 +279,22 @@ def download_nautica_data():
             print(f"✅ File downloaded to: {download_path}")
 
             # =========================================================
-            # Step 12: Close dialog (from recording)
+            # Step 11: Close dialog
             # =========================================================
-            print("✖️  Step 12: Closing export dialog...")
-            portal_page.get_by_role("button", name="Close").click()
+            print("✖️  Step 11: Closing dialog...")
+            page.get_by_role("button", name="Close").click()
             human_delay(2, 4)
 
             print("✅ Download completed successfully!")
 
         except Exception as error:
             print(f"❌ Error during download: {error}")
-
-            # Screenshot whichever page is active
-            capture_page = page
-            try:
-                if portal_page and not portal_page.is_closed():
-                    capture_page = portal_page
-                    print(f"📍 Portal URL: {portal_page.url[:100]}")
-                else:
-                    print(f"📍 Page URL: {page.url[:100]}")
-            except:
-                pass
+            print(f"📍 URL: {page.url[:100]}")
 
             try:
-                capture_page.screenshot(path="error_screenshot.png", full_page=True)
+                page.screenshot(path="error_screenshot.png", full_page=True)
                 print("📸 Error screenshot saved")
-                Path("error_page.html").write_text(capture_page.content())
+                Path("error_page.html").write_text(page.content())
                 print("📄 Page HTML saved")
             except Exception as debug_err:
                 print(f"⚠️  Could not capture debug info: {debug_err}")
