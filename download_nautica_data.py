@@ -2,18 +2,85 @@ import time
 import random
 import os
 import sys
+import subprocess
+import socket
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 
 # =============================================================================
-# FusionSolar Login URL
-# The old /pvmswebsite/login/build/index.html has been replaced by the SSO page.
-# If intl doesn't work for your region, try: eu5, la5, au1, sg5, jp5
-# e.g. https://eu5.fusionsolar.huawei.com/unisso/login.action
+# FusionSolar Configuration
 # =============================================================================
-FUSIONSOLAR_BASE = "https://intl.fusionsolar.huawei.com"
-LOGIN_URL = f"{FUSIONSOLAR_BASE}/unisso/login.action"
+FUSIONSOLAR_HOST = "intl.fusionsolar.huawei.com"
+FUSIONSOLAR_BASE = f"https://{FUSIONSOLAR_HOST}"
+LOGIN_URL = f"{FUSIONSOLAR_BASE}/pvmswebsite/login/build/index.html"
+
+# Known fallback IPs for intl.fusionsolar.huawei.com (when DNS fails)
+FALLBACK_IPS = ["119.8.229.117"]
+
+
+def fix_dns_resolution():
+    """Ensure intl.fusionsolar.huawei.com resolves - fix /etc/hosts if needed"""
+    print(f"🔍 Checking DNS resolution for {FUSIONSOLAR_HOST}...")
+    
+    try:
+        ip = socket.gethostbyname(FUSIONSOLAR_HOST)
+        print(f"  ✅ DNS OK: {FUSIONSOLAR_HOST} -> {ip}")
+        return
+    except socket.gaierror:
+        print(f"  ⚠️  DNS resolution failed for {FUSIONSOLAR_HOST}")
+    
+    # Try resolving via Google DNS
+    resolved_ip = None
+    try:
+        result = subprocess.run(
+            ["dig", "+short", FUSIONSOLAR_HOST, "@8.8.8.8"],
+            capture_output=True, text=True, timeout=10
+        )
+        ips = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+        if ips:
+            resolved_ip = ips[0]
+            print(f"  ✅ Resolved via Google DNS: {resolved_ip}")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        print("  ⚠️  dig not available or timed out")
+    
+    # Fall back to known IP
+    if not resolved_ip:
+        resolved_ip = FALLBACK_IPS[0]
+        print(f"  ⚠️  Using known fallback IP: {resolved_ip}")
+    
+    # Write to /etc/hosts
+    hosts_entry = f"{resolved_ip} {FUSIONSOLAR_HOST}\n"
+    try:
+        with open("/etc/hosts", "r") as f:
+            if FUSIONSOLAR_HOST in f.read():
+                print("  ℹ️  Host entry already exists")
+                return
+        
+        # Try with sudo (for GitHub Actions)
+        result = subprocess.run(
+            ["sudo", "tee", "-a", "/etc/hosts"],
+            input=hosts_entry, capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            print(f"  ✅ Added to /etc/hosts: {hosts_entry.strip()}")
+        else:
+            # Try direct write (if running as root)
+            with open("/etc/hosts", "a") as f:
+                f.write(hosts_entry)
+            print(f"  ✅ Added to /etc/hosts (direct): {hosts_entry.strip()}")
+    except Exception as e:
+        print(f"  ❌ Could not fix DNS: {e}")
+        print(f"  💡 Manually add to /etc/hosts: {hosts_entry.strip()}")
+        sys.exit(1)
+    
+    # Verify fix
+    try:
+        ip = socket.gethostbyname(FUSIONSOLAR_HOST)
+        print(f"  ✅ DNS now resolves: {FUSIONSOLAR_HOST} -> {ip}")
+    except socket.gaierror:
+        print(f"  ❌ DNS still failing after /etc/hosts fix")
+        sys.exit(1)
 
 
 def human_delay(min_seconds=3, max_seconds=7):
@@ -138,6 +205,9 @@ def download_nautica_data():
     
     print("🚀 Starting Nautica Shopping Centre data download...")
     print(f"🌐 Target URL: {LOGIN_URL}")
+    
+    # Fix DNS before anything else
+    fix_dns_resolution()
     
     # Get credentials from environment
     username = os.environ.get('FUSIONSOLAR_USERNAME')
