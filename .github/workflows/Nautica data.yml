@@ -79,11 +79,9 @@ jobs:
           name: debug-artifacts
           path: |
             error_screenshot.png
-            login_page.png
-            post_login.png
-            portal_home.png
-            nautica_station.png
-            report_page.png
+            01_login_page.png
+            02_after_login.png
+            03_nautica_report.png
             error_page.html
           if-no-files-found: ignore
       
