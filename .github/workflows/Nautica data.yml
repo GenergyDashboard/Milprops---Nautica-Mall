@@ -38,6 +38,30 @@ jobs:
           playwright install chromium
           playwright install-deps
       
+      - name: Fix DNS resolution for FusionSolar
+        run: |
+          echo "--- Resolving FusionSolar DNS ---"
+          sudo apt-get install -y dnsutils > /dev/null 2>&1 || true
+          # GitHub Actions runners (Azure US) often fail to resolve intl.fusionsolar.huawei.com
+          # Try native resolution first, fall back to known IP
+          if ! nslookup intl.fusionsolar.huawei.com > /dev/null 2>&1; then
+            echo "DNS resolution failed - adding manual host entry"
+            # Resolve via Google DNS as primary fallback
+            RESOLVED_IP=$(dig +short intl.fusionsolar.huawei.com @8.8.8.8 | head -1)
+            if [ -z "$RESOLVED_IP" ]; then
+              # Hard fallback to known IP
+              RESOLVED_IP="119.8.229.117"
+              echo "Google DNS also failed - using known IP: $RESOLVED_IP"
+            else
+              echo "Resolved via Google DNS: $RESOLVED_IP"
+            fi
+            echo "$RESOLVED_IP intl.fusionsolar.huawei.com" | sudo tee -a /etc/hosts
+          else
+            echo "DNS resolution OK"
+          fi
+          # Verify connectivity
+          curl -sI --max-time 10 https://intl.fusionsolar.huawei.com || echo "Warning: HTTPS probe failed (may still work with Playwright)"
+      
       - name: Create data directory
         run: mkdir -p data
       
@@ -48,12 +72,16 @@ jobs:
         run: |
           python download_nautica_data.py
       
-      - name: Upload error screenshot if download failed
+      - name: Upload debug artifacts if download failed
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: error-screenshot
-          path: error_screenshot.png
+          name: debug-artifacts
+          path: |
+            error_screenshot.png
+            login_page.png
+            post_login.png
+            error_page.html
           if-no-files-found: ignore
       
       - name: Process downloaded data
