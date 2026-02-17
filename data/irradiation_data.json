@@ -1,0 +1,51 @@
+{
+  "plant": "Nautica Shopping Centre",
+  "location": {
+    "latitude": -33.044243932480015,
+    "longitude": 18.05229423974645
+  },
+  "timezone": "Africa/Johannesburg",
+  "daily_records": {
+    "2026-02-17": {
+      "hourly_wm2": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        40.0,
+        128.0,
+        312.0,
+        546.0,
+        753.0,
+        878.0,
+        927.0,
+        863.0,
+        735.0,
+        554.0,
+        323.0,
+        128.0,
+        9.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "peak_wm2": 927.0,
+      "daily_total_wh_m2": 6197.0,
+      "daily_total_kwh_m2": 6.197,
+      "sun_hours": 12
+    }
+  },
+  "last_updated": "2026-02-17 12:33",
+  "monthly_summary": {
+    "2026-02": {
+      "days_recorded": 1,
+      "total_kwh_m2": 6.197,
+      "avg_peak_wm2": 927.0,
+      "avg_sun_hours": 12.0
+    }
+  }
+}
