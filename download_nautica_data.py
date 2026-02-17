@@ -4,8 +4,6 @@ import os
 import sys
 import subprocess
 import socket
-import json
-import urllib.request
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -23,77 +21,39 @@ PORTAL_HOME = (
     "#/home/list"
 )
 
+# Known fallback IP (resolved via Google DNS from a working network)
+FALLBACK_IP = "119.8.229.117"
+
 
 def fix_dns_resolution():
-    """Ensure intl.fusionsolar.huawei.com resolves correctly.
-    
-    Uses multiple strategies:
-    1. Check if system DNS already works
-    2. DNS-over-HTTPS via Google (works from anywhere, no tools needed)
-    3. DNS-over-HTTPS via Cloudflare (backup)
-    4. dig command via Google DNS
-    """
+    """Ensure intl.fusionsolar.huawei.com resolves - fix /etc/hosts if needed"""
     print(f"🔍 Checking DNS resolution for {FUSIONSOLAR_HOST}...")
 
-    # Check if system DNS already works
     try:
         ip = socket.gethostbyname(FUSIONSOLAR_HOST)
         print(f"  ✅ DNS OK: {FUSIONSOLAR_HOST} -> {ip}")
         return
     except socket.gaierror:
-        print(f"  ⚠️  System DNS failed for {FUSIONSOLAR_HOST}")
+        print(f"  ⚠️  DNS resolution failed for {FUSIONSOLAR_HOST}")
 
+    # Try dig via Google DNS
     resolved_ip = None
-
-    # Strategy 1: Google DNS-over-HTTPS (most reliable from GH Actions)
     try:
-        print("  🔎 Trying Google DNS-over-HTTPS...")
-        url = f"https://dns.google/resolve?name={FUSIONSOLAR_HOST}&type=A"
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read())
-            answers = [a["data"] for a in data.get("Answer", []) if a.get("type") == 1]
-            if answers:
-                resolved_ip = answers[0]
-                print(f"  ✅ Google DoH resolved: {resolved_ip}")
-    except Exception as e:
-        print(f"  ⚠️  Google DoH failed: {e}")
-
-    # Strategy 2: Cloudflare DNS-over-HTTPS
-    if not resolved_ip:
-        try:
-            print("  🔎 Trying Cloudflare DNS-over-HTTPS...")
-            url = f"https://cloudflare-dns.com/dns-query?name={FUSIONSOLAR_HOST}&type=A"
-            req = urllib.request.Request(url, headers={"Accept": "application/dns-json"})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                data = json.loads(response.read())
-                answers = [a["data"] for a in data.get("Answer", []) if a.get("type") == 1]
-                if answers:
-                    resolved_ip = answers[0]
-                    print(f"  ✅ Cloudflare DoH resolved: {resolved_ip}")
-        except Exception as e:
-            print(f"  ⚠️  Cloudflare DoH failed: {e}")
-
-    # Strategy 3: dig command
-    if not resolved_ip:
-        try:
-            print("  🔎 Trying dig @8.8.8.8...")
-            result = subprocess.run(
-                ["dig", "+short", FUSIONSOLAR_HOST, "@8.8.8.8"],
-                capture_output=True, text=True, timeout=10
-            )
-            ips = [line.strip() for line in result.stdout.strip().split('\n')
-                   if line.strip() and not line.strip().endswith('.')]
-            if ips:
-                resolved_ip = ips[0]
-                print(f"  ✅ dig resolved: {resolved_ip}")
-        except Exception as e:
-            print(f"  ⚠️  dig failed: {e}")
+        result = subprocess.run(
+            ["dig", "+short", FUSIONSOLAR_HOST, "@8.8.8.8"],
+            capture_output=True, text=True, timeout=10
+        )
+        ips = [line.strip() for line in result.stdout.strip().split('\n')
+               if line.strip() and not line.strip().endswith('.')]
+        if ips:
+            resolved_ip = ips[0]
+            print(f"  ✅ Resolved via Google DNS: {resolved_ip}")
+    except Exception:
+        pass
 
     if not resolved_ip:
-        print("  ❌ All DNS resolution strategies failed!")
-        print("  💡 Check if intl.fusionsolar.huawei.com is accessible from this network")
-        sys.exit(1)
+        resolved_ip = FALLBACK_IP
+        print(f"  ⚠️  Using fallback IP: {resolved_ip}")
 
     # Write to /etc/hosts
     hosts_entry = f"{resolved_ip} {FUSIONSOLAR_HOST}\n"
@@ -114,7 +74,7 @@ def fix_dns_resolution():
                 f.write(hosts_entry)
             print(f"  ✅ Added to /etc/hosts (direct): {hosts_entry.strip()}")
     except Exception as e:
-        print(f"  ❌ Could not update /etc/hosts: {e}")
+        print(f"  ❌ Could not fix DNS: {e}")
         sys.exit(1)
 
     # Verify
@@ -122,33 +82,120 @@ def fix_dns_resolution():
         ip = socket.gethostbyname(FUSIONSOLAR_HOST)
         print(f"  ✅ DNS now resolves: {FUSIONSOLAR_HOST} -> {ip}")
     except socket.gaierror:
-        print(f"  ❌ DNS still failing after /etc/hosts fix")
+        print(f"  ❌ DNS still failing")
         sys.exit(1)
 
 
 def human_delay(min_seconds=3, max_seconds=7):
-    """Random delay to mimic human behavior"""
     delay = random.uniform(min_seconds, max_seconds)
     print(f"  ⏳ Waiting {delay:.1f} seconds...")
     time.sleep(delay)
 
 
 def random_mouse_movement(page):
-    """Simulate natural mouse movement"""
     try:
-        viewport_size = page.viewport_size
-        if viewport_size:
-            x = random.randint(100, viewport_size['width'] - 100)
-            y = random.randint(100, viewport_size['height'] - 100)
-            page.mouse.move(x, y)
+        vs = page.viewport_size
+        if vs:
+            page.mouse.move(random.randint(100, vs['width'] - 100),
+                            random.randint(100, vs['height'] - 100))
     except:
         pass
 
 
 def type_human_like(field, text):
-    """Type text character by character with random delays"""
     for char in text:
         field.type(char, delay=random.randint(50, 150))
+
+
+def inspect_page(page, label=""):
+    """Dump all visible interactive elements for selector debugging"""
+    print(f"\n{'='*60}")
+    print(f"🔍 PAGE INSPECTION{' - ' + label if label else ''}")
+    print(f"📍 URL: {page.url}")
+    print(f"📄 Title: {page.title()}")
+    print(f"{'='*60}")
+
+    # Textboxes / inputs
+    print("\n📝 TEXTBOXES (role=textbox):")
+    try:
+        textboxes = page.get_by_role("textbox").all()
+        for i, tb in enumerate(textboxes):
+            try:
+                visible = tb.is_visible(timeout=1000)
+                name = tb.get_attribute("name") or ""
+                placeholder = tb.get_attribute("placeholder") or ""
+                aria = tb.get_attribute("aria-label") or ""
+                input_type = tb.get_attribute("type") or ""
+                print(f"  [{i}] visible={visible} name='{name}' placeholder='{placeholder}' aria='{aria}' type='{input_type}'")
+            except:
+                print(f"  [{i}] (could not inspect)")
+    except:
+        print("  (none found)")
+
+    # All input elements
+    print("\n📝 ALL INPUTS (input tag):")
+    try:
+        inputs = page.locator("input").all()
+        for i, inp in enumerate(inputs):
+            try:
+                visible = inp.is_visible(timeout=1000)
+                name = inp.get_attribute("name") or ""
+                placeholder = inp.get_attribute("placeholder") or ""
+                input_type = inp.get_attribute("type") or ""
+                input_id = inp.get_attribute("id") or ""
+                cls = inp.get_attribute("class") or ""
+                print(f"  [{i}] visible={visible} id='{input_id}' name='{name}' placeholder='{placeholder}' type='{input_type}' class='{cls[:50]}'")
+            except:
+                print(f"  [{i}] (could not inspect)")
+    except:
+        print("  (none found)")
+
+    # Buttons
+    print("\n🔘 BUTTONS:")
+    try:
+        buttons = page.get_by_role("button").all()
+        for i, btn in enumerate(buttons):
+            try:
+                visible = btn.is_visible(timeout=1000)
+                text = btn.text_content() or ""
+                print(f"  [{i}] visible={visible} text='{text.strip()[:60]}'")
+            except:
+                print(f"  [{i}] (could not inspect)")
+    except:
+        print("  (none found)")
+
+    # Links
+    print("\n🔗 LINKS:")
+    try:
+        links = page.get_by_role("link").all()
+        for i, link in enumerate(links):
+            try:
+                visible = link.is_visible(timeout=1000)
+                text = link.text_content() or ""
+                href = link.get_attribute("href") or ""
+                if visible:
+                    print(f"  [{i}] text='{text.strip()[:60]}' href='{href[:80]}'")
+            except:
+                pass
+    except:
+        print("  (none found)")
+
+    # Key text content on page
+    print("\n📋 KEY TEXT VISIBLE ON PAGE:")
+    try:
+        body_text = page.locator("body").text_content() or ""
+        # Get unique meaningful phrases
+        words = [w.strip() for w in body_text.split('\n') if w.strip() and len(w.strip()) > 3]
+        seen = set()
+        for w in words[:50]:
+            short = w[:80]
+            if short not in seen:
+                seen.add(short)
+                print(f"  '{short}'")
+    except:
+        print("  (could not read)")
+
+    print(f"{'='*60}\n")
 
 
 def download_nautica_data():
@@ -157,10 +204,8 @@ def download_nautica_data():
     print("🚀 Starting Nautica Shopping Centre data download...")
     print(f"🌐 Target: {LOGIN_URL}")
 
-    # Fix DNS before anything else
     fix_dns_resolution()
 
-    # Get credentials from environment
     username = os.environ.get('FUSIONSOLAR_USERNAME')
     password = os.environ.get('FUSIONSOLAR_PASSWORD')
 
@@ -189,7 +234,6 @@ def download_nautica_data():
             timezone_id='Africa/Johannesburg',
         )
 
-        # Hide webdriver detection
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
@@ -209,7 +253,6 @@ def download_nautica_data():
 
             print(f"📍 Landed on: {page.url[:100]}")
             page.screenshot(path="01_login_page.png", full_page=True)
-            print("📸 Login page screenshot saved")
 
             # =========================================================
             # Step 2: Enter username
@@ -241,42 +284,72 @@ def download_nautica_data():
 
             print(f"📍 After login: {page.url[:100]}")
             page.screenshot(path="02_after_login.png", full_page=True)
-            print("📸 After-login screenshot saved")
+
+            # Inspect what's on the page after login
+            inspect_page(page, "AFTER LOGIN")
 
             # =========================================================
-            # Step 5: Navigate directly to portal
-            # Auth cookies are set from login, go straight there
+            # Step 5: Navigate to portal
             # =========================================================
             print("🏠 Step 5: Navigating to portal...")
             page.goto(PORTAL_HOME, wait_until="networkidle", timeout=60000)
             human_delay(5, 8)
             random_mouse_movement(page)
 
-            current_url = page.url
-            print(f"📍 Portal: {current_url[:100]}")
+            print(f"📍 Portal: {page.url[:100]}")
             page.screenshot(path="03_portal_home.png", full_page=True)
-            print("📸 Portal home screenshot saved")
 
-            # Check if we actually reached the portal or got redirected to login
-            if "/login/" in current_url and "/uniportal/" not in current_url:
-                print("⚠️  Redirected back to login - auth may have failed")
-                print("📋 Cookies:")
-                for cookie in context.cookies():
-                    print(f"    {cookie['name']}: {cookie['value'][:20]}... (domain: {cookie['domain']})")
-                raise Exception("Login did not establish valid session - redirected back to login page")
+            # Inspect what's on the portal page
+            inspect_page(page, "PORTAL HOME")
 
             # =========================================================
             # Step 6: Search for Nautica
+            # Try multiple selector strategies based on inspection
             # =========================================================
             print("🔎 Step 6: Searching for Nautica...")
-            search_field = page.get_by_role("textbox", name="Plant name")
-            search_field.wait_for(state="visible", timeout=30000)
+
+            search_field = None
+            search_strategies = [
+                ("role textbox 'Plant name'", lambda: page.get_by_role("textbox", name="Plant name")),
+                ("placeholder 'Plant name'", lambda: page.locator("input[placeholder*='Plant name']").first),
+                ("placeholder 'plant'", lambda: page.locator("input[placeholder*='plant']").first),
+                ("placeholder 'search'", lambda: page.locator("input[placeholder*='search' i]").first),
+                ("placeholder 'Search'", lambda: page.locator("input[placeholder*='Search']").first),
+                ("role searchbox", lambda: page.get_by_role("searchbox").first),
+                ("visible text input", lambda: page.locator("input[type='text']:visible").first),
+                ("any visible input", lambda: page.locator("input:visible").first),
+            ]
+
+            for name, strategy in search_strategies:
+                try:
+                    field = strategy()
+                    if field.is_visible(timeout=3000):
+                        search_field = field
+                        print(f"  ✅ Found search field with: {name}")
+                        break
+                except:
+                    continue
+
+            if not search_field:
+                print("  ❌ Could not find any search/input field!")
+                raise Exception("No search field found on portal page - check inspection output above")
+
             search_field.click()
             human_delay(1, 2)
             type_human_like(search_field, "Nautica")
             human_delay(2, 3)
 
-            page.get_by_role("button", name="Search").click()
+            # Try to click Search button
+            try:
+                page.get_by_role("button", name="Search").click()
+            except:
+                # Maybe there's a different button or it auto-searches
+                try:
+                    page.locator("button:has-text('Search')").first.click()
+                except:
+                    # Press Enter as fallback
+                    search_field.press("Enter")
+
             page.wait_for_load_state("networkidle", timeout=30000)
             human_delay(5, 8)
 
@@ -284,13 +357,17 @@ def download_nautica_data():
             # Step 7: Click Nautica Shopping Centre
             # =========================================================
             print("🏢 Step 7: Selecting Nautica Shopping Centre...")
-            page.get_by_role("link", name="Nautica Shopping Centre").click()
+            try:
+                page.get_by_role("link", name="Nautica Shopping Centre").click()
+            except:
+                # Fallback: find by text
+                page.get_by_text("Nautica Shopping Centre").first.click()
+
             page.wait_for_load_state("networkidle", timeout=60000)
             human_delay(5, 8)
             random_mouse_movement(page)
 
             page.screenshot(path="04_nautica_station.png", full_page=True)
-            print("📸 Nautica station screenshot saved")
 
             # =========================================================
             # Step 8: Click Report Management
@@ -302,7 +379,6 @@ def download_nautica_data():
             random_mouse_movement(page)
 
             page.screenshot(path="05_report_page.png", full_page=True)
-            print("📸 Report page screenshot saved")
 
             # =========================================================
             # Step 9: Export report
@@ -319,7 +395,6 @@ def download_nautica_data():
                 page.get_by_title("Download").first.click()
             download = download_info.value
 
-            # Save to data directory
             data_dir = Path("data")
             data_dir.mkdir(exist_ok=True)
 
