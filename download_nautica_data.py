@@ -22,7 +22,7 @@ PORTAL_HOME = (
 )
 
 # Known fallback IP (resolved via Google DNS from a working network)
-FALLBACK_IP = "119.8.229.117"
+FALLBACK_IP = "119.8.160.213"
 
 
 def fix_dns_resolution():
