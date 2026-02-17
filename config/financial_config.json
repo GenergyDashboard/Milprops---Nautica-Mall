@@ -1,0 +1,45 @@
+{
+  "plant": "Nautica Shopping Centre",
+  "_info": "TOU rates are in R/kWh. Edit peak/standard/off_peak values to update savings calculations. Savings = self-consumption kWh × applicable TOU rate for that hour.",
+
+  "rates": {
+    "low_demand": {
+      "peak": 0.00,
+      "standard": 0.00,
+      "off_peak": 0.00
+    },
+    "high_demand": {
+      "peak": 0.00,
+      "standard": 0.00,
+      "off_peak": 0.00
+    }
+  },
+
+  "seasons": {
+    "1":  "low_demand",
+    "2":  "low_demand",
+    "3":  "low_demand",
+    "4":  "low_demand",
+    "5":  "low_demand",
+    "6":  "high_demand",
+    "7":  "high_demand",
+    "8":  "high_demand",
+    "9":  "low_demand",
+    "10": "low_demand",
+    "11": "low_demand",
+    "12": "low_demand"
+  },
+
+  "tou_schedule": {
+    "low_demand": {
+      "weekday": ["off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","standard","peak","peak","standard","standard","standard","standard","standard","standard","standard","standard","standard","peak","peak","peak","standard","off_peak","off_peak"],
+      "saturday": ["off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","standard","standard","standard","standard","standard","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","standard","standard","off_peak","off_peak","off_peak","off_peak"],
+      "sunday":   ["off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","standard","standard","off_peak","off_peak","off_peak","off_peak"]
+    },
+    "high_demand": {
+      "weekday": ["off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","peak","peak","standard","standard","standard","standard","standard","standard","standard","standard","standard","peak","peak","peak","standard","standard","off_peak","off_peak"],
+      "saturday": ["off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","standard","standard","standard","standard","standard","off_peak","off_peak","off_peak","off_peak","off_peak","standard","standard","off_peak","off_peak","off_peak","off_peak","off_peak"],
+      "sunday":   ["off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","off_peak","standard","standard","off_peak","off_peak","off_peak","off_peak","off_peak"]
+    }
+  }
+}
