@@ -4,6 +4,8 @@ import os
 import sys
 import subprocess
 import socket
+import json
+import urllib.request
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -21,38 +23,77 @@ PORTAL_HOME = (
     "#/home/list"
 )
 
-# Known fallback IPs when DNS fails on GitHub Actions runners
-FALLBACK_IPS = ["119.8.229.117"]
-
 
 def fix_dns_resolution():
-    """Ensure intl.fusionsolar.huawei.com resolves - fix /etc/hosts if needed"""
+    """Ensure intl.fusionsolar.huawei.com resolves correctly.
+    
+    Uses multiple strategies:
+    1. Check if system DNS already works
+    2. DNS-over-HTTPS via Google (works from anywhere, no tools needed)
+    3. DNS-over-HTTPS via Cloudflare (backup)
+    4. dig command via Google DNS
+    """
     print(f"🔍 Checking DNS resolution for {FUSIONSOLAR_HOST}...")
 
+    # Check if system DNS already works
     try:
         ip = socket.gethostbyname(FUSIONSOLAR_HOST)
         print(f"  ✅ DNS OK: {FUSIONSOLAR_HOST} -> {ip}")
         return
     except socket.gaierror:
-        print(f"  ⚠️  DNS resolution failed for {FUSIONSOLAR_HOST}")
+        print(f"  ⚠️  System DNS failed for {FUSIONSOLAR_HOST}")
 
-    # Try resolving via Google DNS
     resolved_ip = None
+
+    # Strategy 1: Google DNS-over-HTTPS (most reliable from GH Actions)
     try:
-        result = subprocess.run(
-            ["dig", "+short", FUSIONSOLAR_HOST, "@8.8.8.8"],
-            capture_output=True, text=True, timeout=10
-        )
-        ips = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-        if ips:
-            resolved_ip = ips[0]
-            print(f"  ✅ Resolved via Google DNS: {resolved_ip}")
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        print("  ⚠️  dig not available or timed out")
+        print("  🔎 Trying Google DNS-over-HTTPS...")
+        url = f"https://dns.google/resolve?name={FUSIONSOLAR_HOST}&type=A"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read())
+            answers = [a["data"] for a in data.get("Answer", []) if a.get("type") == 1]
+            if answers:
+                resolved_ip = answers[0]
+                print(f"  ✅ Google DoH resolved: {resolved_ip}")
+    except Exception as e:
+        print(f"  ⚠️  Google DoH failed: {e}")
+
+    # Strategy 2: Cloudflare DNS-over-HTTPS
+    if not resolved_ip:
+        try:
+            print("  🔎 Trying Cloudflare DNS-over-HTTPS...")
+            url = f"https://cloudflare-dns.com/dns-query?name={FUSIONSOLAR_HOST}&type=A"
+            req = urllib.request.Request(url, headers={"Accept": "application/dns-json"})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read())
+                answers = [a["data"] for a in data.get("Answer", []) if a.get("type") == 1]
+                if answers:
+                    resolved_ip = answers[0]
+                    print(f"  ✅ Cloudflare DoH resolved: {resolved_ip}")
+        except Exception as e:
+            print(f"  ⚠️  Cloudflare DoH failed: {e}")
+
+    # Strategy 3: dig command
+    if not resolved_ip:
+        try:
+            print("  🔎 Trying dig @8.8.8.8...")
+            result = subprocess.run(
+                ["dig", "+short", FUSIONSOLAR_HOST, "@8.8.8.8"],
+                capture_output=True, text=True, timeout=10
+            )
+            ips = [line.strip() for line in result.stdout.strip().split('\n')
+                   if line.strip() and not line.strip().endswith('.')]
+            if ips:
+                resolved_ip = ips[0]
+                print(f"  ✅ dig resolved: {resolved_ip}")
+        except Exception as e:
+            print(f"  ⚠️  dig failed: {e}")
 
     if not resolved_ip:
-        resolved_ip = FALLBACK_IPS[0]
-        print(f"  ⚠️  Using known fallback IP: {resolved_ip}")
+        print("  ❌ All DNS resolution strategies failed!")
+        print("  💡 Check if intl.fusionsolar.huawei.com is accessible from this network")
+        sys.exit(1)
 
     # Write to /etc/hosts
     hosts_entry = f"{resolved_ip} {FUSIONSOLAR_HOST}\n"
@@ -73,7 +114,7 @@ def fix_dns_resolution():
                 f.write(hosts_entry)
             print(f"  ✅ Added to /etc/hosts (direct): {hosts_entry.strip()}")
     except Exception as e:
-        print(f"  ❌ Could not fix DNS: {e}")
+        print(f"  ❌ Could not update /etc/hosts: {e}")
         sys.exit(1)
 
     # Verify
@@ -204,17 +245,25 @@ def download_nautica_data():
 
             # =========================================================
             # Step 5: Navigate directly to portal
-            # Skip popup — go straight to portal in same tab
-            # Auth cookies are already set from login
+            # Auth cookies are set from login, go straight there
             # =========================================================
             print("🏠 Step 5: Navigating to portal...")
             page.goto(PORTAL_HOME, wait_until="networkidle", timeout=60000)
             human_delay(5, 8)
             random_mouse_movement(page)
 
-            print(f"📍 Portal: {page.url[:100]}")
+            current_url = page.url
+            print(f"📍 Portal: {current_url[:100]}")
             page.screenshot(path="03_portal_home.png", full_page=True)
             print("📸 Portal home screenshot saved")
+
+            # Check if we actually reached the portal or got redirected to login
+            if "/login/" in current_url and "/uniportal/" not in current_url:
+                print("⚠️  Redirected back to login - auth may have failed")
+                print("📋 Cookies:")
+                for cookie in context.cookies():
+                    print(f"    {cookie['name']}: {cookie['value'][:20]}... (domain: {cookie['domain']})")
+                raise Exception("Login did not establish valid session - redirected back to login page")
 
             # =========================================================
             # Step 6: Search for Nautica
