@@ -4,26 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautica Shopping Centre: Solar Generation</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
+            /* 4 standardised font sizes used throughout */
             --font-xs: 0.85em;
-            --font-sm: 1em;
             --font-base: 1.1em;
             --font-lg: 1.5em;
             --font-xl: 2.5em;
-            --font-hero: 3.2em;
             --green: #4ade80;
-            --green-dim: rgba(74, 222, 128, 0.15);
             --gold: #FFD700;
-            --gold-dim: rgba(255, 215, 0, 0.12);
             --card-bg: rgba(255, 255, 255, 0.04);
             --card-border: rgba(255, 255, 255, 0.08);
             --card-hover: rgba(255, 215, 0, 0.4);
             --text-primary: #ffffff;
             --text-secondary: #aaaaaa;
             --text-dim: #666666;
+            --font-scale: 1;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -34,6 +30,7 @@
             color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
+            font-size: calc(16px * var(--font-scale));
         }
 
         .container {
@@ -77,20 +74,59 @@
             animation: glow 2s ease-in-out infinite;
             text-decoration: none;
         }
-
-        .powered-by .company:hover {
-            filter: brightness(1.3);
-        }
+        .powered-by .company:hover { filter: brightness(1.3); }
 
         @keyframes glow {
-            0%, 100% { text-shadow: 0 0 5px #4ade80, 0 0 10px #4ade80; filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.5)); }
-            50% { text-shadow: 0 0 10px #4ade80, 0 0 15px #4ade80; filter: drop-shadow(0 0 10px rgba(74, 222, 128, 0.7)); }
+            0%, 100% { filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.5)); }
+            50% { filter: drop-shadow(0 0 10px rgba(74, 222, 128, 0.7)); }
         }
 
-        .login-section {
+        @keyframes sway {
+            0%, 100% { transform: rotate(-2deg); }
+            50% { transform: rotate(2deg); }
+        }
+
+        .header-right {
             display: flex;
+            flex-direction: column;
+            align-items: flex-end;
             gap: 10px;
+        }
+
+        /* ── Font Sizer ────────────────────────────────── */
+        .font-sizer {
+            display: flex;
             align-items: center;
+            gap: 6px;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+        .font-sizer:hover { opacity: 1; }
+
+        .font-sizer button {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: all 0.2s;
+            line-height: 1;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .font-sizer button:hover {
+            background: rgba(255,215,0,0.2);
+            border-color: var(--gold);
+        }
+        .font-sizer .fs-sm { width: 28px; height: 28px; font-size: 12px; }
+        .font-sizer .fs-md { width: 32px; height: 32px; font-size: 15px; }
+        .font-sizer .fs-lg { width: 36px; height: 36px; font-size: 18px; }
+
+        .login-section {
             opacity: 0.3;
             transition: opacity 0.3s;
         }
@@ -101,7 +137,7 @@
             border: 1px solid rgba(255,255,255,0.3);
             border-radius: 8px;
             cursor: pointer;
-            font-size: var(--font-sm);
+            font-size: var(--font-base);
             background: transparent;
             color: white;
             font-family: inherit;
@@ -133,36 +169,30 @@
             border: 1px solid var(--card-border);
             transition: all 0.3s ease;
         }
-
         .stat-card:hover {
             transform: translateY(-4px);
             border-color: var(--card-hover);
             box-shadow: 0 8px 30px rgba(255,215,0,0.15);
         }
-
         .stat-card .label {
             color: var(--text-secondary);
-            font-size: var(--font-sm);
+            font-size: var(--font-xs);
             text-transform: uppercase;
             letter-spacing: 1.5px;
             margin-bottom: 12px;
             font-weight: 500;
         }
-
         .stat-card .value-row {
             display: flex;
             align-items: baseline;
             gap: 6px;
         }
-
         .stat-card .value {
-            font-family: 'Space Mono', monospace;
             font-size: var(--font-xl);
             font-weight: 700;
             color: var(--gold);
             line-height: 1.1;
         }
-
         .stat-card .unit {
             font-size: var(--font-base);
             color: var(--gold);
@@ -170,28 +200,20 @@
         }
 
         /* ── Environmental Impact ──────────────────────── */
-        @keyframes sway {
-            0%, 100% { transform: rotate(-2deg); }
-            50% { transform: rotate(2deg); }
-        }
-
         .env-header {
             text-align: center;
             margin: 40px 0 25px;
         }
-
         .env-header h2 {
             font-size: var(--font-lg);
             font-weight: 600;
-            color: var(--text-primary);
             display: inline-flex;
             align-items: center;
             gap: 12px;
         }
-
-        .env-header .tree { 
+        .env-header .tree {
             display: inline-block;
-            animation: sway 3s ease-in-out infinite; 
+            animation: sway 3s ease-in-out infinite;
         }
 
         .env-table-wrap {
@@ -199,42 +221,32 @@
             border-radius: 15px;
             border: 1px solid var(--card-border);
             overflow: hidden;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
         }
-
         .env-table {
             width: 100%;
             border-collapse: collapse;
         }
-
         .env-table thead th {
             padding: 18px 20px;
             text-align: center;
-            font-size: var(--font-sm);
+            font-size: var(--font-xs);
             font-weight: 600;
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 1px;
             border-bottom: 1px solid var(--card-border);
         }
-
-        .env-table thead th:first-child {
-            text-align: left;
-        }
-
+        .env-table thead th:first-child { text-align: left; }
         .env-table tbody td {
             padding: 18px 20px;
             text-align: center;
-            font-family: 'Space Mono', monospace;
             font-size: var(--font-base);
             font-weight: 600;
             color: var(--text-primary);
             border-bottom: 1px solid rgba(255,255,255,0.04);
         }
-
-        .env-table tbody tr:last-child td {
-            border-bottom: none;
-        }
+        .env-table tbody tr:last-child td { border-bottom: none; }
 
         .env-metric-cell {
             display: flex;
@@ -242,18 +254,108 @@
             gap: 12px;
             text-align: left !important;
         }
-
-        .env-metric-cell .icon {
-            font-size: 1.5em;
-        }
-
+        .env-metric-cell .icon { font-size: var(--font-lg); }
         .env-metric-cell .name {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: var(--font-sm);
+            font-size: var(--font-xs);
             font-weight: 600;
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        /* ── Env Info Dropdown ─────────────────────────── */
+        .env-info-toggle {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .env-info-btn {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+            font-size: var(--font-xs);
+            font-family: inherit;
+            cursor: pointer;
+            padding: 8px 18px;
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+        .env-info-btn:hover {
+            border-color: rgba(74,222,128,0.4);
+            color: var(--green);
+        }
+        .env-info-btn .arrow {
+            display: inline-block;
+            transition: transform 0.3s;
+            margin-left: 6px;
+        }
+        .env-info-btn.open .arrow { transform: rotate(180deg); }
+
+        .env-info-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+            background: var(--card-bg);
+            border-radius: 15px;
+            border: 1px solid transparent;
+            margin-bottom: 30px;
+        }
+        .env-info-panel.open {
+            max-height: 800px;
+            border-color: var(--card-border);
+        }
+        .env-info-inner {
+            padding: 30px;
+        }
+        .env-info-inner h3 {
+            font-size: var(--font-lg);
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .env-info-inner h4 {
+            font-size: var(--font-base);
+            color: var(--green);
+            margin-bottom: 5px;
+        }
+        .env-info-inner .subtitle {
+            font-size: var(--font-xs);
+            color: var(--text-dim);
+            margin-bottom: 25px;
+        }
+        .env-info-item {
+            margin-bottom: 22px;
+            padding-bottom: 22px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .env-info-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .env-info-item .icon-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .env-info-item .icon-title span:first-child { font-size: var(--font-lg); }
+        .env-info-item .icon-title span:last-child {
+            font-size: var(--font-base);
+            font-weight: 600;
+        }
+        .env-info-item p {
+            font-size: var(--font-xs);
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        .env-info-item .formula {
+            font-size: var(--font-xs);
+            color: var(--gold);
+            background: rgba(255,215,0,0.06);
+            padding: 8px 14px;
+            border-radius: 8px;
+            border-left: 3px solid var(--gold);
+            font-style: italic;
         }
 
         /* ── Loading / Error ───────────────────────────── */
@@ -263,21 +365,16 @@
             color: var(--text-dim);
             font-size: var(--font-base);
         }
-
         .loading .spinner {
             display: inline-block;
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border: 3px solid rgba(255,215,0,0.2);
             border-top-color: var(--gold);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin-bottom: 15px;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .error-msg {
             text-align: center;
@@ -285,7 +382,6 @@
             color: #ff6b6b;
             font-size: var(--font-base);
         }
-
         .last-updated {
             text-align: center;
             color: var(--text-dim);
@@ -295,33 +391,23 @@
 
         /* ── Responsive ────────────────────────────────── */
         @media (max-width: 900px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .stat-card .value {
-                font-size: 1.8em;
-            }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .stat-card .value { font-size: 1.8em; }
             .header {
                 flex-direction: column;
                 gap: 15px;
                 text-align: center;
             }
-            .header h1 {
-                font-size: var(--font-lg);
-            }
+            .header-right { align-items: center; }
+            .header h1 { font-size: var(--font-lg); }
             .env-table thead th,
             .env-table tbody td {
                 padding: 12px 8px;
                 font-size: var(--font-xs);
             }
-            .env-metric-cell .icon {
-                font-size: 1.2em;
-            }
-            .env-metric-cell .name {
-                font-size: var(--font-xs);
-            }
+            .env-metric-cell .icon { font-size: var(--font-base); }
+            .env-metric-cell .name { font-size: var(--font-xs); }
         }
-
         @media (max-width: 500px) {
             .container { padding: 10px; }
             .stats-grid { grid-template-columns: 1fr; }
@@ -337,10 +423,17 @@
         <div class="header">
             <div>
                 <h1>NAUTICA SHOPPING CENTRE</h1>
-                <div class="powered-by">Solar Dashboard &mdash; Powered by <a href="https://genergy.co.za" target="_blank" class="company">Genergy</a></div>
+                <div class="powered-by">Solar Dashboard &mdash; Powered by <a href="https://genergy.co.za" target="_blank" class="company">Genergy</a> <span style="color: #ffffff; font-weight: 700;">&amp; Milprops</span></div>
             </div>
-            <div class="login-section">
-                <button class="btn btn-primary" onclick="window.location.href='client.html'">Client Login →</button>
+            <div class="header-right">
+                <div class="font-sizer">
+                    <button class="fs-sm" onclick="setFontScale(0.85)" title="Smaller text">A</button>
+                    <button class="fs-md" onclick="setFontScale(1)" title="Default text">A</button>
+                    <button class="fs-lg" onclick="setFontScale(1.15)" title="Larger text">A</button>
+                </div>
+                <div class="login-section">
+                    <button class="btn btn-primary" onclick="window.location.href='client.html'">Client Login →</button>
+                </div>
             </div>
         </div>
 
@@ -353,10 +446,10 @@
         <!-- Error State -->
         <div id="errorState" class="error-msg" style="display:none;"></div>
 
-        <!-- Main Content (hidden until loaded) -->
+        <!-- Main Content -->
         <div id="mainContent" style="display:none;">
 
-            <!-- kWh Stats: Yesterday / Today / Month / Lifetime -->
+            <!-- kWh Stats -->
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="label">Yesterday's Total</div>
@@ -410,48 +503,28 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td>
-                                <div class="env-metric-cell">
-                                    <span class="icon">🌳</span>
-                                    <span class="name">Trees Equivalent</span>
-                                </div>
-                            </td>
+                            <td><div class="env-metric-cell"><span class="icon">🌳</span><span class="name">Trees Equivalent</span></div></td>
                             <td id="env-yesterday-trees">--</td>
                             <td id="env-today-trees">--</td>
                             <td id="env-month-trees">--</td>
                             <td id="env-lifetime-trees">--</td>
                         </tr>
                         <tr>
-                            <td>
-                                <div class="env-metric-cell">
-                                    <span class="icon">🏠</span>
-                                    <span class="name">Households Powered</span>
-                                </div>
-                            </td>
+                            <td><div class="env-metric-cell"><span class="icon">🏠</span><span class="name">Households Powered</span></div></td>
                             <td id="env-yesterday-homes">--</td>
                             <td id="env-today-homes">--</td>
                             <td id="env-month-homes">--</td>
                             <td id="env-lifetime-homes">--</td>
                         </tr>
                         <tr>
-                            <td>
-                                <div class="env-metric-cell">
-                                    <span class="icon">⛏️</span>
-                                    <span class="name">Coal Saved</span>
-                                </div>
-                            </td>
+                            <td><div class="env-metric-cell"><span class="icon">⛏️</span><span class="name">Coal Saved</span></div></td>
                             <td id="env-yesterday-coal">--</td>
                             <td id="env-today-coal">--</td>
                             <td id="env-month-coal">--</td>
                             <td id="env-lifetime-coal">--</td>
                         </tr>
                         <tr>
-                            <td>
-                                <div class="env-metric-cell">
-                                    <span class="icon">💧</span>
-                                    <span class="name">Water Saved</span>
-                                </div>
-                            </td>
+                            <td><div class="env-metric-cell"><span class="icon">💧</span><span class="name">Water Saved</span></div></td>
                             <td id="env-yesterday-water">--</td>
                             <td id="env-today-water">--</td>
                             <td id="env-month-water">--</td>
@@ -461,16 +534,69 @@
                 </table>
             </div>
 
+            <!-- Env Info Dropdown -->
+            <div class="env-info-toggle">
+                <button class="env-info-btn" id="envInfoBtn" onclick="toggleEnvInfo()">
+                    🌍 How Environmental Benefits Are Calculated <span class="arrow">▾</span>
+                </button>
+            </div>
+
+            <div class="env-info-panel" id="envInfoPanel">
+                <div class="env-info-inner">
+                    <h3>🌱 Understanding Environmental Impact</h3>
+                    <div class="subtitle">How we calculate the environmental benefits of solar generation</div>
+
+                    <div class="env-info-item">
+                        <div class="icon-title"><span>🌳</span><span>Trees Equivalent</span></div>
+                        <p>The number of mature trees that would be needed to absorb the same amount of CO₂ that we've avoided through solar generation. Based on trees absorbing approximately 22 kg of CO₂ per tree per year.</p>
+                        <div class="formula">Trees = CO₂ Avoided / 22 kg per tree per year</div>
+                    </div>
+
+                    <div class="env-info-item">
+                        <div class="icon-title"><span>🏠</span><span>Homes Powered</span></div>
+                        <p>How many homes could be powered with this amount of clean energy, based on typical consumption of 9.8 kWh per household daily.</p>
+                        <div class="formula">Households powered = Energy (kWh) / 9.8 kWh</div>
+                    </div>
+
+                    <div class="env-info-item">
+                        <div class="icon-title"><span>⛏️</span><span>kg Coal Saved</span></div>
+                        <p>The amount of coal that would need to be burned in a power plant to generate the same amount of electricity we've produced with solar energy.</p>
+                        <div class="formula">Coal Saved = Energy (kWh) × 0.548 kg coal per kWh</div>
+                    </div>
+
+                    <div class="env-info-item">
+                        <div class="icon-title"><span>💧</span><span>Litres Water Saved</span></div>
+                        <p>The amount of water saved by using solar instead of conventional power plants, which require significant amounts of water for cooling systems.</p>
+                        <div class="formula">Water Saved = Energy (kWh) × 1 L water per kWh</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="last-updated" id="lastUpdated"></div>
         </div>
     </div>
 
     <script>
-        // ── Configuration ──────────────────────────────────
-        // Update this to match your GitHub Pages URL or local path
+        // ── Font Scale ──────────────────────────────────────
+        function setFontScale(scale) {
+            document.documentElement.style.setProperty('--font-scale', scale);
+            localStorage.setItem('nautica-font-scale', scale);
+        }
+        // Restore saved preference
+        const savedScale = localStorage.getItem('nautica-font-scale');
+        if (savedScale) document.documentElement.style.setProperty('--font-scale', savedScale);
+
+        // ── Env Info Toggle ─────────────────────────────────
+        function toggleEnvInfo() {
+            const panel = document.getElementById('envInfoPanel');
+            const btn = document.getElementById('envInfoBtn');
+            panel.classList.toggle('open');
+            btn.classList.toggle('open');
+        }
+
+        // ── Configuration ───────────────────────────────────
         const DATA_URL = 'data/nautica_processed.json';
 
-        // Environmental conversion factors (per kWh generated)
         const ENV_FACTORS = {
             trees_per_kwh: 0.045,
             households_per_kwh: 0.102,
@@ -478,8 +604,8 @@
             water_litres_per_kwh: 1.4
         };
 
-        // ── Utility Functions ──────────────────────────────
-        function formatNumber(value, decimals = 0) {
+        // ── Utility Functions ───────────────────────────────
+        function formatNumber(value) {
             if (value === null || value === undefined || isNaN(value)) return '--';
             return Math.round(value).toLocaleString('en-ZA');
         }
@@ -498,7 +624,7 @@
             };
         }
 
-        // ── Data Loading ───────────────────────────────────
+        // ── Data Loading ────────────────────────────────────
         async function loadData() {
             try {
                 const response = await fetch(DATA_URL);
@@ -514,59 +640,57 @@
             }
         }
 
-        // ── Render Dashboard ───────────────────────────────
+        // ── Render Dashboard ────────────────────────────────
         function renderDashboard(data) {
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
 
-            // ── Extract kWh values ──
             const todayKwh = data.today?.data?.['PV Yield (kWh)'] || 0;
             const currentMonthKwh = data.current_month?.data?.['PV Yield (kWh)'] || 0;
             const lifetimeKwh = data.all_time_totals?.['PV Yield (kWh)'] || 0;
             const yesterdayKwh = data.yesterday?.data?.['PV Yield (kWh)'] || 0;
 
-            // ── Stats Cards ──
+            // Stats Cards
             document.getElementById('stat-yesterday').textContent = formatNumber(yesterdayKwh);
             document.getElementById('stat-today').textContent = formatNumber(todayKwh);
             document.getElementById('stat-month').textContent = formatNumber(currentMonthKwh);
             document.getElementById('stat-lifetime').textContent = formatNumber(lifetimeKwh);
 
-            // ── Environmental Impact ──
-            // Yesterday
+            // Environmental — Yesterday
             const yestEnv = calcEnv(yesterdayKwh);
             document.getElementById('env-yesterday-trees').textContent = formatNumber(yestEnv.trees);
             document.getElementById('env-yesterday-homes').textContent = formatNumber(yestEnv.homes);
             document.getElementById('env-yesterday-coal').textContent = formatUnit(yestEnv.coal_kg, 'kg');
             document.getElementById('env-yesterday-water').textContent = formatUnit(yestEnv.water_l, 'L');
 
-            // Today
+            // Environmental — Today
             const todayEnv = calcEnv(todayKwh);
             document.getElementById('env-today-trees').textContent = formatNumber(todayEnv.trees);
             document.getElementById('env-today-homes').textContent = formatNumber(todayEnv.homes);
             document.getElementById('env-today-coal').textContent = formatUnit(todayEnv.coal_kg, 'kg');
             document.getElementById('env-today-water').textContent = formatUnit(todayEnv.water_l, 'L');
 
-            // This Month
+            // Environmental — This Month
             const monthEnv = calcEnv(currentMonthKwh);
             document.getElementById('env-month-trees').textContent = formatNumber(monthEnv.trees);
             document.getElementById('env-month-homes').textContent = formatNumber(monthEnv.homes);
             document.getElementById('env-month-coal').textContent = formatUnit(monthEnv.coal_kg, 'kg');
             document.getElementById('env-month-water').textContent = formatUnit(monthEnv.water_l, 'L');
 
-            // Lifetime
+            // Environmental — Lifetime
             const lifetimeEnv = calcEnv(lifetimeKwh);
             document.getElementById('env-lifetime-trees').textContent = formatNumber(lifetimeEnv.trees);
             document.getElementById('env-lifetime-homes').textContent = formatNumber(lifetimeEnv.homes);
             document.getElementById('env-lifetime-coal').textContent = formatUnit(lifetimeEnv.coal_kg, 'kg');
             document.getElementById('env-lifetime-water').textContent = formatUnit(lifetimeEnv.water_l, 'L');
 
-            // ── Last Updated ──
+            // Last Updated
             if (data.last_updated) {
                 document.getElementById('lastUpdated').textContent = 'Last updated: ' + data.last_updated;
             }
         }
 
-        // ── Initialize ─────────────────────────────────────
+        // ── Initialize ──────────────────────────────────────
         document.addEventListener('DOMContentLoaded', loadData);
     </script>
 </body>
