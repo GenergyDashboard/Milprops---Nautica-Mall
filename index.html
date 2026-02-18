@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautica Shopping Centre: Solar Generation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         :root {
             --font-xs: 0.85em;
@@ -189,9 +190,9 @@
 
         /* Info Bar */
         .info-bar {
-            display: flex; justify-content: center; gap: 40px; padding: 12px 20px;
+            display: flex; justify-content: center; gap: 40px; padding: 14px 24px;
             background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.2);
-            border-radius: 10px; margin-bottom: 20px; font-size: var(--font-xs);
+            border-radius: 10px; margin-bottom: 20px; font-size: var(--font-base);
         }
         .info-bar .lbl { color: var(--text-secondary); }
         .info-bar .val { color: var(--gold); font-weight: 600; margin-left: 6px; }
@@ -226,9 +227,10 @@
         .slab-status { font-size: var(--font-base); font-weight: 600; padding: 6px 0; }
         .slab-status.ahead { color: var(--green); }
         .slab-status.behind { color: var(--red); }
-        .slab-perf { margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 10px; text-align: center; }
-        .slab-perf .perf-label { font-size: var(--font-xs); color: #94a3b8; margin-bottom: 4px; }
-        .slab-perf .perf-value { font-size: var(--font-lg); font-weight: 700; }
+        .slab-perf { margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 10px; display: flex; gap: 10px; }
+        .slab-perf-item { flex: 1; text-align: center; }
+        .slab-perf-item .perf-label { font-size: var(--font-xs); color: #94a3b8; margin-bottom: 4px; }
+        .slab-perf-item .perf-value { font-size: var(--font-lg); font-weight: 700; }
         .perf-good { color: var(--green); }
         .perf-bad { color: var(--red); }
         .perf-neutral { color: var(--gold); }
@@ -287,6 +289,20 @@
         .env-row:last-child { border-bottom: none; }
         .env-row .env-name { color: var(--text-secondary); font-size: var(--font-xs); }
         .env-row .env-val { color: var(--green); font-weight: 600; font-size: var(--font-base); }
+
+        /* Hourly Chart */
+        .chart-container {
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: 15px; padding: 25px; margin-bottom: 30px;
+        }
+        .chart-container h3 { font-size: var(--font-base); font-weight: 600; margin-bottom: 5px; }
+        .chart-legend-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
+        .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: var(--font-xs); color: var(--text-secondary); cursor: pointer; user-select: none; }
+        .chart-legend-item.off { opacity: 0.35; text-decoration: line-through; }
+        .legend-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+        .legend-swatch.dashed { border: 2px dashed; background: transparent; }
+        .chart-wrap { position: relative; height: 350px; }
+        @media (max-width: 900px) { .chart-wrap { height: 280px; } }
 
         /* ══════════════════════════════════════════════════ */
         /* SHARED                                             */
@@ -409,7 +425,7 @@
             <div class="info-bar">
                 <div class="info-item"><span class="lbl">Last Updated:</span><span class="val" id="infoLastUpdate">--</span></div>
                 <div class="info-item"><span class="lbl">Days Active:</span><span class="val" id="infoDaysActive">--</span></div>
-                <div class="info-item"><span class="lbl">System Capacity:</span><span class="val">600 kWp</span></div>
+                <div class="info-item"><span class="lbl">System Capacity:</span><span class="val">294.1 kWp</span></div>
             </div>
 
             <div class="tab-nav">
@@ -426,7 +442,7 @@
                         <div class="slab-value"><span id="ov-today-gen">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ov-today-exp">--</span> <span class="exp-unit">kWh</span></div>
                         <div class="slab-status" id="ov-today-status"></div>
-                        <div class="slab-perf"><div class="perf-label">Performance</div><div class="perf-value" id="ov-today-perf">--%</div></div>
+                        <div class="slab-perf"><div class="slab-perf-item"><div class="perf-label">PV Performance</div><div class="perf-value" id="ov-today-perf">--%</div></div><div class="slab-perf-item"><div class="perf-label">PV Coverage</div><div class="perf-value" id="ov-today-cov">--%</div></div></div>
                         <div class="flow-lines">
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ov-today-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ov-today-togrid">-- kWh</span></div>
@@ -446,7 +462,7 @@
                         <div class="slab-value"><span id="ov-month-gen">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ov-month-exp">--</span> <span class="exp-unit">kWh</span></div>
                         <div class="slab-status" id="ov-month-status"></div>
-                        <div class="slab-perf"><div class="perf-label">Performance</div><div class="perf-value" id="ov-month-perf">--%</div></div>
+                        <div class="slab-perf"><div class="slab-perf-item"><div class="perf-label">PV Performance</div><div class="perf-value" id="ov-month-perf">--%</div></div><div class="slab-perf-item"><div class="perf-label">PV Coverage</div><div class="perf-value" id="ov-month-cov">--%</div></div></div>
                         <div class="flow-lines">
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ov-month-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ov-month-togrid">-- kWh</span></div>
@@ -466,7 +482,7 @@
                         <div class="slab-value"><span id="ov-lifetime-gen">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ov-lifetime-exp">--</span> <span class="exp-unit">kWh</span></div>
                         <div class="slab-status" id="ov-lifetime-status"></div>
-                        <div class="slab-perf"><div class="perf-label">Performance</div><div class="perf-value" id="ov-lifetime-perf">--%</div></div>
+                        <div class="slab-perf"><div class="slab-perf-item"><div class="perf-label">PV Performance</div><div class="perf-value" id="ov-lifetime-perf">--%</div></div><div class="slab-perf-item"><div class="perf-label">PV Coverage</div><div class="perf-value" id="ov-lifetime-cov">--%</div></div></div>
                         <div class="flow-lines">
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ov-lifetime-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ov-lifetime-togrid">-- kWh</span></div>
@@ -504,6 +520,19 @@
                         <div class="env-row"><span class="env-name">Water Saved:</span><span class="env-val" id="ov-env-life-water">0 L</span></div>
                     </div>
                 </div>
+
+                <!-- Hourly Generation Pattern Chart -->
+                <div class="chart-container">
+                    <h3>Hourly Generation Pattern</h3>
+                    <div class="chart-legend-row" id="chartLegend">
+                        <div class="chart-legend-item" data-ds="predicted" onclick="toggleDataset('predicted')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Predicted (PVSyst)</div>
+                        <div class="chart-legend-item" data-ds="pvGen" onclick="toggleDataset('pvGen')"><span class="legend-swatch" style="background:#4ade80;"></span>PV Generation (kW)</div>
+                        <div class="chart-legend-item" data-ds="irrad" onclick="toggleDataset('irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Irradiation (W/m²)</div>
+                        <div class="chart-legend-item off" data-ds="load" onclick="toggleDataset('load')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (kW)</div>
+                        <div class="chart-legend-item off" data-ds="grid" onclick="toggleDataset('grid')"><span class="legend-swatch" style="background:#f97316;"></span>Grid Import (kW)</div>
+                    </div>
+                    <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
+                </div>
             </div>
         </div>
 
@@ -532,8 +561,11 @@
         // ══════════════════════════════════════════════════
         const DATA_URL = 'data/nautica_processed.json';
         const PVSYST_URL = 'config/pvsyst_predictions.json';
+        const IRRAD_URL = 'data/irradiation_data.json';
         let dashData = null;
         let pvsyst = null;
+        let irradData = null;
+        let hourlyChart = null;
         let credentials = null;
         let isLoggedIn = false;
 
@@ -638,13 +670,15 @@
         // ══════════════════════════════════════════════════
         async function loadData() {
             try {
-                const [dataRes, pvsystRes] = await Promise.all([
+                const [dataRes, pvsystRes, irradRes] = await Promise.all([
                     fetch(DATA_URL),
-                    fetch(PVSYST_URL)
+                    fetch(PVSYST_URL),
+                    fetch(IRRAD_URL)
                 ]);
                 if (!dataRes.ok) throw new Error(dataRes.status);
                 dashData = await dataRes.json();
                 if (pvsystRes.ok) pvsyst = await pvsystRes.json();
+                if (irradRes.ok) irradData = await irradRes.json();
                 document.getElementById('loadingState').style.display = 'none';
                 renderPublicView();
                 if (isLoggedIn) renderClientOverview();
@@ -796,12 +830,17 @@
             const lifeToLoad = d.all_time_totals?.['Self-consumption (kWh)'] || 0;
             const lifeToGrid = d.all_time_totals?.['Export (kWh)'] || 0;
 
+            // Consumption (load)
+            const todayCons = d.today?.data?.['Consumption (kWh)'] || 0;
+            const monthCons = d.current_month?.data?.['Consumption (kWh)'] || 0;
+            const lifeCons = d.all_time_totals?.['Consumption (kWh)'] || 0;
+
             // TOU Savings from pipeline
             const tou = d.tou_savings || {};
 
-            renderSlab('today', todayKwh, todayExp, todayToLoad, todayToGrid, tou.today || {});
-            renderSlab('month', monthKwh, monthExp, monthToLoad, monthToGrid, tou.current_month || {});
-            renderSlab('lifetime', lifetimeKwh, lifetimeExp, lifeToLoad, lifeToGrid, tou.all_time || {});
+            renderSlab('today', todayKwh, todayExp, todayToLoad, todayToGrid, tou.today || {}, todayCons);
+            renderSlab('month', monthKwh, monthExp, monthToLoad, monthToGrid, tou.current_month || {}, monthCons);
+            renderSlab('lifetime', lifetimeKwh, lifetimeExp, lifeToLoad, lifeToGrid, tou.all_time || {}, lifeCons);
 
             // Env boxes
             [['today', todayKwh], ['month', monthKwh], ['life', lifetimeKwh]].forEach(([id, kwh]) => {
@@ -819,9 +858,12 @@
                 const days = Math.floor((Date.now() - new Date(firstYear, 6, 1).getTime()) / 86400000);
                 if (days > 0) document.getElementById('infoDaysActive').textContent = days;
             }
+
+            // Hourly chart
+            renderHourlyChart(currentHour);
         }
 
-        function renderSlab(id, actual, expected, toLoad, toGrid, touData) {
+        function renderSlab(id, actual, expected, toLoad, toGrid, touData, consumption) {
             document.getElementById('ov-' + id + '-gen').textContent = fmt(actual);
             document.getElementById('ov-' + id + '-exp').textContent = fmt(expected);
 
@@ -833,12 +875,21 @@
                 statusEl.innerHTML = (diff >= 0 ? '▲ ' : '▼ ') + fmt(abs) + ' kWh ' + (diff >= 0 ? 'Ahead of Target' : 'Behind Target');
             } else { statusEl.textContent = ''; }
 
+            // PV Performance %
             const perfEl = document.getElementById('ov-' + id + '-perf');
             if (expected > 0) {
                 const perf = (actual / expected) * 100;
                 perfEl.textContent = perf.toFixed(1) + '%';
                 perfEl.className = 'perf-value ' + (perf >= 95 ? 'perf-good' : perf >= 80 ? 'perf-neutral' : 'perf-bad');
             } else { perfEl.textContent = '--%'; perfEl.className = 'perf-value perf-neutral'; }
+
+            // PV Coverage % (% of load covered by PV)
+            const covEl = document.getElementById('ov-' + id + '-cov');
+            if (consumption > 0 && toLoad > 0) {
+                const cov = (toLoad / consumption) * 100;
+                covEl.textContent = cov.toFixed(1) + '%';
+                covEl.className = 'perf-value ' + (cov >= 60 ? 'perf-good' : cov >= 40 ? 'perf-neutral' : 'perf-bad');
+            } else { covEl.textContent = '--%'; covEl.className = 'perf-value perf-neutral'; }
 
             // Flow lines
             document.getElementById('ov-' + id + '-toload').textContent = fmt(toLoad) + ' kWh';
@@ -850,6 +901,140 @@
             document.getElementById('ov-' + id + '-tou-peak').textContent = 'R' + fmt(touData.peak || 0);
             document.getElementById('ov-' + id + '-tou-std').textContent = 'R' + fmt(touData.standard || 0);
             document.getElementById('ov-' + id + '-tou-offpk').textContent = 'R' + fmt(touData.off_peak || 0);
+        }
+
+        // ══════════════════════════════════════════════════
+        // HOURLY CHART
+        // ══════════════════════════════════════════════════
+        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, grid: false };
+
+        function toggleDataset(key) {
+            dsVisibility[key] = !dsVisibility[key];
+            const el = document.querySelector(`.chart-legend-item[data-ds="${key}"]`);
+            if (el) el.classList.toggle('off', !dsVisibility[key]);
+            if (hourlyChart) {
+                // Map key to dataset index
+                const map = { predicted: 0, pvGen: 1, irrad: 2, load: 3, grid: 4 };
+                const idx = map[key];
+                if (idx !== undefined) {
+                    hourlyChart.data.datasets[idx].hidden = !dsVisibility[key];
+                    hourlyChart.update();
+                }
+            }
+        }
+
+        function renderHourlyChart(currentHour) {
+            const ctx = document.getElementById('hourlyChart');
+            if (!ctx) return;
+
+            const hours = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
+            const now = new Date();
+            const mmdd = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+            // PV Generation today (hourly increments from pipeline)
+            const pvHourly = dashData.hourly?.today || new Array(24).fill(0);
+
+            // Predicted from PVSyst (with degradation)
+            const factor = degradationFactor(now.getFullYear());
+            const pvsystDay = getPvsystDay(mmdd);
+            const predicted = pvsystDay.map(v => Math.round(v * factor * 100) / 100);
+
+            // Irradiation
+            const todayStr = now.toISOString().split('T')[0];
+            const irradHourly = irradData?.daily_records?.[todayStr]?.hourly_wm2 || new Array(24).fill(0);
+
+            // Load estimate per hour: if we have consumption & PVSyst pattern, distribute
+            const todayCons = dashData.today?.data?.['Consumption (kWh)'] || 0;
+            const todayImport = dashData.today?.data?.['Import (kWh)'] || 0;
+            const todayExport = dashData.today?.data?.['Export (kWh)'] || 0;
+            // Simple hourly load estimate: self-consumption pattern from PV shape + flat base from import
+            const loadHourly = new Array(24).fill(0);
+            const gridHourly = new Array(24).fill(0);
+            const pvTotal = pvHourly.reduce((a, b) => a + b, 0);
+            if (pvTotal > 0 && todayCons > 0) {
+                const hoursElapsed = Math.max(1, currentHour + 1);
+                const avgImportPerHr = todayImport / hoursElapsed;
+                const avgExportPerHr = todayExport / hoursElapsed;
+                for (let h = 0; h <= currentHour; h++) {
+                    // Load ≈ PV at that hour + import share - export share
+                    const pvH = pvHourly[h] || 0;
+                    loadHourly[h] = Math.max(0, pvH + avgImportPerHr - avgExportPerHr);
+                    gridHourly[h] = avgImportPerHr;
+                }
+            }
+
+            if (hourlyChart) hourlyChart.destroy();
+
+            hourlyChart = new Chart(ctx, {
+                data: {
+                    labels: hours,
+                    datasets: [
+                        {
+                            type: 'line', label: 'Predicted (PVSyst)', data: predicted,
+                            borderColor: '#60a5fa', borderWidth: 2, borderDash: [6, 4],
+                            pointRadius: 0, tension: 0.3, fill: false,
+                            yAxisID: 'y', hidden: !dsVisibility.predicted, order: 2
+                        },
+                        {
+                            type: 'bar', label: 'PV Generation (kW)', data: pvHourly,
+                            backgroundColor: 'rgba(74, 222, 128, 0.7)', borderColor: '#4ade80',
+                            borderWidth: 1, borderRadius: 3,
+                            yAxisID: 'y', hidden: !dsVisibility.pvGen, order: 3
+                        },
+                        {
+                            type: 'line', label: 'Irradiation (W/m²)', data: irradHourly,
+                            backgroundColor: 'rgba(255, 215, 0, 0.15)', borderColor: 'rgba(255, 215, 0, 0.6)',
+                            borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: true,
+                            yAxisID: 'y2', hidden: !dsVisibility.irrad, order: 1
+                        },
+                        {
+                            type: 'line', label: 'Actual Load (kW)', data: loadHourly,
+                            borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.3,
+                            fill: false, yAxisID: 'y', hidden: !dsVisibility.load, order: 4
+                        },
+                        {
+                            type: 'line', label: 'Grid Import (kW)', data: gridHourly,
+                            borderColor: '#f97316', borderWidth: 2, pointRadius: 0, tension: 0.3,
+                            fill: false, yAxisID: 'y', hidden: !dsVisibility.grid, order: 5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#111', titleColor: '#fff', bodyColor: '#ccc',
+                            borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 12,
+                            callbacks: {
+                                label: function(ctx) {
+                                    const unit = ctx.datasetIndex === 2 ? ' W/m²' : ' kW';
+                                    return ctx.dataset.label + ': ' + (ctx.parsed.y || 0).toFixed(1) + unit;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#888', font: { size: 10 }, maxRotation: 0 }
+                        },
+                        y: {
+                            position: 'left', beginAtZero: true,
+                            title: { display: true, text: 'Power (kW)', color: '#888', font: { size: 11 } },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#888', font: { size: 10 } }
+                        },
+                        y2: {
+                            position: 'right', beginAtZero: true,
+                            title: { display: true, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: 11 } },
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#FFD700', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
         }
 
         // ══════════════════════════════════════════════════
