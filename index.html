@@ -454,7 +454,9 @@
         // CONFIG & STATE
         // ══════════════════════════════════════════════════
         const DATA_URL = 'data/nautica_processed.json';
+        const PVSYST_URL = 'config/pvsyst_predictions.json';
         let dashData = null;
+        let pvsyst = null;
         let credentials = null;
         let isLoggedIn = false;
 
@@ -559,9 +561,13 @@
         // ══════════════════════════════════════════════════
         async function loadData() {
             try {
-                const r = await fetch(DATA_URL);
-                if (!r.ok) throw new Error(r.status);
-                dashData = await r.json();
+                const [dataRes, pvsystRes] = await Promise.all([
+                    fetch(DATA_URL),
+                    fetch(PVSYST_URL)
+                ]);
+                if (!dataRes.ok) throw new Error(dataRes.status);
+                dashData = await dataRes.json();
+                if (pvsystRes.ok) pvsyst = await pvsystRes.json();
                 document.getElementById('loadingState').style.display = 'none';
                 renderPublicView();
                 if (isLoggedIn) renderClientOverview();
@@ -603,6 +609,93 @@
         }
 
         // ══════════════════════════════════════════════════
+        // PVSYST HELPERS
+        // ══════════════════════════════════════════════════
+
+        // Degradation factor for a calendar year
+        // Year 1 (Dec 2023 – Nov 2024) ≈ 2024: factor = 0.98
+        // Each subsequent year: ×0.995
+        function degradationFactor(calendarYear) {
+            const yearNum = calendarYear - 2023; // 2024→1, 2025→2, 2026→3
+            if (yearNum <= 1) return 0.98;
+            return 0.98 * Math.pow(0.995, yearNum - 1);
+        }
+
+        // Get PVSyst hourly array for "MM-DD" (handles leap day)
+        function getPvsystDay(mmdd) {
+            if (!pvsyst?.daily_hourly) return new Array(24).fill(0);
+            return pvsyst.daily_hourly[mmdd] || pvsyst.daily_hourly['02-28'] || new Array(24).fill(0);
+        }
+
+        // Today expected: PVSyst hours 0→currentHour × degradation
+        function calcTodayExpected(currentHour) {
+            const now = new Date();
+            const mmdd = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            const hourly = getPvsystDay(mmdd);
+            const factor = degradationFactor(now.getFullYear());
+            let total = 0;
+            for (let h = 0; h <= currentHour; h++) total += hourly[h] || 0;
+            return total * factor;
+        }
+
+        // Month expected: PVSyst for each day up to current day/hour × degradation
+        function calcMonthExpected(currentHour) {
+            const now = new Date();
+            const factor = degradationFactor(now.getFullYear());
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const today = now.getDate();
+            let total = 0;
+            for (let d = 1; d <= today; d++) {
+                const mmdd = mm + '-' + String(d).padStart(2, '0');
+                const hourly = getPvsystDay(mmdd);
+                if (d < today) {
+                    total += hourly.reduce((a, b) => a + b, 0);
+                } else {
+                    for (let h = 0; h <= currentHour; h++) total += hourly[h] || 0;
+                }
+            }
+            return total * factor;
+        }
+
+        // Lifetime expected: each year's PVSyst × degradation, current year partial
+        function calcLifetimeExpected(currentHour) {
+            if (!pvsyst) return 0;
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth(); // 0-based
+            const currentDay = now.getDate();
+            const mt = pvsyst.monthly_totals_kwh || {};
+            let total = 0;
+
+            // 2023: only December
+            total += (mt['12'] || 0) * degradationFactor(2023);
+
+            // Full years 2024 → last complete year
+            for (let y = 2024; y < currentYear; y++) {
+                total += (pvsyst.annual_total_kwh || 0) * degradationFactor(y);
+            }
+
+            // Current year: completed months + partial current month
+            const factor = degradationFactor(currentYear);
+            // Completed months (Jan=1 up to month before current)
+            for (let m = 1; m <= currentMonth; m++) {
+                total += (mt[String(m)] || 0) * factor;
+            }
+            // Current month partial
+            const mm = String(currentMonth + 1).padStart(2, '0');
+            for (let d = 1; d <= currentDay; d++) {
+                const mmdd = mm + '-' + String(d).padStart(2, '0');
+                const hourly = getPvsystDay(mmdd);
+                if (d < currentDay) {
+                    total += hourly.reduce((a, b) => a + b, 0) * factor;
+                } else {
+                    for (let h = 0; h <= currentHour; h++) total += (hourly[h] || 0) * factor;
+                }
+            }
+            return total;
+        }
+
+        // ══════════════════════════════════════════════════
         // RENDER: CLIENT OVERVIEW
         // ══════════════════════════════════════════════════
         function renderClientOverview() {
@@ -611,30 +704,16 @@
             const monthKwh = d.current_month?.data?.['PV Yield (kWh)'] || 0;
             const lifetimeKwh = d.all_time_totals?.['PV Yield (kWh)'] || 0;
 
-            // Expected values from hourly averages
-            const hourlyAvg = d.hourly?.monthly_averages || new Array(24).fill(0);
             const currentHour = d.hourly?.current_hour ?? new Date().getHours();
-            const dailyTarget = hourlyAvg.reduce((a, b) => a + b, 0);
 
-            // Today expected: sum averages up to current hour
-            let todayExp = 0;
-            for (let h = 0; h <= currentHour; h++) todayExp += hourlyAvg[h] || 0;
+            // PVSyst-based expected values with degradation
+            const todayExp = calcTodayExpected(currentHour);
+            const monthExp = calcMonthExpected(currentHour);
+            const lifetimeExp = calcLifetimeExpected(currentHour);
 
-            // Month expected: completed days x daily target + today partial
-            const dayOfMonth = new Date().getDate();
-            const monthExp = ((dayOfMonth - 1) * dailyTarget) + todayExp;
-
-            // Lifetime expected: previous actual + month expected
-            const lifetimeExp = (lifetimeKwh - monthKwh) + monthExp;
-
-            // Revenue
-            const todayRev = d.today?.data?.['Revenue (R.)'] || 0;
-            const monthRev = d.current_month?.data?.['Revenue (R.)'] || 0;
-            const lifetimeRev = d.all_time_totals?.['Revenue (R.)'] || 0;
-
-            renderSlab('today', todayKwh, todayExp, todayRev);
-            renderSlab('month', monthKwh, monthExp, monthRev);
-            renderSlab('lifetime', lifetimeKwh, lifetimeExp, lifetimeRev);
+            renderSlab('today', todayKwh, todayExp);
+            renderSlab('month', monthKwh, monthExp);
+            renderSlab('lifetime', lifetimeKwh, lifetimeExp);
 
             // Env boxes
             [['today', todayKwh], ['month', monthKwh], ['life', lifetimeKwh]].forEach(([id, kwh]) => {
@@ -654,10 +733,9 @@
             }
         }
 
-        function renderSlab(id, actual, expected, savings) {
+        function renderSlab(id, actual, expected) {
             document.getElementById('ov-' + id + '-gen').textContent = fmt(actual);
             document.getElementById('ov-' + id + '-exp').textContent = fmt(expected);
-            document.getElementById('ov-' + id + '-savings').textContent = fmt(savings);
 
             const statusEl = document.getElementById('ov-' + id + '-status');
             const diff = actual - expected;
@@ -673,6 +751,10 @@
                 perfEl.textContent = perf.toFixed(1) + '%';
                 perfEl.className = 'perf-value ' + (perf >= 95 ? 'perf-good' : perf >= 80 ? 'perf-neutral' : 'perf-bad');
             } else { perfEl.textContent = '--%'; perfEl.className = 'perf-value perf-neutral'; }
+
+            // Hide savings bar (rates not configured yet)
+            const savingsEl = document.getElementById('ov-' + id + '-savings');
+            if (savingsEl) savingsEl.closest('.slab-savings').style.display = 'none';
         }
 
         // ══════════════════════════════════════════════════
