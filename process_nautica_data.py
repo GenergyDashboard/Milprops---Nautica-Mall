@@ -247,8 +247,19 @@ def main():
     print(f"  ⚡ All-time PV Yield:     {total_pv:,.2f} kWh")
     
     # ── Load yesterday's data ─────────────────────────────────────────────
+    # Check new key first, fall back to old key for backward compatibility
     yesterday_data = starting.get("yesterday", None)
     yesterday_date = starting.get("yesterday_date", "")
+    
+    # Backward compat: if old key exists but new key doesn't, migrate
+    if yesterday_data is None and "previous_today" in starting:
+        prev_date = starting.get("previous_today_date", "")
+        today_date = now.strftime("%Y-%m-%d")
+        if prev_date and prev_date != today_date:
+            # The old previous_today is actually yesterday's data
+            yesterday_data = starting["previous_today"]
+            yesterday_date = prev_date
+            print(f"  📅 Migrated yesterday from previous_today ({prev_date})")
     
     # ── Build output ───────────────────────────────────────────────────────
     output = {
@@ -288,15 +299,16 @@ def main():
     starting["last_updated"] = now.strftime("%Y-%m-%d")
     
     # Only rotate today→yesterday when the date actually changes
-    previous_date = starting.get("previous_today_date", "")
+    prev_today_date = starting.get("previous_today_date", "")
     today_date = now.strftime("%Y-%m-%d")
     
-    if previous_date != today_date and previous_date != "":
-        # Date changed — yesterday becomes what was stored as today's final snapshot
+    if prev_today_date and prev_today_date != today_date:
+        # Date changed — yesterday becomes the final snapshot from previous day
         starting["yesterday"] = starting.get("previous_today", {})
-        starting["yesterday_date"] = previous_date
+        starting["yesterday_date"] = prev_today_date
+        print(f"  📅 Rotated yesterday: {prev_today_date}")
     
-    # Always update today's snapshot (accumulates through the day)
+    # Always update today's running snapshot
     starting["previous_today"] = daily_data
     starting["previous_today_date"] = today_date
     
