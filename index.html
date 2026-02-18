@@ -454,7 +454,6 @@
         // CONFIG & STATE
         // ══════════════════════════════════════════════════
         const DATA_URL = 'data/nautica_processed.json';
-        const CREDS_URL = 'config/client_credentials.json';
         let dashData = null;
         let credentials = null;
         let isLoggedIn = false;
@@ -478,10 +477,15 @@
         }
 
         // ══════════════════════════════════════════════════
-        // AUTH
+        // AUTH (uses SHA-256 hashed credentials)
         // ══════════════════════════════════════════════════
         async function loadCredentials() {
-            try { const r = await fetch(CREDS_URL); if (r.ok) credentials = await r.json(); } catch(e) {}
+            try { const r = await fetch('config/client_credentials.json'); if (r.ok) credentials = await r.json(); } catch(e) {}
+        }
+
+        async function hashStr(str) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         function checkSession() {
@@ -495,19 +499,23 @@
         function showLoginModal() { document.getElementById('loginModal').classList.add('active'); }
         function hideLoginModal() { document.getElementById('loginModal').classList.remove('active'); document.getElementById('loginError').style.display = 'none'; }
 
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('loginUser').value;
             const p = document.getElementById('loginPass').value;
-            if (credentials && u === credentials.username && p === credentials.password) {
-                localStorage.setItem('nautica-auth', 'ok');
-                localStorage.setItem('nautica-auth-ts', Date.now().toString());
-                isLoggedIn = true;
-                hideLoginModal();
-                showClientView();
-            } else {
-                document.getElementById('loginError').style.display = 'block';
+            if (credentials) {
+                const uHash = await hashStr(u);
+                const pHash = await hashStr(p);
+                if (uHash === credentials.username_hash && pHash === credentials.password_hash) {
+                    localStorage.setItem('nautica-auth', 'ok');
+                    localStorage.setItem('nautica-auth-ts', Date.now().toString());
+                    isLoggedIn = true;
+                    hideLoginModal();
+                    showClientView();
+                    return;
+                }
             }
+            document.getElementById('loginError').style.display = 'block';
         }
 
         function logout() {
