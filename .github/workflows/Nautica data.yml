@@ -123,5 +123,9 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/nautica_processed.json data/starting_values.json data/irradiation_data.json data/hourly_generation.json config/client_credentials.json 2>/dev/null || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Nautica data - $(date +'%Y-%m-%d %H:%M SAST')" && git pull --rebase origin main && git push)
+          git add data/nautica_processed.json 2>/dev/null || true
+          git add data/starting_values.json 2>/dev/null || true
+          git add data/irradiation_data.json 2>/dev/null || true
+          git add data/hourly_generation.json 2>/dev/null || true
+          git add config/client_credentials.json 2>/dev/null || true
+          git diff --staged --quiet || (git commit -m "Update Nautica data - $(date +'%Y-%m-%d %H:%M SAST')" && git pull --rebase origin main && git push)
