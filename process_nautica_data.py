@@ -230,15 +230,29 @@ def main():
     now = datetime.now()
     current_month_key = now.strftime("%Y-%m")
     current_year_key = now.strftime("%Y")
+    today_str = now.strftime("%Y-%m-%d")
     
     print(f"📅 Current month: {current_month_key}")
     print(f"📅 Current year:  {current_year_key}")
     
-    # ── Add today to current month ─────────────────────────────────────────
+    # ── Same-day re-run handling (prevent double-counting) ──────────────────
+    last_run_date = starting.get("last_run_date", "")
+    last_daily = starting.get("last_daily", {})
+    
     if current_month_key not in monthly:
         print(f"  ℹ️  New month {current_month_key} - starting fresh")
         monthly[current_month_key] = {}
     
+    if last_run_date == today_str and last_daily:
+        # Same day: subtract previous daily so we don't double-count
+        print(f"  🔄 Same-day re-run — subtracting previous daily before adding new")
+        for field in ADDITIVE_FIELDS:
+            prev = last_daily.get(field, 0.0)
+            monthly[current_month_key][field] = monthly[current_month_key].get(field, 0.0) - prev
+    elif last_run_date and last_run_date != today_str:
+        print(f"  📅 New day: {last_run_date} → {today_str}")
+    
+    # ── Add today's daily to current month ──────────────────────────────────
     print(f"📊 Updating monthly data for {current_month_key}...")
     monthly[current_month_key] = add_daily_to_month(
         monthly[current_month_key], daily_data
@@ -428,7 +442,7 @@ def main():
         else:
             hourly_gen = {"days": {}, "last_snapshot": None}
         
-        today_date = now.strftime("%Y-%m-%d")
+        today_date = today_str
         current_hour = now.hour
         current_pv = daily_data.get("PV Yield (kWh)", 0.0)
         
@@ -493,12 +507,13 @@ def main():
     starting["monthly"] = monthly
     starting["lifetime"] = lifetime
     starting["last_updated"] = now.strftime("%Y-%m-%d")
+    starting["last_run_date"] = today_str
+    starting["last_daily"] = {field: daily_data.get(field, 0.0) for field in ADDITIVE_FIELDS}
     
     # Only rotate today→yesterday when the date actually changes
     prev_today_date = starting.get("previous_today_date", "")
-    today_date = now.strftime("%Y-%m-%d")
     
-    if prev_today_date and prev_today_date != today_date:
+    if prev_today_date and prev_today_date != today_str:
         # Date changed — yesterday becomes the final snapshot from previous day
         starting["yesterday"] = starting.get("previous_today", {})
         starting["yesterday_date"] = prev_today_date
@@ -506,7 +521,7 @@ def main():
     
     # Always update today's running snapshot
     starting["previous_today"] = daily_data
-    starting["previous_today_date"] = today_date
+    starting["previous_today_date"] = today_str
     
     with open(starting_file, "w") as f:
         json.dump(starting, f, indent=2)
