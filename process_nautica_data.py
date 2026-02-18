@@ -293,6 +293,76 @@ def main():
         json.dump(output, f, indent=2)
     print(f"✅ Output saved to: {output_file}")
     
+    # ── Hourly generation tracking ──────────────────────────────────────────
+    hourly_file = data_dir / "hourly_generation.json"
+    try:
+        if hourly_file.exists():
+            with open(hourly_file, "r") as f:
+                hourly_gen = json.load(f)
+        else:
+            hourly_gen = {"days": {}, "last_snapshot": None}
+        
+        today_date = now.strftime("%Y-%m-%d")
+        current_hour = now.hour
+        current_pv = daily_data.get("PV Yield (kWh)", 0.0)
+        
+        # Ensure today's entry exists with 24 zeros
+        if today_date not in hourly_gen["days"]:
+            hourly_gen["days"][today_date] = [0.0] * 24
+        
+        # Calculate increment from last snapshot
+        last = hourly_gen.get("last_snapshot")
+        if last and last.get("date") == today_date:
+            increment = max(0.0, current_pv - last.get("pv_kwh", 0.0))
+        else:
+            # First run of the day — all generation so far is attributed to this hour
+            increment = current_pv
+        
+        hourly_gen["days"][today_date][current_hour] = round(increment, 2)
+        hourly_gen["last_snapshot"] = {
+            "date": today_date,
+            "hour": current_hour,
+            "pv_kwh": round(current_pv, 2)
+        }
+        
+        # Calculate monthly hourly averages (for expected values)
+        current_month_prefix = now.strftime("%Y-%m")
+        month_days = {d: hrs for d, hrs in hourly_gen["days"].items()
+                      if d.startswith(current_month_prefix) and d != today_date}
+        
+        hourly_averages = [0.0] * 24
+        if month_days:
+            for hour in range(24):
+                values = [hrs[hour] for hrs in month_days.values() if hour < len(hrs) and hrs[hour] > 0]
+                hourly_averages[hour] = round(sum(values) / len(values), 2) if values else 0.0
+        
+        hourly_gen["monthly_averages"] = {current_month_prefix: hourly_averages}
+        hourly_gen["current_hour"] = current_hour
+        
+        # Prune old data (keep last 90 days)
+        cutoff = (now - __import__('datetime').timedelta(days=90)).strftime("%Y-%m-%d")
+        hourly_gen["days"] = {d: v for d, v in hourly_gen["days"].items() if d >= cutoff}
+        
+        with open(hourly_file, "w") as f:
+            json.dump(hourly_gen, f, indent=2)
+        print(f"✅ Hourly generation updated: hour {current_hour}, increment {increment:.2f} kWh")
+        
+    except Exception as e:
+        print(f"⚠️  Hourly tracking error (non-fatal): {e}")
+    
+    # ── Add hourly data to output ───────────────────────────────────────────
+    try:
+        output["hourly"] = {
+            "today": hourly_gen["days"].get(today_date, [0.0] * 24),
+            "current_hour": current_hour,
+            "monthly_averages": hourly_gen.get("monthly_averages", {}).get(current_month_prefix, [0.0] * 24)
+        }
+        # Re-save output with hourly data
+        with open(output_file, "w") as f:
+            json.dump(output, f, indent=2)
+    except Exception as e:
+        print(f"⚠️  Hourly output error (non-fatal): {e}")
+    
     # ── Update starting values for next run ────────────────────────────────
     starting["monthly"] = monthly
     starting["lifetime"] = lifetime
