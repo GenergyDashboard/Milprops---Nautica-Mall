@@ -246,9 +246,9 @@ def main():
     total_pv = all_time.get("PV Yield (kWh)", 0)
     print(f"  ⚡ All-time PV Yield:     {total_pv:,.2f} kWh")
     
-    # ── Load previous today as yesterday ─────────────────────────────────
-    yesterday_data = starting.get("previous_today", None)
-    yesterday_date = starting.get("previous_today_date", "")
+    # ── Load yesterday's data ─────────────────────────────────────────────
+    yesterday_data = starting.get("yesterday", None)
+    yesterday_date = starting.get("yesterday_date", "")
     
     # ── Build output ───────────────────────────────────────────────────────
     output = {
@@ -286,8 +286,19 @@ def main():
     starting["monthly"] = monthly
     starting["lifetime"] = lifetime
     starting["last_updated"] = now.strftime("%Y-%m-%d")
+    
+    # Only rotate today→yesterday when the date actually changes
+    previous_date = starting.get("previous_today_date", "")
+    today_date = now.strftime("%Y-%m-%d")
+    
+    if previous_date != today_date and previous_date != "":
+        # Date changed — yesterday becomes what was stored as today's final snapshot
+        starting["yesterday"] = starting.get("previous_today", {})
+        starting["yesterday_date"] = previous_date
+    
+    # Always update today's snapshot (accumulates through the day)
     starting["previous_today"] = daily_data
-    starting["previous_today_date"] = now.strftime("%Y-%m-%d")
+    starting["previous_today_date"] = today_date
     
     with open(starting_file, "w") as f:
         json.dump(starting, f, indent=2)
