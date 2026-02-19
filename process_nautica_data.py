@@ -350,16 +350,19 @@ def main():
     month_pv = monthly[current_month_key].get("PV Yield (kWh)", 0)
     print(f"  ⚡ Month-to-date PV Yield: {month_pv:,.2f} kWh")
     
-    # ── Recalculate lifetime for current year ──────────────────────────────
-    print(f"📊 Recalculating lifetime for {current_year_key}...")
-    year_totals = recalculate_lifetime_year(monthly, current_year_key)
-    if year_totals:
-        # Preserve any lifetime-only fields (like Equivalent Trees Planted)
-        if current_year_key in lifetime:
-            for key in lifetime[current_year_key]:
-                if key not in year_totals:
-                    year_totals[key] = lifetime[current_year_key][key]
-        lifetime[current_year_key] = year_totals
+    # ── Recalculate lifetime for ALL years from monthly data ─────────────
+    # This ensures any corrections to starting_values monthly data
+    # (e.g. backfilled Self-consumption) flow through to lifetime
+    all_years = sorted(set(k[:4] for k in monthly.keys()))
+    for yr in all_years:
+        year_totals = recalculate_lifetime_year(monthly, yr)
+        if year_totals:
+            # Preserve any lifetime-only fields (like Equivalent Trees Planted)
+            if yr in lifetime:
+                for key in lifetime[yr]:
+                    if key not in year_totals:
+                        year_totals[key] = lifetime[yr][key]
+            lifetime[yr] = year_totals
     
     year_pv = lifetime.get(current_year_key, {}).get("PV Yield (kWh)", 0)
     print(f"  ⚡ Year-to-date PV Yield: {year_pv:,.2f} kWh")
