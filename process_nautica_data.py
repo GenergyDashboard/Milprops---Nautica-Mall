@@ -639,6 +639,94 @@ def main():
     except Exception as e:
         print(f"⚠️  Hourly output error (non-fatal): {e}")
     
+    # ── Daily history accumulation ──────────────────────────────────────────
+    daily_hist_file = data_dir / "daily_history.json"
+    try:
+        if daily_hist_file.exists():
+            with open(daily_hist_file, "r") as f:
+                daily_hist = json.load(f)
+        else:
+            daily_hist = {}
+        
+        # Calculate per-TOU-period breakdown from actual hourly data
+        tou_breakdown = {}
+        if fin_config_file.exists():
+            with open(fin_config_file, "r") as f:
+                fin_cfg = json.load(f)
+            d_rates = fin_cfg.get("rates", {})
+            d_seasons = fin_cfg.get("seasons", {})
+            d_schedule = fin_cfg.get("tou_schedule", {})
+            d_export_cr = fin_cfg.get("export_credits", {})
+            
+            month_str = str(now.month)
+            season = d_seasons.get(month_str, "low_demand")
+            wd = now.weekday()
+            day_type = "weekday" if wd < 5 else ("saturday" if wd == 5 else "sunday")
+            schedule = d_schedule.get(season, {}).get(day_type, [])
+            
+            for period in ["peak", "standard", "off_peak"]:
+                tou_breakdown[period] = {
+                    "generation": 0, "import": 0, "self_consumption": 0,
+                    "export": 0, "utility_cost": 0, "pv_savings": 0, "export_savings": 0
+                }
+            
+            for h in range(24):
+                period = schedule[h] if h < len(schedule) else "off_peak"
+                rate = d_rates.get(season, {}).get(period, 0)
+                credit = d_export_cr.get(period, 0)
+                
+                pv_h = hourly_arrays['pv'][h]
+                imp_h = hourly_arrays['import'][h]
+                exp_h = hourly_arrays['export'][h]
+                # Self-consumption = PV - Export (per hour)
+                sc_h = max(0, pv_h - exp_h)
+                
+                tb = tou_breakdown[period]
+                tb["generation"] += pv_h
+                tb["import"] += imp_h
+                tb["self_consumption"] += sc_h
+                tb["export"] += exp_h
+                tb["utility_cost"] += imp_h * rate
+                tb["pv_savings"] += sc_h * rate
+                tb["export_savings"] += exp_h * credit
+            
+            # Round
+            for period in tou_breakdown:
+                tou_breakdown[period] = {k: round(v, 2) for k, v in tou_breakdown[period].items()}
+        
+        # Build today's record
+        day_record = {
+            "current_hour": data_hour,
+            "pv": round(daily_data.get("PV Yield (kWh)", 0), 2),
+            "import": round(daily_data.get("Import (kWh)", 0), 2),
+            "export": round(daily_data.get("Export (kWh)", 0), 2),
+            "self_consumption": round(daily_data.get("Self-consumption (kWh)", 0), 2),
+            "consumption": round(consumption_today, 2),
+            "hourly": {
+                "pv": hourly_arrays['pv'],
+                "load": hourly_arrays['load'],
+                "grid": hourly_arrays['import'],
+                "export": hourly_arrays['export']
+            },
+            "tou_breakdown": tou_breakdown,
+            "savings": savings_out.get("today", {})
+        }
+        
+        daily_hist[today_str] = day_record
+        
+        # Keep last 365 days
+        if len(daily_hist) > 365:
+            cutoff_date = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+            daily_hist = {d: v for d, v in daily_hist.items() if d >= cutoff_date}
+        
+        with open(daily_hist_file, "w") as f:
+            json.dump(daily_hist, f, indent=2)
+        print(f"✅ Daily history: {len(daily_hist)} days stored ({today_str} updated)")
+        
+    except Exception as e:
+        print(f"⚠️  Daily history error (non-fatal): {e}")
+        import traceback; traceback.print_exc()
+    
     # ── Update starting values for next run ────────────────────────────────
     starting["monthly"] = monthly
     starting["lifetime"] = lifetime
