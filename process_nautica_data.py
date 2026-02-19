@@ -16,8 +16,12 @@ Flow:
 
 import json
 import sys
-from datetime import datetime
+import os
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+# Force SAST timezone (UTC+2)
+SAST = timezone(timedelta(hours=2))
 
 import pandas as pd
 
@@ -197,9 +201,14 @@ def main():
     export_today = daily_data.get('Export (kWh)', 0.0)
     import_today = daily_data.get('Import (kWh)', 0.0)
     
-    if export_today > 0:
+    if pv_today <= 0:
+        # No PV generation: Load = Import
+        consumption_today = import_today
+    elif export_today > 0:
+        # PV generating & exporting: Load = PV - Export + Import
         consumption_today = pv_today - export_today + import_today
     else:
+        # PV generating, no export: Load = PV + Import
         consumption_today = pv_today + import_today
     
     daily_data['Consumption (kWh)'] = round(consumption_today, 2)
@@ -227,7 +236,7 @@ def main():
     lifetime = starting["lifetime"]
     
     # ── Determine current month key ────────────────────────────────────────
-    now = datetime.now()
+    now = datetime.now(SAST)
     current_month_key = now.strftime("%Y-%m")
     current_year_key = now.strftime("%Y")
     today_str = now.strftime("%Y-%m-%d")
@@ -238,12 +247,21 @@ def main():
     # ── Same-day re-run handling (prevent double-counting) ──────────────────
     last_run_date = starting.get("last_run_date", "")
     last_daily = starting.get("last_daily", {})
+    month_seeded = starting.get("month_seeded", "")
     
     if current_month_key not in monthly:
         print(f"  ℹ️  New month {current_month_key} - starting fresh")
         monthly[current_month_key] = {}
     
-    if last_run_date == today_str and last_daily:
+    # If this month was seeded from authoritative data (includes today),
+    # store today's daily for future same-day logic but don't add to monthly
+    skip_add = False
+    if month_seeded == current_month_key and last_run_date == today_str and not last_daily:
+        print(f"  ℹ️  Month {current_month_key} seeded with today's data - storing daily, skipping add")
+        starting["last_daily"] = dict(daily_data)
+        starting["month_seeded"] = ""  # Clear flag after first run
+        skip_add = True
+    elif last_run_date == today_str and last_daily:
         # Same day: subtract previous daily so we don't double-count
         print(f"  🔄 Same-day re-run — subtracting previous daily before adding new")
         for field in ADDITIVE_FIELDS:
@@ -251,12 +269,18 @@ def main():
             monthly[current_month_key][field] = monthly[current_month_key].get(field, 0.0) - prev
     elif last_run_date and last_run_date != today_str:
         print(f"  📅 New day: {last_run_date} → {today_str}")
+        # Clear seeded flag on new day
+        if month_seeded:
+            starting["month_seeded"] = ""
     
     # ── Add today's daily to current month ──────────────────────────────────
-    print(f"📊 Updating monthly data for {current_month_key}...")
-    monthly[current_month_key] = add_daily_to_month(
-        monthly[current_month_key], daily_data
-    )
+    if not skip_add:
+        print(f"📊 Updating monthly data for {current_month_key}...")
+        monthly[current_month_key] = add_daily_to_month(
+            monthly[current_month_key], daily_data
+        )
+    else:
+        print(f"📊 Using seeded monthly data for {current_month_key} (no daily added)")
     
     month_pv = monthly[current_month_key].get("PV Yield (kWh)", 0)
     print(f"  ⚡ Month-to-date PV Yield: {month_pv:,.2f} kWh")
