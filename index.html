@@ -301,9 +301,14 @@
             border-radius: 15px; padding: 25px; margin-bottom: 30px;
         }
         .chart-container h3 { font-size: var(--font-base); font-weight: 600; margin-bottom: 5px; }
-        .chart-legend-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
+        .chart-legend-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; align-items: center; }
         .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: var(--font-xs); color: var(--text-secondary); cursor: pointer; user-select: none; }
         .chart-legend-item.off { opacity: 0.35; text-decoration: line-through; }
+        .chart-legend-more { position: relative; margin-left: auto; }
+        .more-btn { font-size: var(--font-xs); color: #94a3b8; cursor: pointer; padding: 4px 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; user-select: none; }
+        .chart-legend-more.open .more-btn { background: rgba(255,255,255,0.05); }
+        .more-items { display: none; position: absolute; right: 0; top: 100%; margin-top: 6px; background: #1a1a1a; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 12px; z-index: 20; min-width: 200px; }
+        .chart-legend-more.open .more-items { display: flex; flex-direction: column; gap: 8px; }
         .legend-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
         .legend-swatch.dashed { border: 2px dashed; background: transparent; }
         .chart-wrap { position: relative; height: 350px; }
@@ -566,11 +571,16 @@
                         <div class="chart-legend-item" data-ds="predicted" onclick="toggleDataset('predicted')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Predicted (Monthly Avg)</div>
                         <div class="chart-legend-item" data-ds="pvGen" onclick="toggleDataset('pvGen')"><span class="legend-swatch" style="background:#4ade80;"></span>PV Generation (kW)</div>
                         <div class="chart-legend-item" data-ds="irrad" onclick="toggleDataset('irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Irradiation (W/m²)</div>
-                        <div class="chart-legend-item off" data-ds="load" onclick="toggleDataset('load')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (kW)</div>
-                        <div class="chart-legend-item off" data-ds="expLoad" onclick="toggleDataset('expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (MTD Avg)</div>
-                        <div class="chart-legend-item off" data-ds="grid" onclick="toggleDataset('grid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (kW)</div>
-                        <div class="chart-legend-item off" data-ds="expGrid" onclick="toggleDataset('expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (MTD Avg)</div>
-                        <div class="chart-legend-item" data-ds="avgPV" onclick="toggleDataset('avgPV')"><span class="legend-swatch dashed" style="border-color:#4ade80;"></span>Avg Daily PV (MTD)</div>
+                        <div class="chart-legend-more" onclick="this.classList.toggle('open')">
+                            <span class="more-btn">More ▼</span>
+                            <div class="more-items">
+                                <div class="chart-legend-item off" data-ds="load" onclick="event.stopPropagation();toggleDataset('load')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (kW)</div>
+                                <div class="chart-legend-item off" data-ds="expLoad" onclick="event.stopPropagation();toggleDataset('expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (MTD Avg)</div>
+                                <div class="chart-legend-item off" data-ds="grid" onclick="event.stopPropagation();toggleDataset('grid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (kW)</div>
+                                <div class="chart-legend-item off" data-ds="expGrid" onclick="event.stopPropagation();toggleDataset('expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (MTD Avg)</div>
+                                <div class="chart-legend-item off" data-ds="avgPV" onclick="event.stopPropagation();toggleDataset('avgPV')"><span class="legend-swatch dashed" style="border-color:#4ade80;"></span>Avg Hourly PV (MTD)</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
                 </div>
@@ -987,7 +997,7 @@
         // ══════════════════════════════════════════════════
         // HOURLY CHART
         // ══════════════════════════════════════════════════
-        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, expLoad: false, grid: false, expGrid: false, avgPV: true };
+        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, expLoad: false, grid: false, expGrid: false, avgPV: false };
 
         function toggleDataset(key) {
             dsVisibility[key] = !dsVisibility[key];
@@ -1023,11 +1033,11 @@
             const expLoadLine = h.avg_load || new Array(24).fill(0);
             const expGridLine = h.avg_grid || new Array(24).fill(0);
 
-            // Avg daily PV (MTD) = flat line: month PV total / days elapsed
+            // Avg hourly PV (MTD) = flat line: (month PV / days elapsed) / 24 hours
             const monthPV = dashData.current_month?.data?.['PV Yield (kWh)'] || 0;
             const daysElapsed = Math.max(1, new Date().getDate());
-            const avgDailyPV = monthPV / daysElapsed;
-            const avgPVLine = new Array(24).fill(Math.round(avgDailyPV * 10) / 10);
+            const avgHourlyPV = monthPV / daysElapsed / 24;
+            const avgPVLine = new Array(24).fill(Math.round(avgHourlyPV * 10) / 10);
 
             // Irradiation - shift 1 hour left as requested
             const todayDate = new Date();
@@ -1083,7 +1093,7 @@
                             yAxisID: 'y', hidden: !dsVisibility.expGrid, order: 4
                         },
                         {
-                            type: 'line', label: 'Avg Daily PV (MTD)', data: avgPVLine,
+                            type: 'line', label: 'Avg Hourly PV (MTD)', data: avgPVLine,
                             borderColor: '#4ade80', borderWidth: 1.5, borderDash: [4, 4],
                             pointRadius: 0, tension: 0.3, fill: false,
                             yAxisID: 'y', hidden: !dsVisibility.avgPV, order: 4
