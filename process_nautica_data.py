@@ -56,15 +56,15 @@ MAX_FIELDS = [
 def parse_daily_report(filepath):
     """Parse the daily xlsx download from FusionSolar.
     
-    The file has the same structure as the monthly report:
+    The file has hourly rows:
     Row 0: Title row
-    Row 1: Column headers
-    Row 2+: Data rows (typically 1 row for a daily report)
+    Row 1: Column headers  
+    Row 2+: Hourly data rows (e.g. '2026-02-19 00:00:00' to '2026-02-19 08:00:00')
     """
     df = pd.read_excel(filepath, header=None, sheet_name=0)
     headers = df.iloc[1].tolist()
     
-    # Sum all data rows (in case there are multiple days)
+    # Sum all data rows to get daily totals
     combined = {}
     row_count = 0
     
@@ -83,11 +83,9 @@ def parse_daily_report(filepath):
             elif key in MAX_FIELDS:
                 combined[key] = max(combined.get(key, 0.0), val)
             else:
-                # For non-additive fields, keep last value
                 combined[key] = val
         
         row_count += 1
-        print(f"  📊 Parsed row: {period}")
     
     if row_count == 0:
         print("  ⚠️  No data rows found in daily report")
@@ -95,6 +93,69 @@ def parse_daily_report(filepath):
     
     print(f"  ✅ Parsed {row_count} row(s) from daily report")
     return combined
+
+
+def parse_hourly_arrays(filepath):
+    """Parse hourly rows from the daily xlsx download.
+    
+    Returns: {
+        'current_hour': int (last hour with data),
+        'pv': [24 floats],
+        'import': [24 floats],
+        'export': [24 floats],
+        'load': [24 floats]
+    }
+    """
+    df = pd.read_excel(filepath, header=None, sheet_name=0)
+    headers = [str(h).strip() if not pd.isna(h) else '' for h in df.iloc[1].tolist()]
+    
+    # Find column indices
+    pv_col = next((i for i, h in enumerate(headers) if h == 'PV Yield (kWh)'), None)
+    exp_col = next((i for i, h in enumerate(headers) if h == 'Export (kWh)'), None)
+    imp_col = next((i for i, h in enumerate(headers) if h == 'Import (kWh)'), None)
+    
+    pv_arr = [0.0] * 24
+    imp_arr = [0.0] * 24
+    exp_arr = [0.0] * 24
+    load_arr = [0.0] * 24
+    current_hour = 0
+    
+    for idx in range(2, len(df)):
+        row = df.iloc[idx]
+        try:
+            ts = pd.Timestamp(row.iloc[0])
+            hour = ts.hour
+        except:
+            continue
+        
+        pv = float(row.iloc[pv_col]) if pv_col is not None and not pd.isna(row.iloc[pv_col]) else 0.0
+        exp = float(row.iloc[exp_col]) if exp_col is not None and not pd.isna(row.iloc[exp_col]) else 0.0
+        imp = float(row.iloc[imp_col]) if imp_col is not None and not pd.isna(row.iloc[imp_col]) else 0.0
+        
+        # Load calculation
+        if pv <= 0:
+            load = imp
+        elif exp > 0:
+            load = pv - exp + imp
+        else:
+            load = pv + imp
+        
+        pv_arr[hour] = round(pv, 2)
+        imp_arr[hour] = round(imp, 2)
+        exp_arr[hour] = round(exp, 2)
+        load_arr[hour] = round(load, 2)
+        current_hour = hour
+    
+    print(f"  ⏰ Latest hour in data: {current_hour:02d}:00 SAST")
+    print(f"  📊 Hourly PV range: {min(v for v in pv_arr if v > 0) if any(v > 0 for v in pv_arr) else 0:.1f} - {max(pv_arr):.1f} kW")
+    
+    return {
+        'current_hour': current_hour,
+        'pv': pv_arr,
+        'import': imp_arr,
+        'export': exp_arr,
+        'load': load_arr
+    }
 
 
 def add_daily_to_month(monthly_data, daily_data):
@@ -190,6 +251,10 @@ def main():
     if daily_data is None:
         print("❌ No data to process")
         sys.exit(1)
+    
+    # Parse hourly arrays from same file
+    hourly_arrays = parse_hourly_arrays(raw_file)
+    data_hour = hourly_arrays['current_hour']
     
     # Show key daily values
     print(f"  ⚡ PV Yield today:      {daily_data.get('PV Yield (kWh)', 0):,.2f} kWh")
@@ -464,62 +529,62 @@ def main():
             with open(hourly_file, "r") as f:
                 hourly_gen = json.load(f)
         else:
-            hourly_gen = {"days": {}, "last_snapshot": None}
+            hourly_gen = {"days": {}, "days_load": {}, "days_grid": {}}
         
         today_date = today_str
-        current_hour = now.hour
-        current_pv = daily_data.get("PV Yield (kWh)", 0.0)
         
-        # Ensure today's entry exists with 24 zeros
-        if today_date not in hourly_gen["days"]:
-            hourly_gen["days"][today_date] = [0.0] * 24
+        # Store actual hourly arrays from xlsx
+        hourly_gen["days"][today_date] = hourly_arrays['pv']
+        if "days_load" not in hourly_gen:
+            hourly_gen["days_load"] = {}
+        if "days_grid" not in hourly_gen:
+            hourly_gen["days_grid"] = {}
+        hourly_gen["days_load"][today_date] = hourly_arrays['load']
+        hourly_gen["days_grid"][today_date] = hourly_arrays['import']
         
-        # Calculate increment from last snapshot
-        last = hourly_gen.get("last_snapshot")
-        if last and last.get("date") == today_date:
-            increment = max(0.0, current_pv - last.get("pv_kwh", 0.0))
-        else:
-            # First run of the day — all generation so far is attributed to this hour
-            increment = current_pv
-        
-        hourly_gen["days"][today_date][current_hour] = round(increment, 2)
-        hourly_gen["last_snapshot"] = {
-            "date": today_date,
-            "hour": current_hour,
-            "pv_kwh": round(current_pv, 2)
-        }
-        
-        # Calculate monthly hourly averages (for expected values)
+        # Monthly averages for load and grid (excluding today)
         current_month_prefix = now.strftime("%Y-%m")
-        month_days = {d: hrs for d, hrs in hourly_gen["days"].items()
-                      if d.startswith(current_month_prefix) and d != today_date}
+        month_load_days = {d: hrs for d, hrs in hourly_gen.get("days_load", {}).items()
+                          if d.startswith(current_month_prefix) and d != today_date}
+        month_grid_days = {d: hrs for d, hrs in hourly_gen.get("days_grid", {}).items()
+                          if d.startswith(current_month_prefix) and d != today_date}
         
-        hourly_averages = [0.0] * 24
-        if month_days:
+        avg_load = [0.0] * 24
+        avg_grid = [0.0] * 24
+        if month_load_days:
             for hour in range(24):
-                values = [hrs[hour] for hrs in month_days.values() if hour < len(hrs) and hrs[hour] > 0]
-                hourly_averages[hour] = round(sum(values) / len(values), 2) if values else 0.0
-        
-        hourly_gen["monthly_averages"] = {current_month_prefix: hourly_averages}
-        hourly_gen["current_hour"] = current_hour
+                load_vals = [hrs[hour] for hrs in month_load_days.values() if hour < len(hrs)]
+                avg_load[hour] = round(sum(load_vals) / len(load_vals), 2) if load_vals else 0.0
+        if month_grid_days:
+            for hour in range(24):
+                grid_vals = [hrs[hour] for hrs in month_grid_days.values() if hour < len(hrs)]
+                avg_grid[hour] = round(sum(grid_vals) / len(grid_vals), 2) if grid_vals else 0.0
         
         # Prune old data (keep last 90 days)
-        cutoff = (now - __import__('datetime').timedelta(days=90)).strftime("%Y-%m-%d")
+        cutoff = (now - timedelta(days=90)).strftime("%Y-%m-%d")
         hourly_gen["days"] = {d: v for d, v in hourly_gen["days"].items() if d >= cutoff}
+        hourly_gen["days_load"] = {d: v for d, v in hourly_gen.get("days_load", {}).items() if d >= cutoff}
+        hourly_gen["days_grid"] = {d: v for d, v in hourly_gen.get("days_grid", {}).items() if d >= cutoff}
         
         with open(hourly_file, "w") as f:
             json.dump(hourly_gen, f, indent=2)
-        print(f"✅ Hourly generation updated: hour {current_hour}, increment {increment:.2f} kWh")
+        print(f"✅ Hourly arrays stored: PV peak={max(hourly_arrays['pv']):.1f} kW at hour {data_hour}")
         
     except Exception as e:
         print(f"⚠️  Hourly tracking error (non-fatal): {e}")
+        avg_load = [0.0] * 24
+        avg_grid = [0.0] * 24
     
     # ── Add hourly data to output ───────────────────────────────────────────
     try:
         output["hourly"] = {
-            "today": hourly_gen["days"].get(today_date, [0.0] * 24),
-            "current_hour": current_hour,
-            "monthly_averages": hourly_gen.get("monthly_averages", {}).get(current_month_prefix, [0.0] * 24)
+            "current_hour": data_hour,
+            "pv": hourly_arrays['pv'],
+            "load": hourly_arrays['load'],
+            "grid": hourly_arrays['import'],
+            "export": hourly_arrays['export'],
+            "avg_load": avg_load,
+            "avg_grid": avg_grid
         }
         # Re-save output with hourly data
         with open(output_file, "w") as f:
