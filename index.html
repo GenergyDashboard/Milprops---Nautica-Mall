@@ -947,59 +947,26 @@
             if (!ctx) return;
 
             const hours = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
+            const h = dashData.hourly || {};
 
-            // PV Generation today (hourly increments from pipeline)
-            const pvHourly = dashData.hourly?.today || new Array(24).fill(0);
+            // Real hourly arrays from pipeline
+            const pvHourly = h.pv || new Array(24).fill(0);
+            const loadHourly = h.load || new Array(24).fill(0);
+            const gridHourly = h.grid || new Array(24).fill(0);
 
-            // Predicted = PVSyst monthly hourly averages with degradation
+            // Predicted PV = PVSyst monthly hourly averages with degradation
             const monthlyAvg = calcPvsystMonthlyHourlyAvg();
 
-            // Irradiation (data is already in SAST from Open-Meteo)
+            // Expected load & grid = MTD daily averages per hour
+            const expLoadLine = h.avg_load || new Array(24).fill(0);
+            const expGridLine = h.avg_grid || new Array(24).fill(0);
+
+            // Irradiation - shift 1 hour left as requested
             const todayDate = new Date();
             const todayStr = todayDate.getFullYear() + '-' + String(todayDate.getMonth()+1).padStart(2,'0') + '-' + String(todayDate.getDate()).padStart(2,'0');
-            const irradHourly = irradData?.daily_records?.[todayStr]?.hourly_wm2 || new Array(24).fill(0);
-            // Interpolate hour 6 if hour 7 has data (sunrise starts ~06:00 SAST)
-            if (irradHourly[6] === 0 && irradHourly[7] > 0) {
-                irradHourly[6] = Math.round(irradHourly[7] * 0.15);
-            }
-
-            // Expected Load & Grid (monthly daily averages as flat dashed lines)
-            const d = dashData;
-            const monthCons = d.current_month?.data?.['Consumption (kWh)'] || 0;
-            const monthImport = d.current_month?.data?.['Import (kWh)'] || 0;
-            const monthPV = d.current_month?.data?.['PV Yield (kWh)'] || 0;
-            const now = new Date();
-            const daysElapsed = Math.max(1, now.getDate());
-            // Average daily load and grid import
-            const avgDailyLoad = monthCons / daysElapsed;
-            const avgDailyGrid = monthImport / daysElapsed;
-            // Distribute across sun hours (roughly 06:00-19:00 = 13 hours for load, 24 for grid base)
-            // For display: flat line showing avg hourly value during active hours
-            const sunStart = 5, sunEnd = 20;
-            const activeSunHrs = sunEnd - sunStart;
-            const avgHourlyLoad = avgDailyLoad / activeSunHrs;
-            const avgHourlyGrid = avgDailyGrid / 24;
-
-            const expLoadLine = hours.map((_, h) => (h >= sunStart && h < sunEnd) ? avgHourlyLoad : 0);
-            const expGridLine = new Array(24).fill(avgHourlyGrid);
-
-            // Actual load & grid per hour (estimated from today's data)
-            const todayCons = d.today?.data?.['Consumption (kWh)'] || 0;
-            const todayImport = d.today?.data?.['Import (kWh)'] || 0;
-            const todayExport = d.today?.data?.['Export (kWh)'] || 0;
-            const loadHourly = new Array(24).fill(0);
-            const gridHourly = new Array(24).fill(0);
-            const pvTotal = pvHourly.reduce((a, b) => a + b, 0);
-            if (currentHour > 0) {
-                const hoursElapsed = Math.max(1, currentHour);
-                const avgImpH = todayImport / hoursElapsed;
-                const avgExpH = todayExport / hoursElapsed;
-                for (let h = 0; h < currentHour; h++) {
-                    const pvH = pvHourly[h] || 0;
-                    loadHourly[h] = Math.max(0, pvH + avgImpH - avgExpH);
-                    gridHourly[h] = avgImpH;
-                }
-            }
+            const irradRaw = irradData?.daily_records?.[todayStr]?.hourly_wm2 || new Array(24).fill(0);
+            const irradHourly = new Array(24).fill(0);
+            for (let i = 0; i < 23; i++) irradHourly[i] = irradRaw[i + 1] || 0;
 
             if (hourlyChart) hourlyChart.destroy();
 
@@ -1033,7 +1000,7 @@
                         {
                             type: 'line', label: 'Expected Load (MTD Avg)', data: expLoadLine,
                             borderColor: '#ef4444', borderWidth: 1.5, borderDash: [5, 5],
-                            pointRadius: 0, tension: 0, fill: false,
+                            pointRadius: 0, tension: 0.3, fill: false,
                             yAxisID: 'y', hidden: !dsVisibility.expLoad, order: 4
                         },
                         {
@@ -1044,7 +1011,7 @@
                         {
                             type: 'line', label: 'Expected Grid (MTD Avg)', data: expGridLine,
                             borderColor: '#f97316', borderWidth: 1.5, borderDash: [5, 5],
-                            pointRadius: 0, tension: 0, fill: false,
+                            pointRadius: 0, tension: 0.3, fill: false,
                             yAxisID: 'y', hidden: !dsVisibility.expGrid, order: 4
                         }
                     ]
