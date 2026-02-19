@@ -1,6 +1,6 @@
 {
   "plant": "Nautica Shopping Centre",
-  "last_updated": "2026-02-19 13:34",
+  "last_updated": "2026-02-19 14:05",
   "yesterday": {
     "date": "2026-02-18",
     "data": {
@@ -773,24 +773,48 @@
     "Peak Power (kW)": 593.66,
     "Self-consumption Rate (%)": 85.89
   },
-  "tou_savings": {
+  "savings": {
     "today": {
-      "peak": 428.93,
-      "standard": 2302.88,
-      "off_peak": 0.0,
-      "total": 2731.81
+      "pv_savings": {
+        "peak": 428.93,
+        "standard": 2302.88,
+        "off_peak": 0.0,
+        "total": 2731.81
+      },
+      "export_savings": {
+        "standard": 586.82,
+        "off_peak": 0.0,
+        "total": 586.82
+      },
+      "total": 3318.63
     },
     "current_month": {
-      "peak": 13089.43,
-      "standard": 66579.18,
-      "off_peak": 14598.49,
-      "total": 94267.11
+      "pv_savings": {
+        "peak": 13089.43,
+        "standard": 66579.18,
+        "off_peak": 14598.49,
+        "total": 94267.11
+      },
+      "export_savings": {
+        "standard": 16052.45,
+        "off_peak": 3285.38,
+        "total": 19337.83
+      },
+      "total": 113604.94
     },
     "all_time": {
-      "peak": 351748.27,
-      "standard": 1789162.05,
-      "off_peak": 392300.78,
-      "total": 2533211.37
+      "pv_savings": {
+        "peak": 351748.27,
+        "standard": 1789162.05,
+        "off_peak": 392300.78,
+        "total": 2533211.37
+      },
+      "export_savings": {
+        "standard": 212059.59,
+        "off_peak": 43401.25,
+        "total": 255460.84
+      },
+      "total": 2788672.21
     }
   },
   "hourly": {
@@ -950,6 +974,32 @@
       169.76,
       169.76,
       169.76
+    ],
+    "avg_pv": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.36,
+      95.31,
+      225.47,
+      334.95,
+      434.47,
+      465.12,
+      485.15,
+      451.87,
+      425.85,
+      367.0,
+      288.85,
+      191.77,
+      81.08,
+      1.75,
+      0.0,
+      0.0,
+      0.0,
+      0.0
     ]
   }
 }
