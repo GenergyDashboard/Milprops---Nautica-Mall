@@ -532,6 +532,7 @@
                         <div class="chart-legend-item off" data-ds="expLoad" onclick="toggleDataset('expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (MTD Avg)</div>
                         <div class="chart-legend-item off" data-ds="grid" onclick="toggleDataset('grid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (kW)</div>
                         <div class="chart-legend-item off" data-ds="expGrid" onclick="toggleDataset('expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (MTD Avg)</div>
+                        <div class="chart-legend-item off" data-ds="avgPV" onclick="toggleDataset('avgPV')"><span class="legend-swatch dashed" style="border-color:#4ade80;"></span>Avg Daily PV (MTD)</div>
                     </div>
                     <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
                 </div>
@@ -926,14 +927,14 @@
         // ══════════════════════════════════════════════════
         // HOURLY CHART
         // ══════════════════════════════════════════════════
-        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, expLoad: false, grid: false, expGrid: false };
+        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, expLoad: false, grid: false, expGrid: false, avgPV: false };
 
         function toggleDataset(key) {
             dsVisibility[key] = !dsVisibility[key];
             const el = document.querySelector(`.chart-legend-item[data-ds="${key}"]`);
             if (el) el.classList.toggle('off', !dsVisibility[key]);
             if (hourlyChart) {
-                const map = { predicted: 0, pvGen: 1, irrad: 2, load: 3, expLoad: 4, grid: 5, expGrid: 6 };
+                const map = { predicted: 0, pvGen: 1, irrad: 2, load: 3, expLoad: 4, grid: 5, expGrid: 6, avgPV: 7 };
                 const idx = map[key];
                 if (idx !== undefined) {
                     hourlyChart.data.datasets[idx].hidden = !dsVisibility[key];
@@ -949,8 +950,9 @@
             const hours = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
             const h = dashData.hourly || {};
 
-            // Real hourly arrays from pipeline
-            const pvHourly = h.pv || new Array(24).fill(0);
+            // Real hourly arrays from pipeline (new format: h.pv, h.load, h.grid)
+            // Backward compat: old format had h.today for PV only
+            const pvHourly = h.pv || h.today || new Array(24).fill(0);
             const loadHourly = h.load || new Array(24).fill(0);
             const gridHourly = h.grid || new Array(24).fill(0);
 
@@ -960,6 +962,9 @@
             // Expected load & grid = MTD daily averages per hour
             const expLoadLine = h.avg_load || new Array(24).fill(0);
             const expGridLine = h.avg_grid || new Array(24).fill(0);
+
+            // Avg daily PV per hour (MTD)
+            const avgPVLine = h.avg_pv || new Array(24).fill(0);
 
             // Irradiation - shift 1 hour left as requested
             const todayDate = new Date();
@@ -1013,6 +1018,12 @@
                             borderColor: '#f97316', borderWidth: 1.5, borderDash: [5, 5],
                             pointRadius: 0, tension: 0.3, fill: false,
                             yAxisID: 'y', hidden: !dsVisibility.expGrid, order: 4
+                        },
+                        {
+                            type: 'line', label: 'Avg Daily PV (MTD)', data: avgPVLine,
+                            borderColor: '#4ade80', borderWidth: 1.5, borderDash: [4, 4],
+                            pointRadius: 0, tension: 0.3, fill: false,
+                            yAxisID: 'y', hidden: !dsVisibility.avgPV, order: 4
                         }
                     ]
                 },
