@@ -740,18 +740,34 @@
             return pvsyst.daily_hourly[mmdd] || pvsyst.daily_hourly['02-28'] || new Array(24).fill(0);
         }
 
-        // Today expected: PVSyst hours 0→currentHour × degradation
-        function calcTodayExpected(currentHour) {
+        // PVSyst monthly hourly averages: average each hour across all days in the month
+        function calcPvsystMonthlyHourlyAvg() {
+            if (!pvsyst?.daily_hourly) return new Array(24).fill(0);
             const now = new Date();
-            const mmdd = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-            const hourly = getPvsystDay(mmdd);
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
             const factor = degradationFactor(now.getFullYear());
-            let total = 0;
-            for (let h = 0; h <= currentHour; h++) total += hourly[h] || 0;
-            return total * factor;
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+            const sums = new Array(24).fill(0);
+            let count = 0;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const mmdd = mm + '-' + String(d).padStart(2, '0');
+                const hourly = getPvsystDay(mmdd);
+                for (let h = 0; h < 24; h++) sums[h] += hourly[h];
+                count++;
+            }
+            return sums.map(v => (count > 0 ? v / count : 0) * factor);
         }
 
-        // Month expected: PVSyst for each day up to current day/hour × degradation
+        // Today expected: sum PVSyst monthly hourly averages from hour 0 to currentHour
+        function calcTodayExpected(currentHour) {
+            const avg = calcPvsystMonthlyHourlyAvg();
+            let total = 0;
+            for (let h = 0; h <= currentHour; h++) total += avg[h] || 0;
+            return total;
+        }
+
+        // Month expected: sum PVSyst for each day up to current day/hour × degradation
         function calcMonthExpected(currentHour) {
             const now = new Date();
             const factor = degradationFactor(now.getFullYear());
@@ -817,8 +833,9 @@
             const monthKwh = d.current_month?.data?.['PV Yield (kWh)'] || 0;
             const lifetimeKwh = d.all_time_totals?.['PV Yield (kWh)'] || 0;
 
-            // Use browser local time for PVSyst calculations (PVSyst data is in SAST)
-            const currentHour = new Date().getHours();
+            // Use pipeline's last hour (SAST) for expected calcs, so actual & expected align
+            const pipelineHour = d.hourly?.current_hour;
+            const currentHour = (pipelineHour !== undefined && pipelineHour !== null) ? pipelineHour : new Date().getHours();
 
             // PVSyst-based expected values with degradation
             const todayExp = calcTodayExpected(currentHour);
@@ -934,8 +951,8 @@
             // PV Generation today (hourly increments from pipeline)
             const pvHourly = dashData.hourly?.today || new Array(24).fill(0);
 
-            // Predicted = monthly hourly averages from actual generation data
-            const monthlyAvg = dashData.hourly?.monthly_averages || new Array(24).fill(0);
+            // Predicted = PVSyst monthly hourly averages with degradation
+            const monthlyAvg = calcPvsystMonthlyHourlyAvg();
 
             // Irradiation (data is already in SAST from Open-Meteo)
             const todayDate = new Date();
