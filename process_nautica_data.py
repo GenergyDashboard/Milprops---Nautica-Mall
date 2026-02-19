@@ -542,15 +542,18 @@ def main():
         hourly_gen["days_load"][today_date] = hourly_arrays['load']
         hourly_gen["days_grid"][today_date] = hourly_arrays['import']
         
-        # Monthly averages for load and grid (excluding today)
+        # Monthly averages for load and grid (include today)
         current_month_prefix = now.strftime("%Y-%m")
         month_load_days = {d: hrs for d, hrs in hourly_gen.get("days_load", {}).items()
-                          if d.startswith(current_month_prefix) and d != today_date}
+                          if d.startswith(current_month_prefix)}
         month_grid_days = {d: hrs for d, hrs in hourly_gen.get("days_grid", {}).items()
-                          if d.startswith(current_month_prefix) and d != today_date}
+                          if d.startswith(current_month_prefix)}
+        month_pv_days = {d: hrs for d, hrs in hourly_gen.get("days", {}).items()
+                        if d.startswith(current_month_prefix)}
         
         avg_load = [0.0] * 24
         avg_grid = [0.0] * 24
+        avg_pv = [0.0] * 24
         if month_load_days:
             for hour in range(24):
                 load_vals = [hrs[hour] for hrs in month_load_days.values() if hour < len(hrs)]
@@ -559,6 +562,10 @@ def main():
             for hour in range(24):
                 grid_vals = [hrs[hour] for hrs in month_grid_days.values() if hour < len(hrs)]
                 avg_grid[hour] = round(sum(grid_vals) / len(grid_vals), 2) if grid_vals else 0.0
+        if month_pv_days:
+            for hour in range(24):
+                pv_vals = [hrs[hour] for hrs in month_pv_days.values() if hour < len(hrs)]
+                avg_pv[hour] = round(sum(pv_vals) / len(pv_vals), 2) if pv_vals else 0.0
         
         # Prune old data (keep last 90 days)
         cutoff = (now - timedelta(days=90)).strftime("%Y-%m-%d")
