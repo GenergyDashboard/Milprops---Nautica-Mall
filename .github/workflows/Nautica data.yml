@@ -12,6 +12,8 @@ permissions:
 jobs:
   download-and-process:
     runs-on: ubuntu-latest
+    env:
+      TZ: Africa/Johannesburg
     
     steps:
       - name: Checkout repository
