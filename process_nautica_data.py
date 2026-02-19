@@ -374,13 +374,6 @@ def main():
     pvsyst_file = data_dir.parent / "config" / "pvsyst_predictions.json"
     savings_out = {"today": {}, "current_month": {}, "all_time": {}}
     
-    # Export offset credit rates
-    EXPORT_CREDITS = {
-        "standard": 1.6321,
-        "off_peak": 1.0882,
-        "peak": 0.0  # No credit during peak
-    }
-    
     try:
         if fin_config_file.exists() and pvsyst_file.exists():
             with open(fin_config_file, "r") as f:
@@ -392,6 +385,10 @@ def main():
             seasons = fin.get("seasons", {})
             tou_schedule = fin.get("tou_schedule", {})
             daily_hourly = pvs.get("daily_hourly", {})
+            
+            # Export offset credits from config (editable in Financial config.json)
+            export_credits = fin.get("export_credits", {})
+            print(f"  📋 Export credits: Std=R{export_credits.get('standard', 0)}, OffPk=R{export_credits.get('off_peak', 0)}")
             
             def get_tou_info(hour, date_obj):
                 """Get TOU rate and period for a specific hour and date."""
@@ -433,10 +430,10 @@ def main():
                         pv_sav[period] = pv_sav.get(period, 0) + sc_kwh * rate
                         pv_sav["total"] += sc_kwh * rate
                     
-                    # Export credits: export × offset credit rate
+                    # Export credits: export × offset credit rate from config
                     if export_kwh > 0:
                         exp_kwh = export_kwh * fraction
-                        credit_rate = EXPORT_CREDITS.get(period, 0)
+                        credit_rate = export_credits.get(period, 0)
                         if credit_rate > 0:
                             exp_sav[period] = exp_sav.get(period, 0) + exp_kwh * credit_rate
                             exp_sav["total"] += exp_kwh * credit_rate
