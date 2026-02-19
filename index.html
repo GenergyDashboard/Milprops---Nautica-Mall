@@ -235,18 +235,23 @@
         .perf-bad { color: var(--red); }
         .perf-neutral { color: var(--gold); }
 
-        .slab-savings { margin-top: 12px; padding: 10px 14px; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.15); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; position: relative; }
+        .slab-savings { margin-top: 12px; padding: 10px 14px; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.15); border-radius: 10px; cursor: pointer; }
+        .slab-savings .sv-row { display: flex; justify-content: space-between; align-items: center; }
         .slab-savings .sv-label { color: #94a3b8; font-size: var(--font-xs); }
         .slab-savings .sv-value { color: var(--green); font-size: var(--font-lg); font-weight: 700; }
-
-        /* TOU Breakdown Tooltip */
-        .tou-tooltip {
-            display: none; position: absolute; bottom: 100%; left: 0; right: 0;
-            background: #1a1a1a; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
-            padding: 12px 16px; margin-bottom: 8px; z-index: 10;
-        }
-        .slab-savings:hover .tou-tooltip { display: block; }
-        .tou-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
+        .slab-savings .sv-arrow { color: #94a3b8; font-size: 10px; transition: transform 0.3s; margin-left: 6px; }
+        .slab-savings.open .sv-arrow { transform: rotate(180deg); }
+        .savings-detail { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+        .slab-savings.open .savings-detail { max-height: 400px; }
+        .savings-sub { margin-top: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 8px; cursor: pointer; }
+        .savings-sub .sub-row { display: flex; justify-content: space-between; align-items: center; }
+        .savings-sub .sub-label { font-size: var(--font-xs); color: var(--text-secondary); }
+        .savings-sub .sub-value { font-size: var(--font-base); font-weight: 600; color: white; }
+        .savings-sub .sub-arrow { color: #94a3b8; font-size: 9px; transition: transform 0.3s; margin-left: 6px; }
+        .savings-sub.open .sub-arrow { transform: rotate(180deg); }
+        .sub-detail { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .savings-sub.open .sub-detail { max-height: 150px; }
+        .tou-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
         .tou-row .tou-label { font-size: var(--font-xs); padding: 2px 8px; border-radius: 4px; font-weight: 600; }
         .tou-row .tou-val { font-size: var(--font-xs); font-weight: 600; }
         .tou-label.peak { background: rgba(239,68,68,0.2); color: #ef4444; }
@@ -447,13 +452,24 @@
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ov-today-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ov-today-togrid">-- kWh</span></div>
                         </div>
-                        <div class="slab-savings">
-                            <span class="sv-label">Total Savings</span>
-                            <span class="sv-value">R<span id="ov-today-savings">--</span></span>
-                            <div class="tou-tooltip">
-                                <div class="tou-row"><span class="tou-label peak">Peak</span><span class="tou-val" id="ov-today-tou-peak">R--</span></div>
-                                <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-today-tou-std">R--</span></div>
-                                <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-today-tou-offpk">R--</span></div>
+                        <div class="slab-savings" onclick="this.classList.toggle('open')">
+                            <div class="sv-row"><span class="sv-label">Total Savings <span class="sv-arrow">▼</span></span><span class="sv-value">R<span id="ov-today-savings">--</span></span></div>
+                            <div class="savings-detail">
+                                <div class="savings-sub" onclick="event.stopPropagation();this.classList.toggle('open')">
+                                    <div class="sub-row"><span class="sub-label">PV Savings <span class="sub-arrow">▼</span></span><span class="sub-value" id="ov-today-pvsav">R--</span></div>
+                                    <div class="sub-detail">
+                                        <div class="tou-row"><span class="tou-label peak">Peak</span><span class="tou-val" id="ov-today-pv-peak">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-today-pv-std">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-today-pv-offpk">R--</span></div>
+                                    </div>
+                                </div>
+                                <div class="savings-sub" onclick="event.stopPropagation();this.classList.toggle('open')">
+                                    <div class="sub-row"><span class="sub-label">Export Savings <span class="sub-arrow">▼</span></span><span class="sub-value" id="ov-today-expsav">R--</span></div>
+                                    <div class="sub-detail">
+                                        <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-today-exp-std">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-today-exp-offpk">R--</span></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -467,13 +483,24 @@
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ov-month-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ov-month-togrid">-- kWh</span></div>
                         </div>
-                        <div class="slab-savings">
-                            <span class="sv-label">Total Savings</span>
-                            <span class="sv-value">R<span id="ov-month-savings">--</span></span>
-                            <div class="tou-tooltip">
-                                <div class="tou-row"><span class="tou-label peak">Peak</span><span class="tou-val" id="ov-month-tou-peak">R--</span></div>
-                                <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-month-tou-std">R--</span></div>
-                                <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-month-tou-offpk">R--</span></div>
+                        <div class="slab-savings" onclick="this.classList.toggle('open')">
+                            <div class="sv-row"><span class="sv-label">Total Savings <span class="sv-arrow">▼</span></span><span class="sv-value">R<span id="ov-month-savings">--</span></span></div>
+                            <div class="savings-detail">
+                                <div class="savings-sub" onclick="event.stopPropagation();this.classList.toggle('open')">
+                                    <div class="sub-row"><span class="sub-label">PV Savings <span class="sub-arrow">▼</span></span><span class="sub-value" id="ov-month-pvsav">R--</span></div>
+                                    <div class="sub-detail">
+                                        <div class="tou-row"><span class="tou-label peak">Peak</span><span class="tou-val" id="ov-month-pv-peak">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-month-pv-std">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-month-pv-offpk">R--</span></div>
+                                    </div>
+                                </div>
+                                <div class="savings-sub" onclick="event.stopPropagation();this.classList.toggle('open')">
+                                    <div class="sub-row"><span class="sub-label">Export Savings <span class="sub-arrow">▼</span></span><span class="sub-value" id="ov-month-expsav">R--</span></div>
+                                    <div class="sub-detail">
+                                        <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-month-exp-std">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-month-exp-offpk">R--</span></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -487,13 +514,24 @@
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ov-lifetime-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ov-lifetime-togrid">-- kWh</span></div>
                         </div>
-                        <div class="slab-savings">
-                            <span class="sv-label">Total Savings</span>
-                            <span class="sv-value">R<span id="ov-lifetime-savings">--</span></span>
-                            <div class="tou-tooltip">
-                                <div class="tou-row"><span class="tou-label peak">Peak</span><span class="tou-val" id="ov-lifetime-tou-peak">R--</span></div>
-                                <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-lifetime-tou-std">R--</span></div>
-                                <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-lifetime-tou-offpk">R--</span></div>
+                        <div class="slab-savings" onclick="this.classList.toggle('open')">
+                            <div class="sv-row"><span class="sv-label">Total Savings <span class="sv-arrow">▼</span></span><span class="sv-value">R<span id="ov-lifetime-savings">--</span></span></div>
+                            <div class="savings-detail">
+                                <div class="savings-sub" onclick="event.stopPropagation();this.classList.toggle('open')">
+                                    <div class="sub-row"><span class="sub-label">PV Savings <span class="sub-arrow">▼</span></span><span class="sub-value" id="ov-lifetime-pvsav">R--</span></div>
+                                    <div class="sub-detail">
+                                        <div class="tou-row"><span class="tou-label peak">Peak</span><span class="tou-val" id="ov-lifetime-pv-peak">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-lifetime-pv-std">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-lifetime-pv-offpk">R--</span></div>
+                                    </div>
+                                </div>
+                                <div class="savings-sub" onclick="event.stopPropagation();this.classList.toggle('open')">
+                                    <div class="sub-row"><span class="sub-label">Export Savings <span class="sub-arrow">▼</span></span><span class="sub-value" id="ov-lifetime-expsav">R--</span></div>
+                                    <div class="sub-detail">
+                                        <div class="tou-row"><span class="tou-label standard">Standard</span><span class="tou-val" id="ov-lifetime-exp-std">R--</span></div>
+                                        <div class="tou-row"><span class="tou-label off-peak">Off-Peak</span><span class="tou-val" id="ov-lifetime-exp-offpk">R--</span></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -856,12 +894,12 @@
             const monthCons = d.current_month?.data?.['Consumption (kWh)'] || 0;
             const lifeCons = d.all_time_totals?.['Consumption (kWh)'] || 0;
 
-            // TOU Savings from pipeline
-            const tou = d.tou_savings || {};
+            // Savings from pipeline (PV + Export)
+            const sav = d.savings || {};
 
-            renderSlab('today', todayKwh, todayExp, todayToLoad, todayToGrid, tou.today || {}, todayCons);
-            renderSlab('month', monthKwh, monthExp, monthToLoad, monthToGrid, tou.current_month || {}, monthCons);
-            renderSlab('lifetime', lifetimeKwh, lifetimeExp, lifeToLoad, lifeToGrid, tou.all_time || {}, lifeCons);
+            renderSlab('today', todayKwh, todayExp, todayToLoad, todayToGrid, sav.today || {}, todayCons);
+            renderSlab('month', monthKwh, monthExp, monthToLoad, monthToGrid, sav.current_month || {}, monthCons);
+            renderSlab('lifetime', lifetimeKwh, lifetimeExp, lifeToLoad, lifeToGrid, sav.all_time || {}, lifeCons);
 
             // Env boxes
             [['today', todayKwh], ['month', monthKwh], ['life', lifetimeKwh]].forEach(([id, kwh]) => {
@@ -884,7 +922,7 @@
             renderHourlyChart(currentHour);
         }
 
-        function renderSlab(id, actual, expected, toLoad, toGrid, touData, consumption) {
+        function renderSlab(id, actual, expected, toLoad, toGrid, savData, consumption) {
             document.getElementById('ov-' + id + '-gen').textContent = fmt(actual);
             document.getElementById('ov-' + id + '-exp').textContent = fmt(expected);
 
@@ -916,12 +954,23 @@
             document.getElementById('ov-' + id + '-toload').textContent = fmt(toLoad) + ' kWh';
             document.getElementById('ov-' + id + '-togrid').textContent = fmt(toGrid) + ' kWh';
 
-            // Savings + TOU
-            const total = touData.total || 0;
+            // Savings: Total, PV breakdown, Export breakdown
+            const total = savData.total || 0;
+            const pvSav = savData.pv_savings || {};
+            const expSav = savData.export_savings || {};
+            
             document.getElementById('ov-' + id + '-savings').textContent = fmt(total);
-            document.getElementById('ov-' + id + '-tou-peak').textContent = 'R' + fmt(touData.peak || 0);
-            document.getElementById('ov-' + id + '-tou-std').textContent = 'R' + fmt(touData.standard || 0);
-            document.getElementById('ov-' + id + '-tou-offpk').textContent = 'R' + fmt(touData.off_peak || 0);
+            
+            // PV Savings
+            document.getElementById('ov-' + id + '-pvsav').textContent = 'R' + fmt(pvSav.total || 0);
+            document.getElementById('ov-' + id + '-pv-peak').textContent = 'R' + fmt(pvSav.peak || 0);
+            document.getElementById('ov-' + id + '-pv-std').textContent = 'R' + fmt(pvSav.standard || 0);
+            document.getElementById('ov-' + id + '-pv-offpk').textContent = 'R' + fmt(pvSav.off_peak || 0);
+            
+            // Export Savings
+            document.getElementById('ov-' + id + '-expsav').textContent = 'R' + fmt(expSav.total || 0);
+            document.getElementById('ov-' + id + '-exp-std').textContent = 'R' + fmt(expSav.standard || 0);
+            document.getElementById('ov-' + id + '-exp-offpk').textContent = 'R' + fmt(expSav.off_peak || 0);
         }
 
         // ══════════════════════════════════════════════════
