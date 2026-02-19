@@ -19,6 +19,7 @@ import sys
 import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+import calendar
 
 # Force SAST timezone (UTC+2)
 SAST = timezone(timedelta(hours=2))
@@ -473,36 +474,50 @@ def main():
                 savings_out["current_month"] = {"pv_savings": month_pv, "export_savings": month_ex, "total": total_month}
             print(f"  💰 Month: PV=R{savings_out['current_month'].get('pv_savings',{}).get('total',0):,.2f} + Export=R{savings_out['current_month'].get('export_savings',{}).get('total',0):,.2f}")
             
-            # Lifetime (scale from current month proportions)
-            all_time_sc = all_time.get('Self-consumption (kWh)', 0)
-            all_time_exp = all_time.get('Export (kWh)', 0)
-            if month_sc > 0 and all_time_sc > 0:
-                m_pv_total = savings_out["current_month"].get("pv_savings", {}).get("total", 1)
-                m_ex_total = savings_out["current_month"].get("export_savings", {}).get("total", 1)
+            # Lifetime: loop through every historical month properly
+            lt_pv = {"peak": 0.0, "standard": 0.0, "off_peak": 0.0, "total": 0.0}
+            lt_ex = {"standard": 0.0, "off_peak": 0.0, "total": 0.0}
+            
+            for mk, mv in monthly.items():
+                m_sc = mv.get('Self-consumption (kWh)', 0)
+                m_exp = mv.get('Export (kWh)', 0)
+                if m_sc <= 0 and m_exp <= 0:
+                    continue
                 
-                # PV savings: scale by self-consumption ratio
-                pv_rate = m_pv_total / month_sc if month_sc > 0 else 0
-                lt_pv_total = round(all_time_sc * pv_rate, 2)
-                lt_pv = {}
-                if m_pv_total > 0:
-                    for p in ["peak", "standard", "off_peak"]:
-                        prop = savings_out["current_month"]["pv_savings"].get(p, 0) / m_pv_total
-                        lt_pv[p] = round(lt_pv_total * prop, 2)
-                lt_pv["total"] = lt_pv_total
+                # Parse year-month
+                try:
+                    parts = mk.split('-')
+                    m_year, m_month = int(parts[0]), int(parts[1])
+                except (ValueError, IndexError):
+                    continue
                 
-                # Export savings: scale by export ratio
-                exp_rate = m_ex_total / month_exp if month_exp > 0 else 0
-                lt_ex_total = round(all_time_exp * exp_rate, 2)
-                lt_ex = {}
-                if m_ex_total > 0:
-                    for p in ["standard", "off_peak"]:
-                        prop = savings_out["current_month"]["export_savings"].get(p, 0) / m_ex_total
-                        lt_ex[p] = round(lt_ex_total * prop, 2)
-                lt_ex["total"] = lt_ex_total
+                # For current month: use days elapsed; for past months: full month
+                if mk == current_month_key:
+                    num_days = now.day
+                else:
+                    num_days = calendar.monthrange(m_year, m_month)[1]
                 
-                total_lt = round(lt_pv_total + lt_ex_total, 2)
-                savings_out["all_time"] = {"pv_savings": lt_pv, "export_savings": lt_ex, "total": total_lt}
-            print(f"  💰 Lifetime: Total=R{savings_out['all_time'].get('total', 0):,.2f}")
+                if num_days <= 0:
+                    continue
+                
+                daily_sc = m_sc / num_days
+                daily_exp = m_exp / num_days
+                
+                # Loop each actual calendar day for correct weekday/weekend TOU
+                for d in range(1, num_days + 1):
+                    try:
+                        day_date = datetime(m_year, m_month, d, tzinfo=SAST)
+                    except ValueError:
+                        continue
+                    dp, de = calc_day_savings(daily_sc, daily_exp, day_date)
+                    for k in lt_pv: lt_pv[k] += dp.get(k, 0)
+                    for k in lt_ex: lt_ex[k] += de.get(k, 0)
+            
+            lt_pv = {k: round(v, 2) for k, v in lt_pv.items()}
+            lt_ex = {k: round(v, 2) for k, v in lt_ex.items()}
+            total_lt = round(lt_pv["total"] + lt_ex["total"], 2)
+            savings_out["all_time"] = {"pv_savings": lt_pv, "export_savings": lt_ex, "total": total_lt}
+            print(f"  💰 Lifetime: PV=R{lt_pv['total']:,.2f} + Export=R{lt_ex['total']:,.2f} = R{total_lt:,.2f}")
         else:
             if not fin_config_file.exists():
                 print("  ℹ️  Financial config not found - skipping savings")
