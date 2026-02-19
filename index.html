@@ -570,7 +570,7 @@
                         <div class="chart-legend-item off" data-ds="expLoad" onclick="toggleDataset('expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (MTD Avg)</div>
                         <div class="chart-legend-item off" data-ds="grid" onclick="toggleDataset('grid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (kW)</div>
                         <div class="chart-legend-item off" data-ds="expGrid" onclick="toggleDataset('expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (MTD Avg)</div>
-                        <div class="chart-legend-item off" data-ds="avgPV" onclick="toggleDataset('avgPV')"><span class="legend-swatch dashed" style="border-color:#4ade80;"></span>Avg Daily PV (MTD)</div>
+                        <div class="chart-legend-item" data-ds="avgPV" onclick="toggleDataset('avgPV')"><span class="legend-swatch dashed" style="border-color:#4ade80;"></span>Avg Daily PV (MTD)</div>
                     </div>
                     <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
                 </div>
@@ -603,6 +603,7 @@
         const DATA_URL = 'data/nautica_processed.json';
         const PVSYST_URL = 'config/pvsyst_predictions.json';
         const IRRAD_URL = 'data/irradiation_data.json';
+        function cacheBust(url) { return url + '?t=' + Date.now(); }
         let dashData = null;
         let pvsyst = null;
         let irradData = null;
@@ -632,7 +633,7 @@
         // AUTH (uses SHA-256 hashed credentials)
         // ══════════════════════════════════════════════════
         async function loadCredentials() {
-            try { const r = await fetch('config/client_credentials.json'); if (r.ok) credentials = await r.json(); } catch(e) {}
+            try { const r = await fetch(cacheBust('config/client_credentials.json')); if (r.ok) credentials = await r.json(); } catch(e) {}
         }
 
         async function hashStr(str) {
@@ -712,9 +713,9 @@
         async function loadData() {
             try {
                 const [dataRes, pvsystRes, irradRes] = await Promise.all([
-                    fetch(DATA_URL),
-                    fetch(PVSYST_URL),
-                    fetch(IRRAD_URL)
+                    fetch(cacheBust(DATA_URL)),
+                    fetch(cacheBust(PVSYST_URL)),
+                    fetch(cacheBust(IRRAD_URL))
                 ]);
                 if (!dataRes.ok) throw new Error(dataRes.status);
                 dashData = await dataRes.json();
@@ -894,12 +895,22 @@
             const monthCons = d.current_month?.data?.['Consumption (kWh)'] || 0;
             const lifeCons = d.all_time_totals?.['Consumption (kWh)'] || 0;
 
-            // Savings from pipeline (PV + Export)
+            // Savings from pipeline (PV + Export) - support both new 'savings' and old 'tou_savings' key
             const sav = d.savings || {};
+            // Backward compat: if old tou_savings exists but new savings doesn't, convert
+            const touCompat = d.tou_savings || {};
+            function getSav(period) {
+                const s = sav[period];
+                if (s && s.total !== undefined) return s;
+                // Old format: tou_savings had {peak, standard, off_peak, total} directly
+                const old = touCompat[period];
+                if (old && old.total !== undefined) return { pv_savings: old, export_savings: {total: 0}, total: old.total };
+                return {};
+            }
 
-            renderSlab('today', todayKwh, todayExp, todayToLoad, todayToGrid, sav.today || {}, todayCons);
-            renderSlab('month', monthKwh, monthExp, monthToLoad, monthToGrid, sav.current_month || {}, monthCons);
-            renderSlab('lifetime', lifetimeKwh, lifetimeExp, lifeToLoad, lifeToGrid, sav.all_time || {}, lifeCons);
+            renderSlab('today', todayKwh, todayExp, todayToLoad, todayToGrid, getSav('today'), todayCons);
+            renderSlab('month', monthKwh, monthExp, monthToLoad, monthToGrid, getSav('current_month'), monthCons);
+            renderSlab('lifetime', lifetimeKwh, lifetimeExp, lifeToLoad, lifeToGrid, getSav('all_time'), lifeCons);
 
             // Env boxes
             [['today', todayKwh], ['month', monthKwh], ['life', lifetimeKwh]].forEach(([id, kwh]) => {
@@ -976,7 +987,7 @@
         // ══════════════════════════════════════════════════
         // HOURLY CHART
         // ══════════════════════════════════════════════════
-        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, expLoad: false, grid: false, expGrid: false, avgPV: false };
+        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, expLoad: false, grid: false, expGrid: false, avgPV: true };
 
         function toggleDataset(key) {
             dsVisibility[key] = !dsVisibility[key];
