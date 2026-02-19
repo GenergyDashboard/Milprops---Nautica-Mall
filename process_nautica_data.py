@@ -369,10 +369,17 @@ def main():
     total_pv = all_time.get("PV Yield (kWh)", 0)
     print(f"  ⚡ All-time PV Yield:     {total_pv:,.2f} kWh")
     
-    # ── Calculate TOU Savings ──────────────────────────────────────────────
+    # ── Calculate Savings (PV TOU + Export Credits) ──────────────────────
     fin_config_file = data_dir.parent / "config" / "Financial config.json"
     pvsyst_file = data_dir.parent / "config" / "pvsyst_predictions.json"
-    tou_savings = {"today": {}, "current_month": {}, "all_time": {}}
+    savings_out = {"today": {}, "current_month": {}, "all_time": {}}
+    
+    # Export offset credit rates
+    EXPORT_CREDITS = {
+        "standard": 1.6321,
+        "off_peak": 1.0882,
+        "peak": 0.0  # No credit during peak
+    }
     
     try:
         if fin_config_file.exists() and pvsyst_file.exists():
@@ -386,11 +393,11 @@ def main():
             tou_schedule = fin.get("tou_schedule", {})
             daily_hourly = pvs.get("daily_hourly", {})
             
-            def get_tou_rate(hour, date_obj):
-                """Get TOU rate for a specific hour and date."""
+            def get_tou_info(hour, date_obj):
+                """Get TOU rate and period for a specific hour and date."""
                 month_str = str(date_obj.month)
                 season = seasons.get(month_str, "low_demand")
-                weekday = date_obj.weekday()  # 0=Mon, 6=Sun
+                weekday = date_obj.weekday()
                 
                 if weekday < 5:
                     day_type = "weekday"
@@ -400,79 +407,110 @@ def main():
                     day_type = "sunday"
                 
                 schedule = tou_schedule.get(season, {}).get(day_type, [])
-                if hour < len(schedule):
-                    period = schedule[hour]
-                else:
-                    period = "off_peak"
-                
+                period = schedule[hour] if hour < len(schedule) else "off_peak"
                 rate = rates.get(season, {}).get(period, 0)
                 return rate, period
             
-            def calc_tou_savings(self_cons_kwh, date_obj):
-                """Distribute self-consumption across hours using PVSyst pattern and apply TOU rates."""
+            def calc_day_savings(self_cons_kwh, export_kwh, date_obj):
+                """Calculate PV savings (TOU) and export credits for one day."""
                 mmdd = date_obj.strftime("%m-%d")
                 hourly_pattern = daily_hourly.get(mmdd, [0]*24)
                 pattern_total = sum(hourly_pattern)
                 
-                savings = {"peak": 0.0, "standard": 0.0, "off_peak": 0.0, "total": 0.0}
+                pv_sav = {"peak": 0.0, "standard": 0.0, "off_peak": 0.0, "total": 0.0}
+                exp_sav = {"standard": 0.0, "off_peak": 0.0, "total": 0.0}
                 
-                if pattern_total <= 0 or self_cons_kwh <= 0:
-                    return savings
+                if pattern_total <= 0:
+                    return pv_sav, exp_sav
                 
                 for h in range(24):
                     fraction = hourly_pattern[h] / pattern_total
-                    hour_kwh = self_cons_kwh * fraction
-                    rate, period = get_tou_rate(h, date_obj)
-                    hour_savings = hour_kwh * rate
-                    savings[period] = savings.get(period, 0) + hour_savings
-                    savings["total"] += hour_savings
+                    rate, period = get_tou_info(h, date_obj)
+                    
+                    # PV savings: self-consumption × TOU rate
+                    if self_cons_kwh > 0:
+                        sc_kwh = self_cons_kwh * fraction
+                        pv_sav[period] = pv_sav.get(period, 0) + sc_kwh * rate
+                        pv_sav["total"] += sc_kwh * rate
+                    
+                    # Export credits: export × offset credit rate
+                    if export_kwh > 0:
+                        exp_kwh = export_kwh * fraction
+                        credit_rate = EXPORT_CREDITS.get(period, 0)
+                        if credit_rate > 0:
+                            exp_sav[period] = exp_sav.get(period, 0) + exp_kwh * credit_rate
+                            exp_sav["total"] += exp_kwh * credit_rate
                 
-                return {k: round(v, 2) for k, v in savings.items()}
+                pv_sav = {k: round(v, 2) for k, v in pv_sav.items()}
+                exp_sav = {k: round(v, 2) for k, v in exp_sav.items()}
+                return pv_sav, exp_sav
             
-            # Today's TOU savings
-            today_self_cons = daily_data.get('Self-consumption (kWh)', 0)
-            tou_savings["today"] = calc_tou_savings(today_self_cons, now)
-            print(f"  💰 Today TOU savings:    R {tou_savings['today'].get('total', 0):,.2f}")
+            # Today
+            today_sc = daily_data.get('Self-consumption (kWh)', 0)
+            today_exp = daily_data.get('Export (kWh)', 0)
+            pv_s, exp_s = calc_day_savings(today_sc, today_exp, now)
+            total_today = round(pv_s["total"] + exp_s["total"], 2)
+            savings_out["today"] = {"pv_savings": pv_s, "export_savings": exp_s, "total": total_today}
+            print(f"  💰 Today: PV=R{pv_s['total']:,.2f} + Export=R{exp_s['total']:,.2f} = R{total_today:,.2f}")
             
-            # Monthly TOU savings (approximate: distribute monthly self-cons across days)
-            month_self_cons = monthly[current_month_key].get('Self-consumption (kWh)', 0)
-            # Use mid-month date for seasonal rate lookup
-            mid_month = now.replace(day=15)
+            # Monthly
+            month_sc = monthly[current_month_key].get('Self-consumption (kWh)', 0)
+            month_exp = monthly[current_month_key].get('Export (kWh)', 0)
             month_days_count = now.day
-            if month_days_count > 0 and month_self_cons > 0:
-                # Calculate daily average and sum TOU for each day
-                month_tou = {"peak": 0.0, "standard": 0.0, "off_peak": 0.0, "total": 0.0}
-                daily_avg_sc = month_self_cons / month_days_count
+            if month_days_count > 0:
+                month_pv = {"peak": 0.0, "standard": 0.0, "off_peak": 0.0, "total": 0.0}
+                month_ex = {"standard": 0.0, "off_peak": 0.0, "total": 0.0}
+                daily_avg_sc = month_sc / month_days_count
+                daily_avg_exp = month_exp / month_days_count
                 for d in range(1, month_days_count + 1):
                     day_date = now.replace(day=d)
-                    day_savings = calc_tou_savings(daily_avg_sc, day_date)
-                    for k in month_tou:
-                        month_tou[k] += day_savings.get(k, 0)
-                tou_savings["current_month"] = {k: round(v, 2) for k, v in month_tou.items()}
-            print(f"  💰 Month TOU savings:    R {tou_savings['current_month'].get('total', 0):,.2f}")
+                    dp, de = calc_day_savings(daily_avg_sc, daily_avg_exp, day_date)
+                    for k in month_pv: month_pv[k] += dp.get(k, 0)
+                    for k in month_ex: month_ex[k] += de.get(k, 0)
+                month_pv = {k: round(v, 2) for k, v in month_pv.items()}
+                month_ex = {k: round(v, 2) for k, v in month_ex.items()}
+                total_month = round(month_pv["total"] + month_ex["total"], 2)
+                savings_out["current_month"] = {"pv_savings": month_pv, "export_savings": month_ex, "total": total_month}
+            print(f"  💰 Month: PV=R{savings_out['current_month'].get('pv_savings',{}).get('total',0):,.2f} + Export=R{savings_out['current_month'].get('export_savings',{}).get('total',0):,.2f}")
             
-            # Lifetime TOU savings (sum of all monthly revenue or approximate)
-            # Use accumulated revenue from data as lifetime total, with TOU proportions from current month
-            all_time_self_cons = all_time.get('Self-consumption (kWh)', 0)
-            if all_time_self_cons > 0 and month_self_cons > 0:
-                # Scale current month's TOU proportions to lifetime
-                m_total = tou_savings["current_month"].get("total", 1)
-                if m_total > 0:
-                    # Use average rate from current month proportions
-                    avg_rate = m_total / month_self_cons
-                    lt_total = all_time_self_cons * avg_rate
-                    for period in ["peak", "standard", "off_peak"]:
-                        proportion = tou_savings["current_month"].get(period, 0) / m_total
-                        tou_savings["all_time"][period] = round(lt_total * proportion, 2)
-                    tou_savings["all_time"]["total"] = round(lt_total, 2)
-            print(f"  💰 Lifetime TOU savings: R {tou_savings['all_time'].get('total', 0):,.2f}")
+            # Lifetime (scale from current month proportions)
+            all_time_sc = all_time.get('Self-consumption (kWh)', 0)
+            all_time_exp = all_time.get('Export (kWh)', 0)
+            if month_sc > 0 and all_time_sc > 0:
+                m_pv_total = savings_out["current_month"].get("pv_savings", {}).get("total", 1)
+                m_ex_total = savings_out["current_month"].get("export_savings", {}).get("total", 1)
+                
+                # PV savings: scale by self-consumption ratio
+                pv_rate = m_pv_total / month_sc if month_sc > 0 else 0
+                lt_pv_total = round(all_time_sc * pv_rate, 2)
+                lt_pv = {}
+                if m_pv_total > 0:
+                    for p in ["peak", "standard", "off_peak"]:
+                        prop = savings_out["current_month"]["pv_savings"].get(p, 0) / m_pv_total
+                        lt_pv[p] = round(lt_pv_total * prop, 2)
+                lt_pv["total"] = lt_pv_total
+                
+                # Export savings: scale by export ratio
+                exp_rate = m_ex_total / month_exp if month_exp > 0 else 0
+                lt_ex_total = round(all_time_exp * exp_rate, 2)
+                lt_ex = {}
+                if m_ex_total > 0:
+                    for p in ["standard", "off_peak"]:
+                        prop = savings_out["current_month"]["export_savings"].get(p, 0) / m_ex_total
+                        lt_ex[p] = round(lt_ex_total * prop, 2)
+                lt_ex["total"] = lt_ex_total
+                
+                total_lt = round(lt_pv_total + lt_ex_total, 2)
+                savings_out["all_time"] = {"pv_savings": lt_pv, "export_savings": lt_ex, "total": total_lt}
+            print(f"  💰 Lifetime: Total=R{savings_out['all_time'].get('total', 0):,.2f}")
         else:
             if not fin_config_file.exists():
-                print("  ℹ️  Financial config not found - skipping TOU savings")
+                print("  ℹ️  Financial config not found - skipping savings")
             if not pvsyst_file.exists():
-                print("  ℹ️  PVSyst predictions not found - skipping TOU savings")
+                print("  ℹ️  PVSyst predictions not found - skipping savings")
     except Exception as e:
-        print(f"  ⚠️  TOU savings calc error (non-fatal): {e}")
+        print(f"  ⚠️  Savings calc error (non-fatal): {e}")
+        import traceback; traceback.print_exc()
     
     # ── Load yesterday's data ─────────────────────────────────────────────
     # Check new key first, fall back to old key for backward compatibility
@@ -514,7 +552,7 @@ def main():
             for k, v in sorted(lifetime.items())
         },
         "all_time_totals": {k: round(v, 2) for k, v in all_time.items()},
-        "tou_savings": tou_savings
+        "savings": savings_out
     }
     
     # ── Save output ────────────────────────────────────────────────────────
@@ -581,6 +619,7 @@ def main():
         print(f"⚠️  Hourly tracking error (non-fatal): {e}")
         avg_load = [0.0] * 24
         avg_grid = [0.0] * 24
+        avg_pv = [0.0] * 24
     
     # ── Add hourly data to output ───────────────────────────────────────────
     try:
@@ -591,7 +630,8 @@ def main():
             "grid": hourly_arrays['import'],
             "export": hourly_arrays['export'],
             "avg_load": avg_load,
-            "avg_grid": avg_grid
+            "avg_grid": avg_grid,
+            "avg_pv": avg_pv
         }
         # Re-save output with hourly data
         with open(output_file, "w") as f:
