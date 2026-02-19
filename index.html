@@ -425,7 +425,7 @@
             <div class="info-bar">
                 <div class="info-item"><span class="lbl">Last Updated:</span><span class="val" id="infoLastUpdate">--</span></div>
                 <div class="info-item"><span class="lbl">Days Active:</span><span class="val" id="infoDaysActive">--</span></div>
-                <div class="info-item"><span class="lbl">System Capacity:</span><span class="val">294.1 kWp</span></div>
+                <div class="info-item"><span class="lbl">System Capacity:</span><span class="val">600 kWp</span></div>
             </div>
 
             <div class="tab-nav">
@@ -525,11 +525,13 @@
                 <div class="chart-container">
                     <h3>Hourly Generation Pattern</h3>
                     <div class="chart-legend-row" id="chartLegend">
-                        <div class="chart-legend-item" data-ds="predicted" onclick="toggleDataset('predicted')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Predicted (PVSyst)</div>
+                        <div class="chart-legend-item" data-ds="predicted" onclick="toggleDataset('predicted')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Predicted (Monthly Avg)</div>
                         <div class="chart-legend-item" data-ds="pvGen" onclick="toggleDataset('pvGen')"><span class="legend-swatch" style="background:#4ade80;"></span>PV Generation (kW)</div>
                         <div class="chart-legend-item" data-ds="irrad" onclick="toggleDataset('irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Irradiation (W/m²)</div>
                         <div class="chart-legend-item off" data-ds="load" onclick="toggleDataset('load')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (kW)</div>
-                        <div class="chart-legend-item off" data-ds="grid" onclick="toggleDataset('grid')"><span class="legend-swatch" style="background:#f97316;"></span>Grid Import (kW)</div>
+                        <div class="chart-legend-item off" data-ds="expLoad" onclick="toggleDataset('expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (MTD Avg)</div>
+                        <div class="chart-legend-item off" data-ds="grid" onclick="toggleDataset('grid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (kW)</div>
+                        <div class="chart-legend-item off" data-ds="expGrid" onclick="toggleDataset('expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (MTD Avg)</div>
                     </div>
                     <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
                 </div>
@@ -815,7 +817,8 @@
             const monthKwh = d.current_month?.data?.['PV Yield (kWh)'] || 0;
             const lifetimeKwh = d.all_time_totals?.['PV Yield (kWh)'] || 0;
 
-            const currentHour = d.hourly?.current_hour ?? new Date().getHours();
+            // Use browser local time for PVSyst calculations (PVSyst data is in SAST)
+            const currentHour = new Date().getHours();
 
             // PVSyst-based expected values with degradation
             const todayExp = calcTodayExpected(currentHour);
@@ -906,15 +909,14 @@
         // ══════════════════════════════════════════════════
         // HOURLY CHART
         // ══════════════════════════════════════════════════
-        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, grid: false };
+        const dsVisibility = { predicted: true, pvGen: true, irrad: true, load: false, expLoad: false, grid: false, expGrid: false };
 
         function toggleDataset(key) {
             dsVisibility[key] = !dsVisibility[key];
             const el = document.querySelector(`.chart-legend-item[data-ds="${key}"]`);
             if (el) el.classList.toggle('off', !dsVisibility[key]);
             if (hourlyChart) {
-                // Map key to dataset index
-                const map = { predicted: 0, pvGen: 1, irrad: 2, load: 3, grid: 4 };
+                const map = { predicted: 0, pvGen: 1, irrad: 2, load: 3, expLoad: 4, grid: 5, expGrid: 6 };
                 const idx = map[key];
                 if (idx !== undefined) {
                     hourlyChart.data.datasets[idx].hidden = !dsVisibility[key];
@@ -928,38 +930,57 @@
             if (!ctx) return;
 
             const hours = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
-            const now = new Date();
-            const mmdd = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 
             // PV Generation today (hourly increments from pipeline)
             const pvHourly = dashData.hourly?.today || new Array(24).fill(0);
 
-            // Predicted from PVSyst (with degradation)
-            const factor = degradationFactor(now.getFullYear());
-            const pvsystDay = getPvsystDay(mmdd);
-            const predicted = pvsystDay.map(v => Math.round(v * factor * 100) / 100);
+            // Predicted = monthly hourly averages from actual generation data
+            const monthlyAvg = dashData.hourly?.monthly_averages || new Array(24).fill(0);
 
-            // Irradiation
-            const todayStr = now.toISOString().split('T')[0];
+            // Irradiation (data is already in SAST from Open-Meteo)
+            const todayDate = new Date();
+            const todayStr = todayDate.getFullYear() + '-' + String(todayDate.getMonth()+1).padStart(2,'0') + '-' + String(todayDate.getDate()).padStart(2,'0');
             const irradHourly = irradData?.daily_records?.[todayStr]?.hourly_wm2 || new Array(24).fill(0);
+            // Interpolate hour 6 if hour 7 has data (sunrise starts ~06:00 SAST)
+            if (irradHourly[6] === 0 && irradHourly[7] > 0) {
+                irradHourly[6] = Math.round(irradHourly[7] * 0.15);
+            }
 
-            // Load estimate per hour: if we have consumption & PVSyst pattern, distribute
-            const todayCons = dashData.today?.data?.['Consumption (kWh)'] || 0;
-            const todayImport = dashData.today?.data?.['Import (kWh)'] || 0;
-            const todayExport = dashData.today?.data?.['Export (kWh)'] || 0;
-            // Simple hourly load estimate: self-consumption pattern from PV shape + flat base from import
+            // Expected Load & Grid (monthly daily averages as flat dashed lines)
+            const d = dashData;
+            const monthCons = d.current_month?.data?.['Consumption (kWh)'] || 0;
+            const monthImport = d.current_month?.data?.['Import (kWh)'] || 0;
+            const monthPV = d.current_month?.data?.['PV Yield (kWh)'] || 0;
+            const now = new Date();
+            const daysElapsed = Math.max(1, now.getDate());
+            // Average daily load and grid import
+            const avgDailyLoad = monthCons / daysElapsed;
+            const avgDailyGrid = monthImport / daysElapsed;
+            // Distribute across sun hours (roughly 06:00-19:00 = 13 hours for load, 24 for grid base)
+            // For display: flat line showing avg hourly value during active hours
+            const sunStart = 5, sunEnd = 20;
+            const activeSunHrs = sunEnd - sunStart;
+            const avgHourlyLoad = avgDailyLoad / activeSunHrs;
+            const avgHourlyGrid = avgDailyGrid / 24;
+
+            const expLoadLine = hours.map((_, h) => (h >= sunStart && h < sunEnd) ? avgHourlyLoad : 0);
+            const expGridLine = new Array(24).fill(avgHourlyGrid);
+
+            // Actual load & grid per hour (estimated from today's data)
+            const todayCons = d.today?.data?.['Consumption (kWh)'] || 0;
+            const todayImport = d.today?.data?.['Import (kWh)'] || 0;
+            const todayExport = d.today?.data?.['Export (kWh)'] || 0;
             const loadHourly = new Array(24).fill(0);
             const gridHourly = new Array(24).fill(0);
             const pvTotal = pvHourly.reduce((a, b) => a + b, 0);
-            if (pvTotal > 0 && todayCons > 0) {
-                const hoursElapsed = Math.max(1, currentHour + 1);
-                const avgImportPerHr = todayImport / hoursElapsed;
-                const avgExportPerHr = todayExport / hoursElapsed;
-                for (let h = 0; h <= currentHour; h++) {
-                    // Load ≈ PV at that hour + import share - export share
+            if (currentHour > 0) {
+                const hoursElapsed = Math.max(1, currentHour);
+                const avgImpH = todayImport / hoursElapsed;
+                const avgExpH = todayExport / hoursElapsed;
+                for (let h = 0; h < currentHour; h++) {
                     const pvH = pvHourly[h] || 0;
-                    loadHourly[h] = Math.max(0, pvH + avgImportPerHr - avgExportPerHr);
-                    gridHourly[h] = avgImportPerHr;
+                    loadHourly[h] = Math.max(0, pvH + avgImpH - avgExpH);
+                    gridHourly[h] = avgImpH;
                 }
             }
 
@@ -970,7 +991,7 @@
                     labels: hours,
                     datasets: [
                         {
-                            type: 'line', label: 'Predicted (PVSyst)', data: predicted,
+                            type: 'line', label: 'Predicted (Monthly Avg)', data: monthlyAvg,
                             borderColor: '#60a5fa', borderWidth: 2, borderDash: [6, 4],
                             pointRadius: 0, tension: 0.3, fill: false,
                             yAxisID: 'y', hidden: !dsVisibility.predicted, order: 2
@@ -979,7 +1000,7 @@
                             type: 'bar', label: 'PV Generation (kW)', data: pvHourly,
                             backgroundColor: 'rgba(74, 222, 128, 0.7)', borderColor: '#4ade80',
                             borderWidth: 1, borderRadius: 3,
-                            yAxisID: 'y', hidden: !dsVisibility.pvGen, order: 3
+                            yAxisID: 'y', hidden: !dsVisibility.pvGen, order: 5
                         },
                         {
                             type: 'line', label: 'Irradiation (W/m²)', data: irradHourly,
@@ -990,12 +1011,24 @@
                         {
                             type: 'line', label: 'Actual Load (kW)', data: loadHourly,
                             borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.3,
-                            fill: false, yAxisID: 'y', hidden: !dsVisibility.load, order: 4
+                            fill: false, yAxisID: 'y', hidden: !dsVisibility.load, order: 3
                         },
                         {
-                            type: 'line', label: 'Grid Import (kW)', data: gridHourly,
+                            type: 'line', label: 'Expected Load (MTD Avg)', data: expLoadLine,
+                            borderColor: '#ef4444', borderWidth: 1.5, borderDash: [5, 5],
+                            pointRadius: 0, tension: 0, fill: false,
+                            yAxisID: 'y', hidden: !dsVisibility.expLoad, order: 4
+                        },
+                        {
+                            type: 'line', label: 'Actual Grid (kW)', data: gridHourly,
                             borderColor: '#f97316', borderWidth: 2, pointRadius: 0, tension: 0.3,
-                            fill: false, yAxisID: 'y', hidden: !dsVisibility.grid, order: 5
+                            fill: false, yAxisID: 'y', hidden: !dsVisibility.grid, order: 3
+                        },
+                        {
+                            type: 'line', label: 'Expected Grid (MTD Avg)', data: expGridLine,
+                            borderColor: '#f97316', borderWidth: 1.5, borderDash: [5, 5],
+                            pointRadius: 0, tension: 0, fill: false,
+                            yAxisID: 'y', hidden: !dsVisibility.expGrid, order: 4
                         }
                     ]
                 },
@@ -1022,7 +1055,7 @@
                         },
                         y: {
                             position: 'left', beginAtZero: true,
-                            title: { display: true, text: 'Power (kW)', color: '#888', font: { size: 11 } },
+                            title: { display: true, text: 'Power (kW) - Generation, Load, Grid', color: '#888', font: { size: 11 } },
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             ticks: { color: '#888', font: { size: 10 } }
                         },
