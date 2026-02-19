@@ -1023,8 +1023,11 @@
             const expLoadLine = h.avg_load || new Array(24).fill(0);
             const expGridLine = h.avg_grid || new Array(24).fill(0);
 
-            // Avg daily PV per hour (MTD)
-            const avgPVLine = h.avg_pv || new Array(24).fill(0);
+            // Avg daily PV (MTD) = flat line: month PV total / days elapsed
+            const monthPV = dashData.current_month?.data?.['PV Yield (kWh)'] || 0;
+            const daysElapsed = Math.max(1, new Date().getDate());
+            const avgDailyPV = monthPV / daysElapsed;
+            const avgPVLine = new Array(24).fill(Math.round(avgDailyPV * 10) / 10);
 
             // Irradiation - shift 1 hour left as requested
             const todayDate = new Date();
