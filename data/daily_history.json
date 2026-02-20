@@ -2209,12 +2209,12 @@
     }
   },
   "2026-02-20": {
-    "current_hour": 15,
-    "pv": 3583.88,
-    "import": 1422.33,
-    "export": 730.8,
-    "self_consumption": 2853.08,
-    "consumption": 4275.41,
+    "current_hour": 16,
+    "pv": 3943.18,
+    "import": 1459.2,
+    "export": 736.0,
+    "self_consumption": 3207.18,
+    "consumption": 4666.38,
     "hourly": {
       "pv": [
         0.0,
@@ -2233,7 +2233,7 @@
         545.98,
         523.98,
         454.29,
-        0.0,
+        359.3,
         0.0,
         0.0,
         0.0,
@@ -2259,7 +2259,7 @@
         383.18,
         346.78,
         387.07,
-        0.0,
+        390.97,
         0.0,
         0.0,
         0.0,
@@ -2285,7 +2285,7 @@
         0.0,
         0.0,
         0.38,
-        0.0,
+        36.87,
         0.0,
         0.0,
         0.0,
@@ -2311,7 +2311,7 @@
         162.8,
         177.2,
         67.6,
-        0.0,
+        5.2,
         0.0,
         0.0,
         0.0,
@@ -2332,13 +2332,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 3396.58,
-        "import": 257.53,
-        "self_consumption": 2666.18,
-        "export": 730.4,
-        "utility_cost": 412.77,
-        "pv_savings": 4273.35,
-        "export_savings": 1192.09
+        "generation": 3755.88,
+        "import": 294.4,
+        "self_consumption": 3020.28,
+        "export": 735.6,
+        "utility_cost": 471.86,
+        "pv_savings": 4840.9,
+        "export_savings": 1200.57
       },
       "off_peak": {
         "generation": 0.0,
@@ -2352,17 +2352,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 768.24,
-        "standard": 4141.01,
+        "peak": 863.58,
+        "standard": 4654.95,
         "off_peak": 0.0,
-        "total": 4909.24
+        "total": 5518.54
       },
       "export_savings": {
-        "standard": 1080.09,
+        "standard": 1087.77,
         "off_peak": 0.0,
-        "total": 1080.09
+        "total": 1087.77
       },
-      "total": 5989.33
+      "total": 6606.31
     }
   }
 }
