@@ -788,31 +788,32 @@
                     <h3>Daily Generation for Selected Month</h3>
                     <div class="chart-legend-row">
                         <div class="chart-legend-defaults">
-                            <div class="chart-legend-item" data-mds="m-actGen" onclick="toggleMonthlyDs('m-actGen')"><span class="legend-swatch" style="background:#4ade80;"></span>Actual Generation</div>
-                            <div class="chart-legend-item" data-mds="m-expGen" onclick="toggleMonthlyDs('m-expGen')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected Generation</div>
-                            <div class="chart-legend-item" data-mds="m-cumPerf" onclick="toggleMonthlyDs('m-cumPerf')"><span class="legend-swatch" style="background:#FFD700;"></span>Cumulative Performance (%)</div>
+                            <div class="chart-legend-item" data-mds="m-avgPV" onclick="toggleMonthlyDs('m-avgPV')"><span class="legend-swatch" style="background:#4ade80;border:1px solid #4ade80;"></span>Avg PV (MTD)</div>
+                            <div class="chart-legend-item" data-mds="m-expPVAvg" onclick="toggleMonthlyDs('m-expPVAvg')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV Avg</div>
+                            <div class="chart-legend-item" data-mds="m-actGen" onclick="toggleMonthlyDs('m-actGen')"><span class="legend-swatch" style="background:rgba(74,222,128,0.7);"></span>PV Generation</div>
+                            <div class="chart-legend-item" data-mds="m-irrad" onclick="toggleMonthlyDs('m-irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Irradiation (scaled)</div>
                         </div>
                         <div class="chart-legend-more" onclick="this.classList.toggle('open')">
                             <span class="more-btn">More ▼</span>
                             <div class="more-items">
-                                <div class="chart-legend-item off" data-mds="m-actLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-actLoad')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load</div>
-                                <div class="chart-legend-item off" data-mds="m-expLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load</div>
-                                <div class="chart-legend-item off" data-mds="m-actGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-actGrid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid</div>
-                                <div class="chart-legend-item off" data-mds="m-expGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid</div>
+                                <div class="chart-legend-item off" data-mds="m-actLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-actLoad')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (avg/day)</div>
+                                <div class="chart-legend-item off" data-mds="m-expLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (avg/day)</div>
+                                <div class="chart-legend-item off" data-mds="m-actGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-actGrid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (avg/day)</div>
+                                <div class="chart-legend-item off" data-mds="m-expGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (avg/day)</div>
                             </div>
                         </div>
                     </div>
                     <div class="chart-wrap"><canvas id="monthlyDailyChart"></canvas></div>
                 </div>
 
-                <!-- MONTHLY TOU SAVINGS BREAKDOWN -->
+                <!-- DAILY TOU SAVINGS BREAKDOWN -->
                 <div class="chart-container">
-                    <h3>Monthly TOU Savings Breakdown</h3>
+                    <h3>Daily TOU Savings Breakdown</h3>
                     <div class="chart-legend-row">
                         <div class="chart-legend-defaults">
-                            <div class="chart-legend-item" data-mds="m-actPeak" onclick="toggleMonthlyDs('m-actPeak')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Peak (R)</div>
-                            <div class="chart-legend-item" data-mds="m-actStd" onclick="toggleMonthlyDs('m-actStd')"><span class="legend-swatch" style="background:#f59e0b;"></span>Actual Standard (R)</div>
-                            <div class="chart-legend-item" data-mds="m-actOff" onclick="toggleMonthlyDs('m-actOff')"><span class="legend-swatch" style="background:#10b981;"></span>Actual Off-Peak (R)</div>
+                            <div class="chart-legend-item" data-mds="m-actPeak" onclick="toggleMonthlyDs('m-actPeak')"><span class="legend-swatch" style="background:#ef4444;"></span>Peak (R)</div>
+                            <div class="chart-legend-item" data-mds="m-actStd" onclick="toggleMonthlyDs('m-actStd')"><span class="legend-swatch" style="background:#f59e0b;"></span>Standard (R)</div>
+                            <div class="chart-legend-item" data-mds="m-actOff" onclick="toggleMonthlyDs('m-actOff')"><span class="legend-swatch" style="background:#10b981;"></span>Off-Peak (R)</div>
                         </div>
                         <div class="chart-legend-more" onclick="this.classList.toggle('open')">
                             <span class="more-btn">More ▼</span>
@@ -1677,7 +1678,7 @@
         let monthlyDailyChart = null;
         let monthlyTOUChart = null;
         let monthlyInited = false;
-        const monthlyDsVis = { 'm-actGen':true,'m-expGen':true,'m-cumPerf':true,'m-actLoad':false,'m-expLoad':false,'m-actGrid':false,'m-expGrid':false,'m-actPeak':true,'m-actStd':true,'m-actOff':true,'m-expPeak':false,'m-expStd':false,'m-expOff':false };
+        const monthlyDsVis = { 'm-avgPV':true,'m-expPVAvg':true,'m-actGen':true,'m-irrad':true,'m-actLoad':false,'m-expLoad':false,'m-actGrid':false,'m-expGrid':false,'m-actPeak':true,'m-actStd':true,'m-actOff':true,'m-expPeak':false,'m-expStd':false,'m-expOff':false };
 
         function goToMonthly() {
             const btn = document.querySelectorAll('.tab-nav button')[2];
@@ -1718,7 +1719,7 @@
             const el = document.querySelector(`[data-mds="${key}"]`);
             if (el) el.classList.toggle('off', !monthlyDsVis[key]);
             // Daily generation chart datasets
-            const dMap = {'m-actGen':0,'m-expGen':1,'m-cumPerf':2,'m-actLoad':3,'m-expLoad':4,'m-actGrid':5,'m-expGrid':6};
+            const dMap = {'m-avgPV':0,'m-expPVAvg':1,'m-actGen':2,'m-irrad':3,'m-actLoad':4,'m-expLoad':5,'m-actGrid':6,'m-expGrid':7};
             if (monthlyDailyChart && dMap[key] !== undefined) { monthlyDailyChart.data.datasets[dMap[key]].hidden = !monthlyDsVis[key]; monthlyDailyChart.update(); }
             // TOU chart datasets
             const tMap = {'m-actPeak':0,'m-actStd':1,'m-actOff':2,'m-expPeak':3,'m-expStd':4,'m-expOff':5};
@@ -1887,118 +1888,173 @@
             const ctx = document.getElementById('monthlyDailyChart');
             if (!ctx) return;
             const labels = [];
-            const actGen=[], expGen=[], actLoad=[], expLoad=[], actGrid=[], expGrid=[], cumPerf=[];
+            const actGen=[], irradScaled=[], actLoadArr=[], expLoadArr=[], actGridArr=[], expGridArr=[];
             const factor = degradationFactor(yr);
             const mm = String(mo).padStart(2,'0');
             const avgL = dashData.hourly?.avg_load || [];
             const avgG = dashData.hourly?.avg_grid || [];
+
+            // Calculate totals for averages
+            let totalActPV = 0, totalExpPV = 0, totalActLoad = 0, totalActGrid = 0;
             const dailyExpLoad = avgL.reduce((a,b)=>a+b,0);
             const dailyExpGrid = avgG.reduce((a,b)=>a+b,0);
-            let cumAct=0, cumExp=0;
 
+            // First pass: collect daily data
+            const dailyData = [];
             for (let d = 1; d <= numDays; d++) {
-                labels.push(String(d));
                 const dateStr = yr+'-'+mm+'-'+String(d).padStart(2,'0');
                 const dh = dailyHist?.[dateStr];
                 const mmdd = mm+'-'+String(d).padStart(2,'0');
                 const dayPvs = getPvsystDay(mmdd);
-
-                // Expected PV for this day
                 let dayExpPV;
                 if (isCurrentMonth && d === numDays) {
                     dayExpPV = 0; for (let h=0;h<=currentHour;h++) dayExpPV += dayPvs[h]||0;
                 } else { dayExpPV = dayPvs.reduce((a,b)=>a+b,0); }
                 dayExpPV *= factor;
-
                 const dayActPV = dh ? dh.pv : 0;
                 const dayActLoad = dh ? dh.consumption : 0;
                 const dayActGrid = dh ? (dh.import||0) : 0;
+                totalActPV += dayActPV; totalExpPV += dayExpPV;
+                totalActLoad += dayActLoad; totalActGrid += dayActGrid;
 
-                actGen.push(Math.round(dayActPV));
-                expGen.push(Math.round(dayExpPV));
-                actLoad.push(Math.round(dayActLoad));
-                expLoad.push(Math.round(dailyExpLoad));
-                actGrid.push(Math.round(dayActGrid));
-                expGrid.push(Math.round(dailyExpGrid));
+                // Irradiation for this day - use actual if available, else PVSyst as proxy
+                const irRec = irradData?.daily_records?.[dateStr];
+                let irradDaily;
+                if (irRec) {
+                    irradDaily = (irRec.hourly_wm2||[]).reduce((a,b)=>a+b,0)/1000;
+                } else {
+                    // Use PVSyst daily kWh (undegraded) as irradiation proxy
+                    irradDaily = dayPvs.reduce((a,b)=>a+b,0);
+                }
 
-                cumAct += dayActPV; cumExp += dayExpPV;
-                cumPerf.push(cumExp > 0 ? Math.round(cumAct/cumExp*100) : 0);
+                dailyData.push({d, dayActPV, dayExpPV, dayActLoad, dayActGrid, irradDaily});
             }
+
+            // Averages
+            const avgPV = numDays > 0 ? totalActPV / numDays : 0;
+            const avgExpPV = numDays > 0 ? totalExpPV / numDays : 0;
+            const avgActLoad = numDays > 0 ? totalActLoad / numDays : 0;
+            const avgActGrid = numDays > 0 ? totalActGrid / numDays : 0;
+
+            // Scale irradiation to match generation magnitude
+            const maxPV = Math.max(...dailyData.map(d=>d.dayActPV), 1);
+            const maxIrrad = Math.max(...dailyData.map(d=>d.irradDaily), 1);
+            const irradScale = maxPV / maxIrrad;
+
+            // Build arrays
+            dailyData.forEach(dd => {
+                labels.push(String(dd.d));
+                actGen.push(Math.round(dd.dayActPV));
+                irradScaled.push(Math.round(dd.irradDaily * irradScale));
+                actLoadArr.push(Math.round(avgActLoad));
+                expLoadArr.push(Math.round(dailyExpLoad));
+                actGridArr.push(Math.round(avgActGrid));
+                expGridArr.push(Math.round(dailyExpGrid));
+            });
+
+            const avgPVLine = new Array(numDays).fill(Math.round(avgPV));
+            const avgExpPVLine = new Array(numDays).fill(Math.round(avgExpPV));
 
             if (monthlyDailyChart) monthlyDailyChart.destroy();
             monthlyDailyChart = new Chart(ctx, {
                 data: { labels,
                     datasets: [
-                        { type:'bar', label:'Actual Generation', data:actGen, backgroundColor:'rgba(74,222,128,0.7)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'] },
-                        { type:'bar', label:'Expected Generation', data:expGen, backgroundColor:'rgba(96,165,250,0.4)', borderColor:'#60a5fa', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-expGen'] },
-                        { type:'line', label:'Cumulative Performance (%)', data:cumPerf, borderColor:'#FFD700', backgroundColor:'rgba(255,215,0,0.1)', borderWidth:2, pointRadius:2, pointBackgroundColor:'#FFD700', tension:0.3, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-cumPerf'] },
-                        { type:'line', label:'Actual Load', data:actLoad, borderColor:'#ef4444', borderWidth:2, pointRadius:0, tension:0.3, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'] },
-                        { type:'line', label:'Expected Load', data:expLoad, borderColor:'#ef4444', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0.3, yAxisID:'y', hidden:!monthlyDsVis['m-expLoad'] },
-                        { type:'line', label:'Actual Grid', data:actGrid, borderColor:'#f97316', borderWidth:2, pointRadius:0, tension:0.3, yAxisID:'y', hidden:!monthlyDsVis['m-actGrid'] },
-                        { type:'line', label:'Expected Grid', data:expGrid, borderColor:'#f97316', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0.3, yAxisID:'y', hidden:!monthlyDsVis['m-expGrid'] }
+                        { type:'line', label:'Avg PV (MTD)', data:avgPVLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-avgPV'] },
+                        { type:'line', label:'Expected PV Avg', data:avgExpPVLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expPVAvg'] },
+                        { type:'bar', label:'PV Generation', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'] },
+                        { type:'line', label:'Irradiation (scaled)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'y', hidden:!monthlyDsVis['m-irrad'] },
+                        { type:'line', label:'Actual Load (avg/day)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'] },
+                        { type:'line', label:'Expected Load (avg/day)', data:expLoadArr, borderColor:'#ef4444', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expLoad'] },
+                        { type:'line', label:'Actual Grid (avg/day)', data:actGridArr, borderColor:'#f97316', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actGrid'] },
+                        { type:'line', label:'Expected Grid (avg/day)', data:expGridArr, borderColor:'#f97316', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expGrid'] }
                     ]
                 },
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
                     scales:{
                         x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},maxRotation:0}},
-                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12}}},
-                        y2:{position:'right',beginAtZero:true,max:150,title:{display:true,text:'Cumulative Performance (%)',color:'#FFD700',font:{size:13}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:12},callback:v=>v+'%'}}
+                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12}}}
                     }
                 }
             });
         }
 
+        function calcDaySavings(yr, mo, day, sc, exp) {
+            // Calculate TOU savings for a single day
+            if (!finConfig || !pvsyst) return {peak:0,standard:0,off_peak:0};
+            const fc = finConfig;
+            const season = (fc.seasons||{})[String(mo)] || 'low_demand';
+            const dt = new Date(yr, mo-1, day);
+            const wd = dt.getDay();
+            const dayType = wd===0?'sunday':wd===6?'saturday':'weekday';
+            const schedule = (fc.tou_schedule||{})[season]?.[dayType] || [];
+            const mm = String(mo).padStart(2,'0');
+            const mmdd = mm+'-'+String(day).padStart(2,'0');
+            const pattern = (pvsyst.daily_hourly||{})[mmdd] || new Array(24).fill(0);
+            const pTotal = pattern.reduce((a,b)=>a+b,0);
+            const result = {peak:0,standard:0,off_peak:0};
+            if (pTotal <= 0) return result;
+            const rates = fc.rates||{};
+            const ec = fc.export_credits||{};
+            for (let h=0;h<24;h++) {
+                const frac = pattern[h]/pTotal;
+                const period = schedule[h]||'off_peak';
+                const rate = rates[season]?.[period]||0;
+                const credit = ec[period]||0;
+                result[period] += sc*frac*rate + exp*frac*credit;
+            }
+            return result;
+        }
+
         function renderMonthlyTOUChart(selectedYM) {
             const ctx = document.getElementById('monthlyTOUChart');
             if (!ctx) return;
-            // Get last 6 months with data
-            const allMonths = Object.keys(dashData.monthly||{}).sort();
-            const recentMonths = allMonths.slice(-6);
-            const labels = recentMonths.map(ym => {
-                const [y,m] = ym.split('-');
-                return ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m]+' '+y;
-            });
+            const [yr,mo] = selectedYM.split('-').map(Number);
+            const now = new Date();
+            const isCurrentMonth = yr===now.getFullYear() && mo===now.getMonth()+1;
+            const daysInMonth = new Date(yr,mo,0).getDate();
+            const numDays = isCurrentMonth ? now.getDate() : daysInMonth;
+            const mm = String(mo).padStart(2,'0');
+            const factor = degradationFactor(yr);
+            const md = dashData.monthly?.[selectedYM]||{};
+            const totalSC = md['Self-consumption (kWh)']||0;
+            const totalExp = md['Export (kWh)']||0;
+            const dailySC = numDays > 0 ? totalSC/numDays : 0;
+            const dailyExp = numDays > 0 ? totalExp/numDays : 0;
+            const scRatio = (totalSC+totalExp)>0 ? totalSC/(totalSC+totalExp) : 0.9;
 
-            const actPeak=[],actStd=[],actOff=[],expPeak=[],expStd=[],expOff=[];
+            const labels=[], actPeak=[], actStd=[], actOff=[], expPeak=[], expStd=[], expOff=[];
 
-            recentMonths.forEach(ym => {
-                const [yr,mo] = ym.split('-').map(Number);
-                const md = dashData.monthly[ym] || {};
-                const sc = md['Self-consumption (kWh)']||0;
-                const exp = md['Export (kWh)']||0;
-                const now = new Date();
-                const isCurrent = yr===now.getFullYear() && mo===now.getMonth()+1;
-                const daysInMonth = new Date(yr,mo,0).getDate();
-                const numDays = isCurrent ? now.getDate() : daysInMonth;
+            for (let d=1; d<=numDays; d++) {
+                labels.push(String(d));
+                // Actual: spread evenly across days using daily avg
+                const act = calcDaySavings(yr,mo,d,dailySC,dailyExp);
+                actPeak.push(Math.round(act.peak*100)/100);
+                actStd.push(Math.round(act.standard*100)/100);
+                actOff.push(Math.round(act.off_peak*100)/100);
 
-                // Actual savings
-                const sav = calcMonthTOUSavings(yr,mo,sc,exp,numDays);
-                actPeak.push(sav?.pv_savings?.peak||0);
-                actStd.push((sav?.pv_savings?.standard||0)+(sav?.export_savings?.standard||0));
-                actOff.push((sav?.pv_savings?.off_peak||0)+(sav?.export_savings?.off_peak||0));
-
-                // Expected savings (using PVSyst SC ≈ PVSyst PV, and proportional export)
-                const expPV = calcMonthExpFor(yr,mo,daysInMonth,23);
-                const scRatio = sc > 0 ? sc/(sc+exp||1) : 0.9;
-                const expSC = expPV * scRatio;
-                const expExp = expPV * (1-scRatio);
-                const eSav = calcMonthTOUSavings(yr,mo,expSC,expExp,daysInMonth);
-                expPeak.push(eSav?.pv_savings?.peak||0);
-                expStd.push((eSav?.pv_savings?.standard||0)+(eSav?.export_savings?.standard||0));
-                expOff.push((eSav?.pv_savings?.off_peak||0)+(eSav?.export_savings?.off_peak||0));
-            });
+                // Expected: use PVSyst full day
+                const mmdd = mm+'-'+String(d).padStart(2,'0');
+                const dayPvs = getPvsystDay(mmdd);
+                const dayExpPV = dayPvs.reduce((a,b)=>a+b,0) * factor;
+                const expSC = dayExpPV * scRatio;
+                const expExp2 = dayExpPV * (1-scRatio);
+                const exp2 = calcDaySavings(yr,mo,d,expSC,expExp2);
+                expPeak.push(Math.round(exp2.peak*100)/100);
+                expStd.push(Math.round(exp2.standard*100)/100);
+                expOff.push(Math.round(exp2.off_peak*100)/100);
+            }
 
             if (monthlyTOUChart) monthlyTOUChart.destroy();
             monthlyTOUChart = new Chart(ctx, {
                 type:'bar',
                 data:{ labels,
                     datasets:[
-                        { label:'Actual Peak (R)', data:actPeak, backgroundColor:'#ef4444', stack:'actual', hidden:!monthlyDsVis['m-actPeak'] },
-                        { label:'Actual Standard (R)', data:actStd, backgroundColor:'#f59e0b', stack:'actual', hidden:!monthlyDsVis['m-actStd'] },
-                        { label:'Actual Off-Peak (R)', data:actOff, backgroundColor:'#10b981', stack:'actual', hidden:!monthlyDsVis['m-actOff'] },
+                        { label:'Peak (R)', data:actPeak, backgroundColor:'#ef4444', stack:'actual', hidden:!monthlyDsVis['m-actPeak'] },
+                        { label:'Standard (R)', data:actStd, backgroundColor:'#f59e0b', stack:'actual', hidden:!monthlyDsVis['m-actStd'] },
+                        { label:'Off-Peak (R)', data:actOff, backgroundColor:'#10b981', stack:'actual', hidden:!monthlyDsVis['m-actOff'] },
                         { label:'Expected Peak (R)', data:expPeak, backgroundColor:'rgba(239,68,68,0.35)', borderColor:'#ef4444', borderWidth:1, stack:'expected', hidden:!monthlyDsVis['m-expPeak'] },
                         { label:'Expected Standard (R)', data:expStd, backgroundColor:'rgba(245,158,11,0.35)', borderColor:'#f59e0b', borderWidth:1, stack:'expected', hidden:!monthlyDsVis['m-expStd'] },
                         { label:'Expected Off-Peak (R)', data:expOff, backgroundColor:'rgba(16,185,129,0.35)', borderColor:'#10b981', borderWidth:1, stack:'expected', hidden:!monthlyDsVis['m-expOff'] }
@@ -2009,7 +2065,7 @@
                     interaction:{mode:'index',intersect:false},
                     plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>`${c.dataset.label}: R${fmt(c.parsed.y)}`}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12}}},
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},maxRotation:0}},
                         y:{beginAtZero:true,title:{display:true,text:'Savings (R)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:v=>'R '+v.toLocaleString()}}
                     }
                 }
