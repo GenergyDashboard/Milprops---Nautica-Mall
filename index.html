@@ -788,18 +788,18 @@
                     <h3>Daily Generation for Selected Month</h3>
                     <div class="chart-legend-row">
                         <div class="chart-legend-defaults">
-                            <div class="chart-legend-item" data-mds="m-avgPV" onclick="toggleMonthlyDs('m-avgPV')"><span class="legend-swatch" style="background:#4ade80;border:1px solid #4ade80;"></span>Avg PV (MTD)</div>
-                            <div class="chart-legend-item" data-mds="m-expPVAvg" onclick="toggleMonthlyDs('m-expPVAvg')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV Avg</div>
-                            <div class="chart-legend-item" data-mds="m-actGen" onclick="toggleMonthlyDs('m-actGen')"><span class="legend-swatch" style="background:rgba(74,222,128,0.7);"></span>PV Generation</div>
-                            <div class="chart-legend-item" data-mds="m-irrad" onclick="toggleMonthlyDs('m-irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Irradiation (scaled)</div>
+                            <div class="chart-legend-item" data-mds="m-avgPV" onclick="toggleMonthlyDs('m-avgPV')"><span class="legend-swatch" style="background:#4ade80;border:1px solid #4ade80;"></span>Actual PV Average (kWh)</div>
+                            <div class="chart-legend-item" data-mds="m-expPVAvg" onclick="toggleMonthlyDs('m-expPVAvg')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV (kWh)</div>
+                            <div class="chart-legend-item" data-mds="m-actGen" onclick="toggleMonthlyDs('m-actGen')"><span class="legend-swatch" style="background:rgba(74,222,128,0.7);"></span>PV Generation (kWh)</div>
+                            <div class="chart-legend-item" data-mds="m-irrad" onclick="toggleMonthlyDs('m-irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Scaled Irradiation (kWh equiv)</div>
                         </div>
                         <div class="chart-legend-more" onclick="this.classList.toggle('open')">
                             <span class="more-btn">More ▼</span>
                             <div class="more-items">
-                                <div class="chart-legend-item off" data-mds="m-actLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-actLoad')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (avg/day)</div>
-                                <div class="chart-legend-item off" data-mds="m-expLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (avg/day)</div>
-                                <div class="chart-legend-item off" data-mds="m-actGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-actGrid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (avg/day)</div>
-                                <div class="chart-legend-item off" data-mds="m-expGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (avg/day)</div>
+                                <div class="chart-legend-item off" data-mds="m-actLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-actLoad')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (Avg)</div>
+                                <div class="chart-legend-item off" data-mds="m-expLoad" onclick="event.stopPropagation();toggleMonthlyDs('m-expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (Avg)</div>
+                                <div class="chart-legend-item off" data-mds="m-actGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-actGrid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (Avg)</div>
+                                <div class="chart-legend-item off" data-mds="m-expGrid" onclick="event.stopPropagation();toggleMonthlyDs('m-expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (Avg)</div>
                             </div>
                         </div>
                     </div>
@@ -873,8 +873,9 @@
         // ══════════════════════════════════════════════════
         // UTILITIES
         // ══════════════════════════════════════════════════
-        function fmt(v) { return (v == null || isNaN(v)) ? '--' : Math.round(v).toLocaleString('en-ZA'); }
-        function fmtU(v, u) { return (v == null || isNaN(v)) ? '--' : Math.round(v).toLocaleString('en-ZA') + ' ' + u; }
+        function fmt(v) { return (v == null || isNaN(v)) ? '--' : Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+        function fmtU(v, u) { return (v == null || isNaN(v)) ? '--' : Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ' + u; }
+        function fmtDec(v, d) { return (v == null || isNaN(v)) ? '--' : v.toFixed(d||1).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
         function calcEnv(kwh) { return { trees: Math.round(kwh * ENV.trees), homes: Math.round(kwh * ENV.homes), coal: Math.round(kwh * ENV.coal), water: Math.round(kwh * ENV.water) }; }
 
         function setFontScale(s) { document.documentElement.style.setProperty('--font-scale', s); localStorage.setItem('nautica-font-scale', s); }
@@ -1942,8 +1943,9 @@
             const irradScale = maxPV / maxIrrad;
 
             // Build arrays
+            const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             dailyData.forEach(dd => {
-                labels.push(String(dd.d));
+                labels.push(String(dd.d).padStart(2,'0') + ' ' + monthNames[mo]);
                 actGen.push(Math.round(dd.dayActPV));
                 irradScaled.push(Math.round(dd.irradDaily * irradScale));
                 actLoadArr.push(Math.round(avgActLoad));
@@ -1955,27 +1957,36 @@
             const avgPVLine = new Array(numDays).fill(Math.round(avgPV));
             const avgExpPVLine = new Array(numDays).fill(Math.round(avgExpPV));
 
+            // PV Coverage for right axis title (SC / Load)
+            const monthSC = dashData.monthly?.[ym]?.['Self-consumption (kWh)'] || 0;
+            const actCovPct = totalActLoad > 0 ? (monthSC / totalActLoad * 100) : 0;
+            const expCovPct = dailyExpLoad > 0 ? (avgExpPV / dailyExpLoad * 100) : 0;
+            const covTitle = 'PV Coverage (%) - Actual: ' + actCovPct.toFixed(1) + '% | Expected: ' + expCovPct.toFixed(1) + '%';
+
+            const fmtTick = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
             if (monthlyDailyChart) monthlyDailyChart.destroy();
             monthlyDailyChart = new Chart(ctx, {
                 data: { labels,
                     datasets: [
-                        { type:'line', label:'Avg PV (MTD)', data:avgPVLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-avgPV'] },
-                        { type:'line', label:'Expected PV Avg', data:avgExpPVLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expPVAvg'] },
-                        { type:'bar', label:'PV Generation', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'] },
-                        { type:'line', label:'Irradiation (scaled)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'y', hidden:!monthlyDsVis['m-irrad'] },
-                        { type:'line', label:'Actual Load (avg/day)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'] },
-                        { type:'line', label:'Expected Load (avg/day)', data:expLoadArr, borderColor:'#ef4444', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expLoad'] },
-                        { type:'line', label:'Actual Grid (avg/day)', data:actGridArr, borderColor:'#f97316', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actGrid'] },
-                        { type:'line', label:'Expected Grid (avg/day)', data:expGridArr, borderColor:'#f97316', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expGrid'] }
+                        { type:'line', label:'Actual PV Average (kWh)', data:avgPVLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-avgPV'] },
+                        { type:'line', label:'Expected PV (kWh)', data:avgExpPVLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expPVAvg'] },
+                        { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'] },
+                        { type:'line', label:'Scaled Irradiation (kWh equiv)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'y', hidden:!monthlyDsVis['m-irrad'] },
+                        { type:'line', label:'Actual Load (Avg)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'] },
+                        { type:'line', label:'Expected Load (Avg)', data:expLoadArr, borderColor:'#ef4444', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expLoad'] },
+                        { type:'line', label:'Actual Grid (Avg)', data:actGridArr, borderColor:'#f97316', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actGrid'] },
+                        { type:'line', label:'Expected Grid (Avg)', data:expGridArr, borderColor:'#f97316', borderWidth:1.5, borderDash:[5,5], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expGrid'] }
                     ]
                 },
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>{const v=c.parsed.y;const suffix=c.dataset.label.includes('Irrad')?'kWh (scaled)':'kWh';return c.dataset.label+': '+fmtTick(v)+' '+suffix;}}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},maxRotation:0}},
-                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12}}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11},maxRotation:45,minRotation:45}},
+                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:(v)=>fmtTick(v)}},
+                        y2:{position:'right',beginAtZero:true,max:100,title:{display:true,text:covTitle,color:'#FFD700',font:{size:12}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:11},callback:v=>v+'%'}}
                     }
                 }
             });
@@ -2025,10 +2036,11 @@
             const dailyExp = numDays > 0 ? totalExp/numDays : 0;
             const scRatio = (totalSC+totalExp)>0 ? totalSC/(totalSC+totalExp) : 0.9;
 
+            const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const labels=[], actPeak=[], actStd=[], actOff=[], expPeak=[], expStd=[], expOff=[];
 
             for (let d=1; d<=numDays; d++) {
-                labels.push(String(d));
+                labels.push(String(d).padStart(2,'0') + ' ' + monthNames[mo]);
                 // Actual: spread evenly across days using daily avg
                 const act = calcDaySavings(yr,mo,d,dailySC,dailyExp);
                 actPeak.push(Math.round(act.peak*100)/100);
@@ -2065,8 +2077,8 @@
                     interaction:{mode:'index',intersect:false},
                     plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>`${c.dataset.label}: R${fmt(c.parsed.y)}`}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},maxRotation:0}},
-                        y:{beginAtZero:true,title:{display:true,text:'Savings (R)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:v=>'R '+v.toLocaleString()}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11},maxRotation:45,minRotation:45}},
+                        y:{beginAtZero:true,title:{display:true,text:'Savings (R)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:v=>'R '+String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}
                     }
                 }
             });
