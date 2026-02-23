@@ -241,9 +241,9 @@
         .slab-value { font-size: var(--font-xl); font-weight: 700; color: var(--gold); margin-bottom: 5px; white-space: nowrap; }
         .slab-value .slab-unit { font-size: var(--font-base); font-weight: 400; }
         .monthly-grid .slab-value { font-size: 2em; }
-        #lifetimeGrid .slab-value { font-size: clamp(1.2em, 2.5vw, 1.8em); }
-        #lifetimeGrid { gap: 15px; }
-        #lifetimeGrid .slab { padding: 18px 15px; min-width: 0; overflow: hidden; }
+        #lifetimeGrid .slab-value { font-size: clamp(1.2em, 2.5vw, 1.8em); white-space: normal; }
+        #lifetimeGrid { gap: 12px; }
+        #lifetimeGrid .slab { padding: 18px 12px; min-width: 0; }
         #lifetimeGrid .slab-expected { font-size: var(--font-xs); }
         #lifetimeGrid .slab-status { font-size: var(--font-xs); white-space: nowrap; }
         #lifetimeGrid .slab-label { font-size: var(--font-xs); margin-bottom: 10px; }
@@ -566,7 +566,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="slab">
+                    <div class="slab slab-clickable" onclick="goToLifetime()">
                         <div class="slab-label">Lifetime</div>
                         <div class="slab-value"><span id="ov-lifetime-gen">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ov-lifetime-exp">--</span> <span class="exp-unit">kWh</span></div>
@@ -576,7 +576,7 @@
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ov-lifetime-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ov-lifetime-togrid">-- kWh</span></div>
                         </div>
-                        <div class="slab-savings" onclick="this.classList.toggle('open')">
+                        <div class="slab-savings" onclick="event.stopPropagation();this.classList.toggle('open')">
                             <div class="sv-row"><span class="sv-label">Total Savings <span class="sv-arrow">▼</span></span><span class="sv-value">R<span id="ov-lifetime-savings">--</span></span></div>
                             <div class="savings-detail">
                                 <div class="savings-sub" onclick="event.stopPropagation();this.classList.toggle('open')">
@@ -1889,6 +1889,11 @@
             switchTab('monthly', btn);
         }
 
+        function goToLifetime() {
+            const btn = document.querySelectorAll('.tab-nav button')[3];
+            switchTab('lifetime', btn);
+        }
+
         function initMonthSelector() {
             if (monthlyInited) return;
             monthlyInited = true;
@@ -2737,4 +2742,4 @@
         });
     </script>
 </body>
-                    </html>
+                        </html>
