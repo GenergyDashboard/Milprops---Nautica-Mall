@@ -218,6 +218,7 @@
         /* Overview Slabs */
         .overview-title { text-align: center; font-size: var(--font-lg); font-weight: 600; margin-bottom: 25px; }
         .overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .daily-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
 
         .slab {
             background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 15px;
@@ -330,6 +331,10 @@
         .daily-savings-table .env-table tbody td.period-standard { color: var(--gold); }
         .daily-savings-table .env-table tbody td.period-off-peak { color: var(--green); }
         .daily-savings-table .env-table tbody tr.total-row td { border-top: 1px solid rgba(255,255,255,0.15); font-weight: 700; color: var(--text-primary); }
+        .tou-pill { display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 600; font-size: var(--font-xs); }
+        .tou-pill.peak { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .tou-pill.standard { background: rgba(255,215,0,0.2); color: var(--gold); }
+        .tou-pill.off-peak { background: rgba(74,222,128,0.2); color: var(--green); }
         .legend-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
         .legend-swatch.dashed { border: 2px dashed; background: transparent; }
         .chart-wrap { position: relative; height: 350px; }
@@ -348,7 +353,7 @@
         /* ══════════════════════════════════════════════════ */
         @media (max-width: 900px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .overview-grid, .env-grid-3 { grid-template-columns: 1fr; }
+            .overview-grid, .env-grid-3, .daily-grid { grid-template-columns: 1fr; }
             .stat-card .value, .slab-value { font-size: 1.8em; }
             .header { flex-direction: column; gap: 15px; text-align: center; }
             .header-right { align-items: center; }
@@ -619,7 +624,7 @@
                     <div class="daily-status" id="dailyStatus"></div>
                 </div>
 
-                <div class="overview-grid">
+                <div class="daily-grid">
                     <!-- LOAD SLAB -->
                     <div class="slab">
                         <div class="slab-label">Load</div>
@@ -690,8 +695,10 @@
                         <div class="chart-legend-more" onclick="this.classList.toggle('open')">
                             <span class="more-btn">More ▼</span>
                             <div class="more-items">
-                                <div class="chart-legend-item off" data-dds="d-load" onclick="event.stopPropagation();toggleDailyDs('d-load')"><span class="legend-swatch" style="background:#ef4444;"></span>Load (kW)</div>
-                                <div class="chart-legend-item off" data-dds="d-grid" onclick="event.stopPropagation();toggleDailyDs('d-grid')"><span class="legend-swatch" style="background:#f97316;"></span>Grid (kW)</div>
+                                <div class="chart-legend-item off" data-dds="d-load" onclick="event.stopPropagation();toggleDailyDs('d-load')"><span class="legend-swatch" style="background:#ef4444;"></span>Actual Load (kW)</div>
+                                <div class="chart-legend-item off" data-dds="d-expLoad" onclick="event.stopPropagation();toggleDailyDs('d-expLoad')"><span class="legend-swatch dashed" style="border-color:#ef4444;"></span>Expected Load (MTD Avg)</div>
+                                <div class="chart-legend-item off" data-dds="d-grid" onclick="event.stopPropagation();toggleDailyDs('d-grid')"><span class="legend-swatch" style="background:#f97316;"></span>Actual Grid (kW)</div>
+                                <div class="chart-legend-item off" data-dds="d-expGrid" onclick="event.stopPropagation();toggleDailyDs('d-expGrid')"><span class="legend-swatch dashed" style="border-color:#f97316;"></span>Expected Grid (MTD Avg)</div>
                             </div>
                         </div>
                     </div>
@@ -1270,7 +1277,7 @@
         // ══════════════════════════════════════════════════
         // DAILY GENERATION TAB
         // ══════════════════════════════════════════════════
-        const dailyDsVis = { 'd-predicted': true, 'd-pvGen': true, 'd-irrad': true, 'd-load': false, 'd-grid': false };
+        const dailyDsVis = { 'd-predicted': true, 'd-pvGen': true, 'd-irrad': true, 'd-load': false, 'd-expLoad': false, 'd-grid': false, 'd-expGrid': false };
 
         function shiftDate(delta) {
             const dp = document.getElementById('dailyDatePicker');
@@ -1284,7 +1291,7 @@
             dailyDsVis[key] = !dailyDsVis[key];
             const el = document.querySelector(`[data-dds="${key}"]`);
             if (el) el.classList.toggle('off', !dailyDsVis[key]);
-            const map = { 'd-predicted': 0, 'd-pvGen': 1, 'd-irrad': 2, 'd-load': 3, 'd-grid': 4 };
+            const map = { 'd-predicted': 0, 'd-pvGen': 1, 'd-irrad': 2, 'd-load': 3, 'd-expLoad': 4, 'd-grid': 5, 'd-expGrid': 6 };
             if (dailyChart && map[key] !== undefined) {
                 dailyChart.data.datasets[map[key]].hidden = !dailyDsVis[key];
                 dailyChart.update();
@@ -1376,7 +1383,7 @@
             const covOfExp = expCov > 0 ? (actCov / expCov * 100) : 0;
 
             // Render slabs
-            renderDailySlab('load', actLoad, expLoad);
+            renderDailySlab('load', actLoad, expLoad, true); // invert: less load = better
             renderDailySlab('pv', actPV, expPV);
             renderDailySlab('grid', actGrid, expGrid, true); // invert: less grid = better
             document.getElementById('dl-pv-toload').textContent = fmt(actSC) + ' kWh';
@@ -1404,9 +1411,10 @@
             const diff = actual - expected;
             if (expected > 0) {
                 const abs = Math.abs(diff);
-                const isGood = invertStatus ? diff <= 0 : diff >= 0;
+                const ahead = diff >= 0;
+                const isGood = invertStatus ? !ahead : ahead;
                 statusEl.className = 'slab-status ' + (isGood ? 'ahead' : 'behind');
-                statusEl.innerHTML = (diff >= 0 ? '▲ ' : '▼ ') + fmt(abs) + ' kWh ' + (isGood ? 'Ahead' : 'Behind');
+                statusEl.innerHTML = (ahead ? '▲ ' : '▼ ') + fmt(abs) + ' kWh ' + (ahead ? 'Ahead' : 'Behind');
             } else { statusEl.textContent = ''; }
 
             const perfEl = document.getElementById('dl-' + type + '-perf');
@@ -1436,7 +1444,7 @@
             }
 
             const periods = ['peak', 'standard', 'off_peak'];
-            const labels = { peak: 'Peak', standard: 'Standard', off_peak: 'Off-Peak' };
+            const labels = { peak: '<span class="tou-pill peak">Peak</span>', standard: '<span class="tou-pill standard">Standard</span>', off_peak: '<span class="tou-pill off-peak">Off-Peak</span>' };
             let totGen = 0, totUtil = 0, totPvS = 0, totExpS = 0;
 
             let html = '';
@@ -1450,7 +1458,7 @@
                 totGen += gen; totUtil += util; totPvS += pvs; totExpS += exs;
 
                 html += `<tr>
-                    <td style="text-align:left" class="period-${p}">${labels[p]}</td>
+                    <td style="text-align:left">${labels[p]}</td>
                     <td>${fmt(gen)} kWh</td>
                     <td>R${fmt(util)}</td>
                     <td>R${fmt(pvs)}</td>
@@ -1493,6 +1501,9 @@
             const irradH = new Array(24).fill(0);
             for (let i = 0; i < 23; i++) irradH[i] = irradRaw[i + 1] || 0;
 
+            const expLoadLine = dashData.hourly?.avg_load || new Array(24).fill(0);
+            const expGridLine = dashData.hourly?.avg_grid || new Array(24).fill(0);
+
             if (dailyChart) dailyChart.destroy();
 
             dailyChart = new Chart(ctx, {
@@ -1502,8 +1513,10 @@
                         { type: 'line', label: 'Predicted', data: predicted, borderColor: '#60a5fa', borderWidth: 2, borderDash: [6,4], pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-predicted'] },
                         { type: 'bar', label: 'PV Generation (kW)', data: pvH, backgroundColor: 'rgba(74,222,128,0.7)', borderColor: '#4ade80', borderWidth: 1, borderRadius: 3, yAxisID: 'y', hidden: !dailyDsVis['d-pvGen'] },
                         { type: 'line', label: 'Irradiation (W/m²)', data: irradH, backgroundColor: 'rgba(255,215,0,0.15)', borderColor: 'rgba(255,215,0,0.6)', borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: true, yAxisID: 'y2', hidden: !dailyDsVis['d-irrad'] },
-                        { type: 'line', label: 'Load (kW)', data: loadH, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-load'] },
-                        { type: 'line', label: 'Grid (kW)', data: gridH, borderColor: '#f97316', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-grid'] }
+                        { type: 'line', label: 'Actual Load (kW)', data: loadH, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-load'] },
+                        { type: 'line', label: 'Expected Load (MTD Avg)', data: expLoadLine, borderColor: '#ef4444', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-expLoad'] },
+                        { type: 'line', label: 'Actual Grid (kW)', data: gridH, borderColor: '#f97316', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-grid'] },
+                        { type: 'line', label: 'Expected Grid (MTD Avg)', data: expGridLine, borderColor: '#f97316', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-expGrid'] }
                     ]
                 },
                 options: {
