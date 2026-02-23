@@ -241,6 +241,19 @@
         .slab-value { font-size: var(--font-xl); font-weight: 700; color: var(--gold); margin-bottom: 5px; white-space: nowrap; }
         .slab-value .slab-unit { font-size: var(--font-base); font-weight: 400; }
         .monthly-grid .slab-value { font-size: 2em; }
+        #lifetimeGrid .slab-value { font-size: clamp(1.2em, 2.5vw, 1.8em); }
+        #lifetimeGrid { gap: 15px; }
+        #lifetimeGrid .slab { padding: 18px 15px; min-width: 0; overflow: hidden; }
+        #lifetimeGrid .slab-expected { font-size: var(--font-xs); }
+        #lifetimeGrid .slab-status { font-size: var(--font-xs); white-space: nowrap; }
+        #lifetimeGrid .slab-label { font-size: var(--font-xs); margin-bottom: 10px; }
+        #lifetimeGrid .flow-line .fl-value { font-size: var(--font-xs); }
+        #lifetimeGrid .flow-lines { margin-top: 8px; gap: 5px; }
+        #lifetimeGrid .flow-line { padding: 5px 10px; }
+        #lifetimeGrid .flow-line .fl-label { font-size: 0.7em; }
+        #lifetimeGrid .slab-perf-item .perf-value { font-size: var(--font-base); }
+        #lifetimeGrid .slab-perf-item .perf-label { font-size: 0.7em; }
+        #lifetimeGrid .slab-perf { padding: 8px; margin-top: 10px; }
         .slab-expected { font-size: var(--font-base); color: #94a3b8; margin-bottom: 8px; white-space: nowrap; }
         .slab-expected .exp-val { color: #fff; font-weight: 500; }
         .slab-expected .exp-unit { color: var(--gold); }
@@ -2724,4 +2737,4 @@
         });
     </script>
 </body>
-    </html>
+                    </html>
