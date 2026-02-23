@@ -1907,13 +1907,12 @@
             const actGen=[], irradScaled=[], actLoadArr=[], actGridArr=[];
             const factor = degradationFactor(yr);
             const mm = String(mo).padStart(2,'0');
+            const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const avgL = dashData.hourly?.avg_load || [];
-
-            // Calculate totals for averages
-            let totalActPV = 0, totalExpPV = 0, totalActLoad = 0, totalActGrid = 0;
             const dailyExpLoad = avgL.reduce((a,b)=>a+b,0);
 
-            // First pass: collect daily data
+            let totalActPV = 0, totalExpPV = 0, totalActLoad = 0, totalActGrid = 0;
+
             const dailyData = [];
             for (let d = 1; d <= numDays; d++) {
                 const dateStr = yr+'-'+mm+'-'+String(d).padStart(2,'0');
@@ -1931,32 +1930,28 @@
                 totalActPV += dayActPV; totalExpPV += dayExpPV;
                 totalActLoad += dayActLoad; totalActGrid += dayActGrid;
 
-                // Irradiation for this day - use actual if available, else PVSyst as proxy
-                const irRec = irradData?.daily_records?.[dateStr];
-                let irradDaily;
-                if (irRec) {
-                    irradDaily = (irRec.hourly_wm2||[]).reduce((a,b)=>a+b,0)/1000;
-                } else {
-                    // Use PVSyst daily kWh (undegraded) as irradiation proxy
-                    irradDaily = dayPvs.reduce((a,b)=>a+b,0);
-                }
+                // Always use PVSyst daily total as irradiation proxy (consistent scale)
+                const irradDaily = dayPvs.reduce((a,b)=>a+b,0);
 
                 dailyData.push({d, dayActPV, dayExpPV, dayActLoad, dayActGrid, irradDaily});
             }
 
-            // Averages
             const avgPV = numDays > 0 ? totalActPV / numDays : 0;
             const avgExpPV = numDays > 0 ? totalExpPV / numDays : 0;
             const avgActLoad = numDays > 0 ? totalActLoad / numDays : 0;
             const avgActGrid = numDays > 0 ? totalActGrid / numDays : 0;
+
+            // PV Coverage percentages for right axis
+            const monthSC = dashData.monthly?.[ym]?.['Self-consumption (kWh)'] || 0;
+            const actCovPct = totalActLoad > 0 ? (monthSC / totalActLoad * 100) : 0;
+            const expCovPct = dailyExpLoad > 0 ? (avgExpPV / dailyExpLoad * 100) : 0;
+            const covTitle = 'PV Coverage (%) - Actual: ' + actCovPct.toFixed(1) + '% | Expected: ' + expCovPct.toFixed(1) + '%';
 
             // Scale irradiation to match generation magnitude
             const maxPV = Math.max(...dailyData.map(d=>d.dayActPV), 1);
             const maxIrrad = Math.max(...dailyData.map(d=>d.irradDaily), 1);
             const irradScale = maxPV / maxIrrad;
 
-            // Build arrays
-            const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             dailyData.forEach(dd => {
                 labels.push(String(dd.d).padStart(2,'0') + ' ' + monthNames[mo]);
                 actGen.push(Math.round(dd.dayActPV));
@@ -1965,20 +1960,9 @@
                 actGridArr.push(Math.round(avgActGrid));
             });
 
-            const avgPVLine = new Array(numDays).fill(Math.round(avgPV));
-            const avgExpPVLine = new Array(numDays).fill(Math.round(avgExpPV));
-
-            // PV Coverage for right axis title (SC / Load)
-            const monthSC = dashData.monthly?.[ym]?.['Self-consumption (kWh)'] || 0;
-            const actCovPct = totalActLoad > 0 ? (monthSC / totalActLoad * 100) : 0;
-            const expCovPct = dailyExpLoad > 0 ? (avgExpPV / dailyExpLoad * 100) : 0;
-            const covTitle = 'PV Coverage (%) - Actual: ' + actCovPct.toFixed(1) + '% | Expected: ' + expCovPct.toFixed(1) + '%';
-
-            // Scale right axis: avgPV on left = actCovPct on right
-            // So rightMax = leftMax * actCovPct / avgPV
-            const allVals = [...actGen, ...irradScaled, Math.round(avgPV), Math.round(avgExpPV)];
-            const leftMax = Math.max(...allVals, 1) * 1.1;
-            const rightMax = avgPV > 0 ? (leftMax * actCovPct / avgPV) : 100;
+            // Flat coverage % lines plotted on y2 so they land at exact % positions
+            const actCovLine = new Array(numDays).fill(Math.round(actCovPct * 10) / 10);
+            const expCovLine = new Array(numDays).fill(Math.round(expCovPct * 10) / 10);
 
             const fmtTick = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
@@ -1986,8 +1970,8 @@
             monthlyDailyChart = new Chart(ctx, {
                 data: { labels,
                     datasets: [
-                        { type:'line', label:'Actual PV Average (kWh)', data:avgPVLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-avgPV'] },
-                        { type:'line', label:'Expected PV (kWh)', data:avgExpPVLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-expPVAvg'] },
+                        { type:'line', label:'Actual PV Average (kWh)', data:actCovLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-avgPV'] },
+                        { type:'line', label:'Expected PV (kWh)', data:expCovLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-expPVAvg'] },
                         { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'] },
                         { type:'line', label:'Scaled Irradiation (kWh equiv)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'y', hidden:!monthlyDsVis['m-irrad'] },
                         { type:'line', label:'Actual Load (Avg)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'] },
@@ -1997,11 +1981,15 @@
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>{const v=c.parsed.y;const suffix=c.dataset.label.includes('Irrad')?'kWh (scaled)':'kWh';return c.dataset.label+': '+fmtTick(v)+' '+suffix;}}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>{
+                        if (c.datasetIndex <= 1) {return c.dataset.label.replace(' (kWh)','')+': '+c.parsed.y.toFixed(1)+'%';}
+                        const suffix=c.dataset.label.includes('Irrad')?'kWh (scaled)':'kWh';
+                        return c.dataset.label+': '+fmtTick(c.parsed.y)+' '+suffix;
+                    }}}},
                     scales:{
                         x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{position:'left',beginAtZero:true,max:leftMax,title:{display:true,text:'Energy (kWh)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:(v)=>fmtTick(v)}},
-                        y2:{position:'right',beginAtZero:true,max:rightMax,title:{display:true,text:covTitle,color:'#FFD700',font:{size:12}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:11},callback:v=>Math.round(v)+'%'}}
+                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:(v)=>fmtTick(v)}},
+                        y2:{position:'right',beginAtZero:true,max:100,title:{display:true,text:covTitle,color:'#FFD700',font:{size:12}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:11},callback:v=>Math.round(v)+'%'}}
                     }
                 }
             });
