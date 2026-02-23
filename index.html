@@ -220,6 +220,7 @@
         .overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
         .daily-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
         .monthly-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 30px; }
+        .monthly-grid .slab { display: flex; flex-direction: column; }
         .month-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
         .month-selector select, .month-selector button { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 8px 14px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; }
         .month-selector button:hover { background: rgba(255,255,255,0.08); }
@@ -233,15 +234,16 @@
         .slab:hover { border-color: rgba(255,215,0,0.3); box-shadow: 0 5px 25px rgba(255,215,0,0.1); }
         .slab-clickable { cursor: pointer; }
         .slab-label { font-size: var(--font-base); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
-        .slab-value { font-size: var(--font-xl); font-weight: 700; color: var(--gold); margin-bottom: 5px; }
+        .slab-value { font-size: var(--font-xl); font-weight: 700; color: var(--gold); margin-bottom: 5px; white-space: nowrap; }
         .slab-value .slab-unit { font-size: var(--font-base); font-weight: 400; }
-        .slab-expected { font-size: var(--font-base); color: #94a3b8; margin-bottom: 8px; }
+        .slab-expected { font-size: var(--font-base); color: #94a3b8; margin-bottom: 8px; white-space: nowrap; }
         .slab-expected .exp-val { color: #fff; font-weight: 500; }
         .slab-expected .exp-unit { color: var(--gold); }
         .slab-status { font-size: var(--font-base); font-weight: 600; padding: 6px 0; }
         .slab-status.ahead { color: var(--green); }
         .slab-status.behind { color: var(--red); }
         .slab-perf { margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 10px; display: flex; gap: 10px; }
+        .monthly-grid .slab-perf { margin-top: auto; padding-top: 12px; }
         .slab-perf-item { flex: 1; text-align: center; }
         .slab-perf-item .perf-label { font-size: var(--font-xs); color: #94a3b8; margin-bottom: 4px; }
         .slab-perf-item .perf-value { font-size: var(--font-lg); font-weight: 700; }
@@ -743,11 +745,11 @@
                         <div class="slab-value"><span id="ml-pv">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ml-pv-exp">--</span> <span class="exp-unit">kWh</span></div>
                         <div class="slab-status" id="ml-pv-status"></div>
-                        <div class="slab-perf"><div class="slab-perf-item"><div class="perf-label">PV Performance</div><div class="perf-value" id="ml-pv-perf">--%</div></div></div>
                         <div class="flow-lines">
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="ml-pv-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="ml-pv-togrid">-- kWh</span></div>
                         </div>
+                        <div class="slab-perf"><div class="slab-perf-item"><div class="perf-label">PV Performance</div><div class="perf-value" id="ml-pv-perf">--%</div></div></div>
                     </div>
                     <div class="slab">
                         <div class="slab-label">Grid Import</div>
@@ -1379,19 +1381,19 @@
                     scales: {
                         x: {
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#888', font: { size: 12 }, maxRotation: 0 }
+                            ticks: { color: '#bbb', font: { size: 12 }, maxRotation: 0 }
                         },
                         y: {
                             position: 'left', beginAtZero: true,
-                            title: { display: true, text: 'Power (kW) - Generation, Load, Grid', color: '#888', font: { size: 13 } },
+                            title: { display: true, text: 'Power (kW) - Generation, Load, Grid', color: '#bbb', font: { size: 13 } },
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#888', font: { size: 12 } }
+                            ticks: { color: '#bbb', font: { size: 12 } }
                         },
                         y2: {
                             position: 'right', beginAtZero: true,
                             title: { display: true, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: 13 } },
                             grid: { drawOnChartArea: false },
-                            ticks: { color: '#FFD700', font: { size: 12 } }
+                            ticks: { color: '#FFD700', font: { size: 13 } }
                         }
                     }
                 }
@@ -1663,9 +1665,9 @@
                     interaction: { mode: 'index', intersect: false },
                     plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111', titleColor: '#fff', bodyColor: '#ccc', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 12, callbacks: { label: function(c) { const u = c.datasetIndex === 2 ? ' W/m²' : ' kW'; return c.dataset.label + ': ' + (c.parsed.y||0).toFixed(1) + u; } } } },
                     scales: {
-                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888', font: { size: 12 }, maxRotation: 0 } },
-                        y: { position: 'left', beginAtZero: true, title: { display: true, text: 'Power (kW)', color: '#888', font: { size: 13 } }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888', font: { size: 12 } } },
-                        y2: { position: 'right', beginAtZero: true, title: { display: true, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: 13 } }, grid: { drawOnChartArea: false }, ticks: { color: '#FFD700', font: { size: 12 } } }
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#bbb', font: { size: 12 }, maxRotation: 0 } },
+                        y: { position: 'left', beginAtZero: true, title: { display: true, text: 'Power (kW)', color: '#bbb', font: { size: 13 } }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#bbb', font: { size: 12 } } },
+                        y2: { position: 'right', beginAtZero: true, title: { display: true, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: 13 } }, grid: { drawOnChartArea: false }, ticks: { color: '#FFD700', font: { size: 13 } } }
                     }
                 }
             });
@@ -1970,12 +1972,12 @@
             monthlyDailyChart = new Chart(ctx, {
                 data: { labels,
                     datasets: [
-                        { type:'line', label:'Actual PV Average (kWh)', data:actCovLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-avgPV'] },
-                        { type:'line', label:'Expected PV (kWh)', data:expCovLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-expPVAvg'] },
-                        { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'] },
-                        { type:'line', label:'Scaled Irradiation (kWh equiv)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'y', hidden:!monthlyDsVis['m-irrad'] },
-                        { type:'line', label:'Actual Load (Avg)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'] },
-                        { type:'line', label:'Actual Grid (Avg)', data:actGridArr, borderColor:'#f97316', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actGrid'] }
+                        { type:'line', label:'Actual PV Average (kWh)', data:actCovLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-avgPV'], order:1 },
+                        { type:'line', label:'Expected PV (kWh)', data:expCovLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-expPVAvg'], order:1 },
+                        { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'], order:3 },
+                        { type:'line', label:'Scaled Irradiation (kWh equiv)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'y', hidden:!monthlyDsVis['m-irrad'], order:2 },
+                        { type:'line', label:'Actual Load (Avg)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'], order:0 },
+                        { type:'line', label:'Actual Grid (Avg)', data:actGridArr, borderColor:'#f97316', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actGrid'], order:0 }
                     ]
                 },
                 options: {
@@ -1987,9 +1989,9 @@
                         return c.dataset.label+': '+fmtTick(c.parsed.y)+' '+suffix;
                     }}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:(v)=>fmtTick(v)}},
-                        y2:{position:'right',beginAtZero:true,max:100,title:{display:true,text:covTitle,color:'#FFD700',font:{size:12}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:11},callback:v=>Math.round(v)+'%'}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
+                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:(v)=>fmtTick(v)}},
+                        y2:{position:'right',beginAtZero:true,max:100,title:{display:true,text:covTitle,color:'#FFD700',font:{size:13}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:12},callback:v=>Math.round(v)+'%'}}
                     }
                 }
             });
@@ -2080,8 +2082,8 @@
                     interaction:{mode:'index',intersect:false},
                     plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:12,callbacks:{label:c=>`${c.dataset.label}: R${fmt(c.parsed.y)}`}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{beginAtZero:true,title:{display:true,text:'Savings (R)',color:'#888',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#888',font:{size:12},callback:v=>'R '+String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
+                        y:{beginAtZero:true,title:{display:true,text:'Savings (R)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:v=>'R '+String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}
                     }
                 }
             });
