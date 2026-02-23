@@ -223,6 +223,7 @@
         .monthly-grid .slab { display: flex; flex-direction: column; }
         .month-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
         .month-selector select, .month-selector button { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 8px 14px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; }
+        .month-selector select option { background: #1a1a2e; color: #ffffff; }
         .month-selector button:hover { background: rgba(255,255,255,0.08); }
         .month-selector .btn-this-month { background: rgba(255,215,0,0.15); border-color: var(--gold); color: var(--gold); }
         .month-selector .btn-this-month:hover { background: rgba(255,215,0,0.25); }
@@ -1572,52 +1573,87 @@
             const tbody = document.getElementById('dailySavingsBody');
             const tb = rec.tou_breakdown;
 
-            if (!tb || !finConfig) {
-                // Calculate from savings data if no breakdown
-                const sav = rec.savings || {};
-                const pvS = sav.pv_savings || {};
-                const exS = sav.export_savings || {};
-                tbody.innerHTML = `<tr class="total-row"><td style="text-align:left">Total</td>
-                    <td>${fmt(rec.pv)} kWh</td><td>--</td>
-                    <td>R${fmt(pvS.total || 0)}</td><td>R${fmt(exS.total || 0)}</td>
-                    <td>R${fmt(sav.total || 0)}</td></tr>`;
+            if (tb && finConfig) {
+                // Use pre-calculated TOU breakdown
+                const periods = ['peak', 'standard', 'off_peak'];
+                const labels = { peak: '<span class="tou-pill peak">Peak</span>', standard: '<span class="tou-pill standard">Standard</span>', off_peak: '<span class="tou-pill off-peak">Off-Peak</span>' };
+                let totGen = 0, totUtil = 0, totPvS = 0, totExpS = 0;
+                let html = '';
+                periods.forEach(p => {
+                    const d = tb[p] || {};
+                    const gen = d.generation || 0;
+                    const util = d.utility_cost || 0;
+                    const pvs = d.pv_savings || 0;
+                    const exs = d.export_savings || 0;
+                    const total = pvs + exs;
+                    totGen += gen; totUtil += util; totPvS += pvs; totExpS += exs;
+                    html += `<tr><td style="text-align:left">${labels[p]}</td><td>${fmt(gen)} kWh</td><td>R${fmt(util)}</td><td>R${fmt(pvs)}</td><td>R${fmt(exs)}</td><td>R${fmt(total)}</td></tr>`;
+                });
+                html += `<tr class="total-row"><td style="text-align:left">Total</td><td>${fmt(totGen)} kWh</td><td>R${fmt(totUtil)}</td><td>R${fmt(totPvS)}</td><td>R${fmt(totExpS)}</td><td>R${fmt(totPvS + totExpS)}</td></tr>`;
+                tbody.innerHTML = html;
                 return;
             }
 
-            const periods = ['peak', 'standard', 'off_peak'];
-            const labels = { peak: '<span class="tou-pill peak">Peak</span>', standard: '<span class="tou-pill standard">Standard</span>', off_peak: '<span class="tou-pill off-peak">Off-Peak</span>' };
-            let totGen = 0, totUtil = 0, totPvS = 0, totExpS = 0;
+            // Calculate TOU savings on the fly from daily totals
+            if (finConfig && pvsyst) {
+                const yr = dateObj.getFullYear();
+                const mo = dateObj.getMonth() + 1;
+                const day = dateObj.getDate();
+                const sc = rec.self_consumption || 0;
+                const exp = rec.export || 0;
+                const imp = rec.import || 0;
+                // Get separate PV and export savings
+                const scSav = calcDaySavings(yr, mo, day, sc, 0);
+                const exSav = calcDaySavings(yr, mo, day, 0, exp);
 
-            let html = '';
-            periods.forEach(p => {
-                const d = tb[p] || {};
-                const gen = d.generation || 0;
-                const util = d.utility_cost || 0;
-                const pvs = d.pv_savings || 0;
-                const exs = d.export_savings || 0;
-                const total = pvs + exs;
-                totGen += gen; totUtil += util; totPvS += pvs; totExpS += exs;
+                // Calculate generation & utility per period
+                const fc = finConfig;
+                const season = (fc.seasons||{})[String(mo)] || 'low_demand';
+                const wd = dateObj.getDay();
+                const dayType = wd===0?'sunday':wd===6?'saturday':'weekday';
+                const schedule = (fc.tou_schedule||{})[season]?.[dayType] || [];
+                const mm = String(mo).padStart(2,'0');
+                const mmdd = mm+'-'+String(day).padStart(2,'0');
+                const pattern = (pvsyst.daily_hourly||{})[mmdd] || new Array(24).fill(0);
+                const pTotal = pattern.reduce((a,b)=>a+b,0) || 1;
+                const avgL = dashData.hourly?.avg_load || new Array(24).fill(1);
+                const loadTotal = avgL.reduce((a,b)=>a+b,0) || 1;
+                const rates = fc.rates||{};
+                const gen = {peak:0,standard:0,off_peak:0};
+                const util = {peak:0,standard:0,off_peak:0};
+                for (let h=0;h<24;h++) {
+                    const frac = pattern[h]/pTotal;
+                    const loadFrac = avgL[h]/loadTotal;
+                    const period = schedule[h]||'off_peak';
+                    const rate = rates[season]?.[period]||0;
+                    gen[period] += (sc+exp)*frac;
+                    util[period] += imp*loadFrac*rate;
+                }
 
-                html += `<tr>
-                    <td style="text-align:left">${labels[p]}</td>
-                    <td>${fmt(gen)} kWh</td>
-                    <td>R${fmt(util)}</td>
-                    <td>R${fmt(pvs)}</td>
-                    <td>R${fmt(exs)}</td>
-                    <td>R${fmt(total)}</td>
-                </tr>`;
-            });
+                const periods = ['peak','standard','off_peak'];
+                const labels = {peak:'<span class="tou-pill peak">Peak</span>',standard:'<span class="tou-pill standard">Standard</span>',off_peak:'<span class="tou-pill off-peak">Off-Peak</span>'};
+                let totGen=0, totUtil=0, totPvS=0, totExpS=0;
+                let html = '';
+                periods.forEach(p => {
+                    const pvSavP = scSav[p]||0;
+                    const exSavP = exSav[p]||0;
+                    const total = pvSavP + exSavP;
+                    totGen += gen[p]; totUtil += util[p]; totPvS += pvSavP; totExpS += exSavP;
+                    html += `<tr><td style="text-align:left">${labels[p]}</td><td>${fmt(gen[p])} kWh</td><td>R${fmt(util[p])}</td><td>R${fmt(pvSavP)}</td><td>R${fmt(exSavP)}</td><td>R${fmt(total)}</td></tr>`;
+                });
+                html += `<tr class="total-row"><td style="text-align:left">Total</td><td>${fmt(totGen)} kWh</td><td>R${fmt(totUtil)}</td><td>R${fmt(totPvS)}</td><td>R${fmt(totExpS)}</td><td>R${fmt(totPvS+totExpS)}</td></tr>`;
+                tbody.innerHTML = html;
+                return;
+            }
 
-            html += `<tr class="total-row">
-                <td style="text-align:left">Total</td>
-                <td>${fmt(totGen)} kWh</td>
-                <td>R${fmt(totUtil)}</td>
-                <td>R${fmt(totPvS)}</td>
-                <td>R${fmt(totExpS)}</td>
-                <td>R${fmt(totPvS + totExpS)}</td>
-            </tr>`;
-
-            tbody.innerHTML = html;
+            // Fallback: just show totals
+            const sav = rec.savings || {};
+            const pvS = sav.pv_savings || {};
+            const exS = sav.export_savings || {};
+            tbody.innerHTML = `<tr class="total-row"><td style="text-align:left">Total</td>
+                <td>${fmt(rec.pv)} kWh</td><td>--</td>
+                <td>R${fmt(pvS.total || 0)}</td><td>R${fmt(exS.total || 0)}</td>
+                <td>R${fmt(sav.total || 0)}</td></tr>`;
         }
 
         function renderDailyHourlyChart(rec, dateStr, maxH) {
@@ -1626,9 +1662,6 @@
 
             const hours = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
             const h = rec.hourly || {};
-            const pvH = h.pv || new Array(24).fill(0);
-            const loadH = h.load || new Array(24).fill(0);
-            const gridH = h.grid || new Array(24).fill(0);
 
             // PVSyst predicted for this specific date
             const dp = new Date(dateStr + 'T12:00:00');
@@ -1636,6 +1669,29 @@
             const pvsDay = getPvsystDay(mmdd);
             const factor = degradationFactor(dp.getFullYear());
             const predicted = pvsDay.map(v => v * factor);
+
+            // If no hourly arrays, distribute daily totals using PVSyst pattern
+            let pvH, loadH, gridH;
+            if (h.pv && h.pv.length === 24 && h.pv.some(v => v > 0)) {
+                pvH = h.pv;
+                loadH = h.load || new Array(24).fill(0);
+                gridH = h.grid || new Array(24).fill(0);
+            } else {
+                // Distribute PV using PVSyst hourly pattern
+                const pvTotal = rec.pv || 0;
+                const pvsTotal = pvsDay.reduce((a,b)=>a+b,0) || 1;
+                pvH = pvsDay.map(v => pvTotal * (v / pvsTotal));
+
+                // Distribute load/grid using avg hourly pattern
+                const avgL = dashData.hourly?.avg_load || new Array(24).fill(1);
+                const avgG = dashData.hourly?.avg_grid || new Array(24).fill(1);
+                const lTotal = avgL.reduce((a,b)=>a+b,0) || 1;
+                const gTotal = avgG.reduce((a,b)=>a+b,0) || 1;
+                const consTotal = rec.consumption || 0;
+                const impTotal = rec.import || 0;
+                loadH = avgL.map(v => consTotal * (v / lTotal));
+                gridH = avgG.map(v => impTotal * (v / gTotal));
+            }
 
             // Irradiation shifted 1hr left
             const irradRaw = irradData?.daily_records?.[dateStr]?.hourly_wm2 || new Array(24).fill(0);
