@@ -712,21 +712,21 @@
                 </div>
                 </div><!-- end dash-block chart -->
 
-                <div class="dash-block" data-block="pvdist" data-block-name="PV Distribution" draggable="false">
+                <div class="dash-block" data-block="pvdist" data-block-name="Upper &amp; Lower Yield" draggable="false">
                     <span class="block-handle" title="Drag to reorder">⠿</span>
                     <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('pvdist')">✕</span>
                 <div class="chart-container">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                        <h3>Actual PV by Hour</h3>
+                        <h3>Upper and Lower Yield</h3>
                         <span class="daily-status" id="pvDistStatus" style="margin:0;"></span>
                     </div>
                     <div class="chart-legend-row">
                         <div class="chart-legend-defaults">
-                            <div class="chart-legend-item" data-pvd="pvd-median" onclick="togglePvdDs('pvd-median')"><span class="legend-swatch" style="background:#16a34a;"></span>Median (P50)</div>
-                            <div class="chart-legend-item" data-pvd="pvd-p50" onclick="togglePvdDs('pvd-p50')"><span class="legend-swatch" style="background:rgba(74,222,128,0.5);"></span>50% (P25-P75)</div>
-                            <div class="chart-legend-item" data-pvd="pvd-p80" onclick="togglePvdDs('pvd-p80')"><span class="legend-swatch" style="background:rgba(74,222,128,0.2);"></span>80% (P10-P90)</div>
-                            <div class="chart-legend-item" data-pvd="pvd-min" onclick="togglePvdDs('pvd-min')"><span class="legend-swatch" style="background:rgba(74,222,128,0.35);"></span>Min</div>
-                            <div class="chart-legend-item" data-pvd="pvd-max" onclick="togglePvdDs('pvd-max')"><span class="legend-swatch" style="background:rgba(74,222,128,0.35);"></span>Max</div>
+                            <div class="chart-legend-item" data-pvd="pvd-median" onclick="togglePvdDs('pvd-median')"><span class="legend-swatch" style="background:#16a34a;height:4px;border-radius:2px;margin-top:5px;"></span>Median (P50)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-p50" onclick="togglePvdDs('pvd-p50')"><span class="legend-swatch" style="background:#4ade80;opacity:0.7;"></span>50% (P25–P75)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-p80" onclick="togglePvdDs('pvd-p80')"><span class="legend-swatch" style="background:#4ade80;opacity:0.3;"></span>80% (P10–P90)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-min" onclick="togglePvdDs('pvd-min')"><span class="legend-swatch" style="background:transparent;border:1.5px solid #86efac;height:2px;border-radius:1px;margin-top:6px;"></span>Min</div>
+                            <div class="chart-legend-item" data-pvd="pvd-max" onclick="togglePvdDs('pvd-max')"><span class="legend-swatch" style="background:transparent;border:1.5px solid #bbf7d0;height:2px;border-radius:1px;margin-top:6px;"></span>Max</div>
                             <div class="chart-legend-item" data-pvd="pvd-load" onclick="togglePvdDs('pvd-load')"><span class="legend-swatch dashed" style="border-color:#999;"></span>Median Load</div>
                         </div>
                     </div>
@@ -2070,17 +2070,17 @@
             pvDistChart = new Chart(ctx, {
                 type: 'line',
                 data: { labels, datasets: [
-                    // P10-P90 band (fill between P10 and P90)
+                    // P10-P90 band (lighter outer band)
                     { label:'P10', data:p10, borderColor:'transparent', backgroundColor:'rgba(74,222,128,0.12)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
-                    { label:'P90', data:p90, borderColor:'rgba(74,222,128,0.25)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
-                    // P25-P75 band (fill between P25 and P75)
-                    { label:'P25', data:p25, borderColor:'transparent', backgroundColor:'rgba(74,222,128,0.25)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
-                    { label:'P75', data:p75, borderColor:'rgba(74,222,128,0.4)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
-                    // Min
-                    { label:'Min', data:minPV, borderColor:'rgba(74,222,128,0.4)', borderWidth:1, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-min'] },
-                    // Max
-                    { label:'Max', data:maxPV, borderColor:'rgba(74,222,128,0.4)', borderWidth:1, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-max'] },
-                    // Median (P50) - bold green
+                    { label:'P90', data:p90, borderColor:'rgba(74,222,128,0.2)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
+                    // P25-P75 band (darker inner band)
+                    { label:'P25', data:p25, borderColor:'transparent', backgroundColor:'rgba(74,222,128,0.3)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
+                    { label:'P75', data:p75, borderColor:'rgba(74,222,128,0.45)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
+                    // Min - thin light green
+                    { label:'Min', data:minPV, borderColor:'#86efac', borderWidth:1.5, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-min'] },
+                    // Max - thin lighter green
+                    { label:'Max', data:maxPV, borderColor:'#bbf7d0', borderWidth:1.5, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-max'] },
+                    // Median (P50) - bold dark green
                     { label:'Median (P50)', data:medianPV, borderColor:'#16a34a', borderWidth:3, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-median'] },
                     // Median Load - dashed gray
                     { label:'Median Load', data:medianLoad, borderColor:'#999', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-load'] }
@@ -2105,7 +2105,7 @@
                     },
                     scales:{
                         x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11}},title:{display:true,text:'Hour of Day',color:'#bbb',font:{size:13}}},
-                        y:{beginAtZero:true,title:{display:true,text:'Consumed PV (kW)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
+                        y:{beginAtZero:true,title:{display:true,text:'PV Output (kW)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
                     }
                 },
                 plugins: [{
