@@ -219,8 +219,8 @@
         .overview-title { text-align: center; font-size: var(--font-lg); font-weight: 600; margin-bottom: 25px; }
         .overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
         .daily-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-        .monthly-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 30px; }
-        .monthly-grid .slab { display: flex; flex-direction: column; min-width: 0; overflow: visible; }
+        .monthly-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 30px; align-items: stretch; }
+        .monthly-grid .slab { display: flex; flex-direction: column; min-width: 0; }
         .month-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
         .month-selector select, .month-selector button { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 8px 14px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; }
         .month-selector select option { background: #1a1a2e; color: #ffffff; }
@@ -253,7 +253,7 @@
         #lifetimeGrid .flow-line .fl-label { font-size: 0.7em; }
         #lifetimeGrid .slab-perf-item .perf-value { font-size: var(--font-base); }
         #lifetimeGrid .slab-perf-item .perf-label { font-size: 0.7em; }
-        #lifetimeGrid .slab-perf { padding: 8px; margin-top: 10px; }
+        #lifetimeGrid .slab-perf { padding: 8px; margin-top: auto; }
         .slab-expected { font-size: var(--font-base); color: #94a3b8; margin-bottom: 8px; white-space: nowrap; }
         .slab-expected .exp-val { color: #fff; font-weight: 500; }
         .slab-expected .exp-unit { color: var(--gold); }
@@ -324,6 +324,7 @@
         .env-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
         .env-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 15px; padding: 20px; }
         .env-box h3 { font-size: var(--font-xs); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+        #tab-lifetime .env-box h3 { min-height: 2.4em; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
         .env-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
         .env-row:last-child { border-bottom: none; }
         .env-row .env-name { color: var(--text-secondary); font-size: var(--font-xs); }
@@ -724,7 +725,7 @@
                     <h3>Hourly Generation Pattern</h3>
                     <div class="chart-legend-row" id="dailyChartLegend">
                         <div class="chart-legend-defaults">
-                            <div class="chart-legend-item" data-dds="d-predicted" onclick="toggleDailyDs('d-predicted')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Predicted</div>
+                            <div class="chart-legend-item" data-dds="d-predicted" onclick="toggleDailyDs('d-predicted')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Predicted (Monthly Avg)</div>
                             <div class="chart-legend-item" data-dds="d-pvGen" onclick="toggleDailyDs('d-pvGen')"><span class="legend-swatch" style="background:#4ade80;"></span>PV Generation (kW)</div>
                             <div class="chart-legend-item" data-dds="d-irrad" onclick="toggleDailyDs('d-irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Irradiation (W/m²)</div>
                         </div>
@@ -864,11 +865,11 @@
                         <div class="slab-value"><span id="lt-pv">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="lt-pv-exp">--</span> <span class="exp-unit">kWh</span></div>
                         <div class="slab-status" id="lt-pv-status"></div>
+                        <div class="slab-perf"><div class="slab-perf-item"><div class="perf-label">PV Performance</div><div class="perf-value" id="lt-pv-perf">--%</div></div></div>
                         <div class="flow-lines">
                             <div class="flow-line"><span class="fl-label">⚡ to Load</span><span class="fl-value" id="lt-pv-toload">-- kWh</span></div>
                             <div class="flow-line"><span class="fl-label">⚡ to Grid</span><span class="fl-value" id="lt-pv-togrid">-- kWh</span></div>
                         </div>
-                        <div class="slab-perf"><div class="slab-perf-item"><div class="perf-label">PV Performance</div><div class="perf-value" id="lt-pv-perf">--%</div></div></div>
                     </div>
                     <div class="slab">
                         <div class="slab-label">Grid Import</div>
@@ -906,18 +907,22 @@
 
                 <!-- ENVIRONMENTAL IMPACT -->
                 <div class="env-section-title">Environmental Impact</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:30px;">
-                    <div class="env-box"><h3>🌳 Trees Equivalent</h3>
-                        <div class="slab-value" style="text-align:center;"><span id="lt-env-trees">0</span></div>
+                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:30px;align-items:stretch;">
+                    <div class="env-box" style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+                        <h3>🌳 Trees Equivalent</h3>
+                        <div class="slab-value" style="text-align:center;font-size:clamp(1.2em,2.5vw,1.8em);margin-top:auto;"><span id="lt-env-trees">0</span></div>
                     </div>
-                    <div class="env-box"><h3>🏠 Households Powered</h3>
-                        <div class="slab-value" style="text-align:center;"><span id="lt-env-homes">0</span></div>
+                    <div class="env-box" style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+                        <h3>🏠 Households Powered</h3>
+                        <div class="slab-value" style="text-align:center;font-size:clamp(1.2em,2.5vw,1.8em);margin-top:auto;"><span id="lt-env-homes">0</span></div>
                     </div>
-                    <div class="env-box"><h3>⛏️ Coal Saved</h3>
-                        <div class="slab-value" style="text-align:center;"><span id="lt-env-coal">0 kg</span></div>
+                    <div class="env-box" style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+                        <h3>⛏️ Coal Saved</h3>
+                        <div class="slab-value" style="text-align:center;font-size:clamp(1.2em,2.5vw,1.8em);margin-top:auto;"><span id="lt-env-coal">0 kg</span></div>
                     </div>
-                    <div class="env-box"><h3>💧 Water Saved</h3>
-                        <div class="slab-value" style="text-align:center;"><span id="lt-env-water">0 L</span></div>
+                    <div class="env-box" style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+                        <h3>💧 Water Saved</h3>
+                        <div class="slab-value" style="text-align:center;font-size:clamp(1.2em,2.5vw,1.8em);margin-top:auto;"><span id="lt-env-water">0 L</span></div>
                     </div>
                 </div>
 
@@ -1194,12 +1199,14 @@
         }
 
         // PVSyst monthly hourly averages: average each hour across all days in the month
-        function calcPvsystMonthlyHourlyAvg() {
+        function calcPvsystMonthlyHourlyAvg(optYear, optMonth) {
             if (!pvsyst?.daily_hourly) return new Array(24).fill(0);
             const now = new Date();
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const factor = degradationFactor(now.getFullYear());
-            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const yr = optYear || now.getFullYear();
+            const mo = optMonth || (now.getMonth() + 1);
+            const mm = String(mo).padStart(2, '0');
+            const factor = degradationFactor(yr);
+            const daysInMonth = new Date(yr, mo, 0).getDate();
 
             const sums = new Array(24).fill(0);
             let count = 0;
@@ -1636,14 +1643,17 @@
             const dp = new Date(dateStr + 'T12:00:00');
             const year = dp.getFullYear();
             const factor = degradationFactor(year);
-            const mmdd = String(dp.getMonth()+1).padStart(2,'0') + '-' + String(dp.getDate()).padStart(2,'0');
+            const mm = dp.getMonth() + 1;
+            const mmdd = String(mm).padStart(2,'0') + '-' + String(dp.getDate()).padStart(2,'0');
             const pvsDay = getPvsystDay(mmdd);
 
-            // Expected PV: sum PVSyst to current hour × degradation
+            // Monthly hourly average for this month (same as overview approach)
+            const monthlyAvg = calcPvsystMonthlyHourlyAvg(year, mm);
+
+            // Expected PV: sum monthly hourly avg to current hour (matches overview)
             let expPV = 0;
             const maxH = isPartial ? partialHour : 23;
-            for (let h = 0; h <= maxH; h++) expPV += pvsDay[h] || 0;
-            expPV *= factor;
+            for (let h = 0; h <= maxH; h++) expPV += monthlyAvg[h] || 0;
 
             // Expected load & grid from monthly averages
             const avgL = dashData.hourly?.avg_load || [];
@@ -1689,7 +1699,7 @@
             renderDailySavingsTable(rec, dp);
 
             // Hourly chart
-            renderDailyHourlyChart(rec, dateStr, maxH);
+            renderDailyHourlyChart(rec, dateStr, maxH, monthlyAvg);
         }
 
         function renderDailySlab(type, actual, expected, invertStatus) {
@@ -1803,19 +1813,20 @@
                 <td>R${fmt(sav.total || 0)}</td></tr>`;
         }
 
-        function renderDailyHourlyChart(rec, dateStr, maxH) {
+        function renderDailyHourlyChart(rec, dateStr, maxH, monthlyAvg) {
             const ctx = document.getElementById('dailyHourlyChart');
             if (!ctx) return;
 
             const hours = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
             const h = rec.hourly || {};
 
-            // PVSyst predicted for this specific date
+            // Predicted = monthly hourly average (same as overview)
+            const predicted = monthlyAvg || new Array(24).fill(0);
+
+            // PVSyst day pattern (still needed for distributing daily totals)
             const dp = new Date(dateStr + 'T12:00:00');
             const mmdd = String(dp.getMonth()+1).padStart(2,'0') + '-' + String(dp.getDate()).padStart(2,'0');
             const pvsDay = getPvsystDay(mmdd);
-            const factor = degradationFactor(dp.getFullYear());
-            const predicted = pvsDay.map(v => v * factor);
 
             // If no hourly arrays, distribute daily totals using PVSyst pattern
             let pvH, loadH, gridH;
@@ -1854,7 +1865,7 @@
                 data: {
                     labels: hours,
                     datasets: [
-                        { type: 'line', label: 'Predicted', data: predicted, borderColor: '#60a5fa', borderWidth: 2, borderDash: [6,4], pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-predicted'] },
+                        { type: 'line', label: 'Predicted (Monthly Avg)', data: predicted, borderColor: '#60a5fa', borderWidth: 2, borderDash: [6,4], pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-predicted'] },
                         { type: 'bar', label: 'PV Generation (kW)', data: pvH, backgroundColor: 'rgba(74,222,128,0.7)', borderColor: '#4ade80', borderWidth: 1, borderRadius: 3, yAxisID: 'y', hidden: !dailyDsVis['d-pvGen'] },
                         { type: 'line', label: 'Irradiation (W/m²)', data: irradH, backgroundColor: 'rgba(255,215,0,0.15)', borderColor: 'rgba(255,215,0,0.6)', borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: true, yAxisID: 'y2', hidden: !dailyDsVis['d-irrad'] },
                         { type: 'line', label: 'Actual Load (kW)', data: loadH, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false, yAxisID: 'y', hidden: !dailyDsVis['d-load'] },
@@ -2742,4 +2753,4 @@
         });
     </script>
 </body>
-                        </html>
+</html>
