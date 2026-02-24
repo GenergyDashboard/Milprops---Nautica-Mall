@@ -237,16 +237,15 @@
         }
         .slab:hover { border-color: rgba(255,215,0,0.3); box-shadow: 0 5px 25px rgba(255,215,0,0.1); }
         .slab-clickable { cursor: pointer; }
-        .donut-wrap { position: absolute; top: 12px; right: 12px; width: 110px; cursor: pointer; z-index: 5; }
+        .donut-wrap { float: right; width: 110px; margin-left: 10px; margin-bottom: 5px; cursor: pointer; z-index: 5; }
         .donut-wrap canvas { width: 110px !important; height: 110px !important; display: block; }
-        .donut-table-panel { display: none; margin-top: 8px; padding: 8px 10px; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.15); border-radius: 8px; width: 110px; }
+        .donut-table-panel { display: none; margin-top: 8px; padding: 8px 10px; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.15); border-radius: 8px; }
         .donut-table-panel.open { display: block; }
         .donut-table-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
         .donut-table-row .dt-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
         .donut-table-row .dt-label { color: var(--text-secondary); font-size: var(--font-xs); }
         .donut-table-row .dt-val { color: var(--text-primary); font-weight: 700; margin-left: auto; font-size: var(--font-xs); }
         .donut-table-sub { color: #888; font-size: 0.75em; padding-left: 14px; margin-bottom: 2px; }
-        .overview-grid .slab { position: relative; min-height: 130px; }
         .slab-label { font-size: var(--font-base); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
         .slab-value { font-size: var(--font-xl); font-weight: 700; color: var(--gold); margin-bottom: 5px; white-space: nowrap; }
         .slab-value .slab-unit { font-size: var(--font-base); font-weight: 400; }
