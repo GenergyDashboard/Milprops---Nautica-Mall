@@ -91,6 +91,33 @@
         .font-sizer .fs-md { width: 32px; height: 32px; font-size: 15px; }
         .font-sizer .fs-lg { width: 36px; height: 36px; font-size: 18px; }
 
+        /* Chart view switcher */
+        .chart-view-switch { display: flex; gap: 6px; }
+        .chart-view-switch button { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 6px 14px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; transition: all 0.2s; }
+        .chart-view-switch button:hover { background: rgba(255,255,255,0.08); }
+        .chart-view-switch button.active { background: rgba(255,215,0,0.15); border-color: var(--gold); color: var(--gold); }
+
+        /* Layout editor */
+        .edit-layout-btn { background: transparent; border: 1px solid var(--card-border); border-radius: 8px; color: #888; padding: 6px 12px; font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.2s; display: none; }
+        .edit-layout-btn:hover { border-color: var(--gold); color: var(--gold); }
+        .edit-layout-btn.editing { background: rgba(255,215,0,0.15); border-color: var(--gold); color: var(--gold); }
+
+        .dash-block { transition: opacity 0.2s; position: relative; }
+        .dash-block.dnd-dragging { opacity: 0.4; }
+        .dash-block.dnd-over { border-top: 3px solid var(--gold); }
+        .dash-block .block-handle { display: none; position: absolute; top: 8px; left: 8px; z-index: 20; cursor: grab; color: #666; font-size: 18px; background: rgba(0,0,0,0.6); border-radius: 6px; padding: 4px 8px; }
+        .dash-block .block-hide { display: none; position: absolute; top: 8px; right: 8px; z-index: 20; cursor: pointer; color: #666; font-size: 14px; background: rgba(0,0,0,0.6); border-radius: 6px; padding: 4px 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .dash-block .block-hide:hover { color: #ef4444; border-color: #ef4444; }
+        body.edit-mode .dash-block .block-handle, body.edit-mode .dash-block .block-hide { display: block; }
+        body.edit-mode .dash-block { outline: 2px dashed rgba(255,215,0,0.2); outline-offset: 4px; border-radius: 15px; }
+        body.edit-mode .dash-block:hover { outline-color: rgba(255,215,0,0.5); }
+
+        .hidden-blocks-sidebar { display: none; margin-bottom: 20px; padding: 15px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 15px; }
+        .hidden-blocks-sidebar.has-items { display: block; }
+        .hidden-blocks-sidebar h4 { color: var(--text-secondary); font-size: var(--font-xs); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .hidden-block-item { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; margin: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; color: var(--text-secondary); font-size: var(--font-xs); }
+        .hidden-block-item:hover { border-color: var(--gold); color: var(--gold); }
+
         /* Login/User section in header */
         #loginSection { opacity: 0.3; transition: opacity 0.3s; }
         #loginSection:hover { opacity: 1; }
@@ -425,6 +452,7 @@
                     <button class="fs-sm" onclick="setFontScale(0.85)" title="Smaller">A</button>
                     <button class="fs-md" onclick="setFontScale(1)" title="Default">A</button>
                     <button class="fs-lg" onclick="setFontScale(1.15)" title="Larger">A</button>
+                    <button class="edit-layout-btn" id="editLayoutBtn" onclick="toggleEditMode()" title="Edit Layout">✎ Edit</button>
                 </div>
                 <div id="loginSection">
                     <button class="btn btn-primary" onclick="showLoginModal()">Client Login →</button>
@@ -514,6 +542,15 @@
             <div id="tab-overview" class="tab-content active">
                 <div class="overview-title">System Overview</div>
 
+                <div class="hidden-blocks-sidebar" id="hiddenBlocksSidebar">
+                    <h4>Hidden Sections (click to restore)</h4>
+                    <div id="hiddenBlocksList"></div>
+                </div>
+
+                <div id="overviewLayout">
+                <div class="dash-block" data-block="slabs" data-block-name="Overview Slabs" draggable="false">
+                    <span class="block-handle" title="Drag to reorder">⠿</span>
+                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('slabs')">✕</span>
                 <div class="overview-grid">
                     <div class="slab slab-clickable" onclick="goToDaily()">
                         <div class="slab-label">Today</div>
@@ -621,10 +658,22 @@
                         </div>
                     </div>
                 </div>
+                </div><!-- end dash-block slabs -->
 
+                <div class="dash-block" data-block="chart" data-block-name="Generation Chart" draggable="false">
+                    <span class="block-handle" title="Drag to reorder">⠿</span>
+                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('chart')">✕</span>
                 <!-- Hourly Generation Pattern Chart -->
                 <div class="chart-container">
-                    <h3>Hourly Generation Pattern</h3>
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:5px;">
+                        <h3 id="ovChartTitle">Hourly Generation Pattern</h3>
+                        <div class="chart-view-switch">
+                            <button class="active" onclick="setOvChartView('today',this)">Today</button>
+                            <button onclick="setOvChartView('month',this)">This Month</button>
+                            <button onclick="setOvChartView('lifetime',this)">Lifetime</button>
+                        </div>
+                    </div>
+                    <div id="ovLegendToday">
                     <div class="chart-legend-row" id="chartLegend">
                         <div class="chart-legend-defaults">
                             <div class="chart-legend-item" data-ds="predicted" onclick="toggleDataset('predicted')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Predicted (Monthly Avg)</div>
@@ -642,9 +691,30 @@
                             </div>
                         </div>
                     </div>
+                    </div>
+                    <div id="ovLegendMonth" style="display:none;">
+                        <div class="chart-legend-row">
+                            <div class="chart-legend-defaults">
+                                <div class="chart-legend-item"><span class="legend-swatch" style="background:#4ade80;"></span>Daily PV Generation</div>
+                                <div class="chart-legend-item"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="ovLegendLifetime" style="display:none;">
+                        <div class="chart-legend-row">
+                            <div class="chart-legend-defaults">
+                                <div class="chart-legend-item"><span class="legend-swatch" style="background:#4ade80;"></span>Monthly PV Generation</div>
+                                <div class="chart-legend-item"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="chart-wrap"><canvas id="hourlyChart"></canvas></div>
                 </div>
+                </div><!-- end dash-block chart -->
 
+                <div class="dash-block" data-block="env" data-block-name="Environmental Impact" draggable="false">
+                    <span class="block-handle" title="Drag to reorder">⠿</span>
+                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('env')">✕</span>
                 <div class="env-section-title">Environmental Impact</div>
                 <div class="env-grid-3">
                     <div class="env-box"><h3>Today</h3>
@@ -666,9 +736,9 @@
                         <div class="env-row"><span class="env-name">Water Saved:</span><span class="env-val" id="ov-env-life-water">0 L</span></div>
                     </div>
                 </div>
+                </div><!-- end dash-block env -->
+                </div><!-- end overviewLayout -->
             </div>
-
-            <!-- DAILY GENERATION TAB -->
             <div id="tab-daily" class="tab-content">
                 <div class="daily-header">
                     <div class="date-picker">
@@ -1000,24 +1070,24 @@
                 <!-- TOTAL LIFETIME SAVINGS -->
                 <div class="slab" style="text-align:center;margin-bottom:20px;">
                     <div class="slab-label">Total Lifetime Savings</div>
-                    <div class="slab-value" style="font-size:2.5em;"><span style="color:#4ade80;">R</span><span id="fin-total-savings">--</span></div>
+                    <div class="slab-value" style="font-size:2.5em;"><span style="color:#fff;">R </span><span id="fin-total-savings">--</span></div>
                 </div>
 
                 <!-- PEAK / STANDARD / OFF-PEAK SAVINGS -->
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:30px;">
                     <div class="slab" style="text-align:center;">
                         <div class="slab-label"><span class="tou-pill peak" style="font-size:0.9em;">Peak</span></div>
-                        <div class="slab-value" style="font-size:1.8em;"><span style="color:#4ade80;">R</span><span id="fin-peak-savings">--</span></div>
+                        <div class="slab-value" style="font-size:1.8em;"><span style="color:#fff;">R </span><span id="fin-peak-savings">--</span></div>
                         <div class="slab-expected">PV: <span class="exp-val" id="fin-peak-pv">R--</span> · Export: <span class="exp-val" id="fin-peak-exp">R--</span></div>
                     </div>
                     <div class="slab" style="text-align:center;">
                         <div class="slab-label"><span class="tou-pill standard" style="font-size:0.9em;">Standard</span></div>
-                        <div class="slab-value" style="font-size:1.8em;"><span style="color:#4ade80;">R</span><span id="fin-std-savings">--</span></div>
+                        <div class="slab-value" style="font-size:1.8em;"><span style="color:#fff;">R </span><span id="fin-std-savings">--</span></div>
                         <div class="slab-expected">PV: <span class="exp-val" id="fin-std-pv">R--</span> · Export: <span class="exp-val" id="fin-std-exp">R--</span></div>
                     </div>
                     <div class="slab" style="text-align:center;">
                         <div class="slab-label"><span class="tou-pill off-peak" style="font-size:0.9em;">Off-Peak</span></div>
-                        <div class="slab-value" style="font-size:1.8em;"><span style="color:#4ade80;">R</span><span id="fin-offpk-savings">--</span></div>
+                        <div class="slab-value" style="font-size:1.8em;"><span style="color:#fff;">R </span><span id="fin-offpk-savings">--</span></div>
                         <div class="slab-expected">PV: <span class="exp-val" id="fin-offpk-pv">R--</span> · Export: <span class="exp-val" id="fin-offpk-exp">R--</span></div>
                     </div>
                 </div>
@@ -1171,6 +1241,8 @@
         function logout() {
             isLoggedIn = false;
             localStorage.removeItem('nautica-auth'); localStorage.removeItem('nautica-auth-ts');
+            document.getElementById('editLayoutBtn').style.display = 'none';
+            if (document.body.classList.contains('edit-mode')) toggleEditMode();
             showPublicView();
         }
 
@@ -1195,6 +1267,8 @@
                     <button class="btn btn-secondary" onclick="logout()">Logout</button>
                 </div>`;
             if (dashData) renderClientOverview();
+            document.getElementById('editLayoutBtn').style.display = 'inline-block';
+            loadLayout();
         }
 
         function switchTab(tab, btn) {
@@ -1448,8 +1522,8 @@
                 if (days > 0) document.getElementById('infoDaysActive').textContent = days;
             }
 
-            // Hourly chart
-            renderHourlyChart(currentHour);
+            // Hourly chart (only render if on 'today' view)
+            if (ovChartView === 'today') renderHourlyChart(currentHour);
 
             // Donut charts: what's powering the load (PV to Load vs Grid Import)
             const todayGrid = d.today?.data?.['Import (kWh)'] || 0;
@@ -1712,6 +1786,152 @@
                             grid: { drawOnChartArea: false },
                             ticks: { color: '#FFD700', font: { size: 13 } }
                         }
+                    }
+                }
+            });
+        }
+
+        // ══════════════════════════════════════════════════
+        // OVERVIEW CHART VIEW SWITCHER
+        // ══════════════════════════════════════════════════
+        let ovChartView = 'today';
+        let ovMonthChart = null, ovLifetimeChart = null;
+
+        function setOvChartView(view, btn) {
+            ovChartView = view;
+            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('ovLegendToday').style.display = view === 'today' ? '' : 'none';
+            document.getElementById('ovLegendMonth').style.display = view === 'month' ? '' : 'none';
+            document.getElementById('ovLegendLifetime').style.display = view === 'lifetime' ? '' : 'none';
+            const titles = {today:'Hourly Generation Pattern', month:'Daily Generation — This Month', lifetime:'Monthly Generation — Lifetime'};
+            document.getElementById('ovChartTitle').textContent = titles[view];
+            // Destroy any existing chart on the canvas
+            if (hourlyChart) { hourlyChart.destroy(); hourlyChart = null; }
+            if (ovMonthChart) { ovMonthChart.destroy(); ovMonthChart = null; }
+            if (ovLifetimeChart) { ovLifetimeChart.destroy(); ovLifetimeChart = null; }
+            if (view === 'today') {
+                if (dashData) {
+                    const pH = dashData.hourly?.current_hour;
+                    const ch = (pH !== undefined && pH !== null) ? pH : new Date().getHours();
+                    renderHourlyChart(ch);
+                }
+            } else if (view === 'month') {
+                renderOvMonthChart();
+            } else {
+                renderOvLifetimeChart();
+            }
+        }
+
+        function renderOvMonthChart() {
+            const ctx = document.getElementById('hourlyChart');
+            if (!ctx || !dashData || !pvsyst) return;
+            if (hourlyChart) { hourlyChart.destroy(); hourlyChart = null; }
+            const now = new Date();
+            const yr = now.getFullYear(), mo = now.getMonth()+1;
+            const mm = String(mo).padStart(2,'0');
+            const ym = yr + '-' + mm;
+            const numDays = now.getDate();
+            const factor = degradationFactor(yr);
+            const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const labels = [], actGen = [], expGen = [];
+
+            for (let d = 1; d <= numDays; d++) {
+                const dateStr = yr+'-'+mm+'-'+String(d).padStart(2,'0');
+                const dh = dailyHist?.[dateStr];
+                const mmdd = mm+'-'+String(d).padStart(2,'0');
+                const dayPvs = getPvsystDay(mmdd);
+                let dayExp;
+                if (d === numDays) {
+                    const pipeH = dashData.hourly?.current_hour;
+                    const ch = (pipeH !== undefined && pipeH !== null) ? pipeH : now.getHours();
+                    dayExp = 0; for (let h=0;h<=ch;h++) dayExp += dayPvs[h]||0;
+                } else { dayExp = dayPvs.reduce((a,b)=>a+b,0); }
+                dayExp *= factor;
+                labels.push(String(d).padStart(2,'0') + ' ' + monthNames[mo]);
+                actGen.push(Math.round(dh ? dh.pv : 0));
+                expGen.push(Math.round(dayExp));
+            }
+
+            if (ovMonthChart) ovMonthChart.destroy();
+            ovMonthChart = new Chart(ctx, {
+                data: { labels, datasets: [
+                    { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.6)', borderColor:'#4ade80', borderWidth:1, borderRadius:3 },
+                    { type:'line', label:'Expected PV (kWh)', data:expGen, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.3, fill:false }
+                ]},
+                options: {
+                    responsive:true, maintainAspectRatio:false,
+                    interaction:{mode:'index',intersect:false},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
+                    scales:{
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
+                        y:{beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
+                    },
+                    onClick: (evt, elems) => {
+                        if (elems.length > 0) {
+                            const idx = elems[0].index;
+                            const day = idx + 1;
+                            const dateStr = yr+'-'+mm+'-'+String(day).padStart(2,'0');
+                            document.getElementById('dailyDatePicker').value = dateStr;
+                            const btn = document.querySelectorAll('.tab-nav button')[1];
+                            switchTab('daily', btn);
+                            loadDailyDate(dateStr);
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderOvLifetimeChart() {
+            const ctx = document.getElementById('hourlyChart');
+            if (!ctx || !dashData || !pvsyst) return;
+            if (hourlyChart) { hourlyChart.destroy(); hourlyChart = null; }
+            const monthly = dashData.monthly || {};
+            const sortedMonths = Object.keys(monthly).sort();
+            const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const now = new Date();
+            const pipeH = dashData.hourly?.current_hour;
+            const currentHour = (pipeH !== undefined && pipeH !== null) ? pipeH : now.getHours();
+            const mt = pvsyst?.monthly_totals_kwh || {};
+            const labels = [], actGen = [], expGen = [];
+
+            sortedMonths.forEach(ym => {
+                const md = monthly[ym];
+                if (!md) return;
+                const [yr,mm] = ym.split('-').map(Number);
+                const factor = degradationFactor(yr);
+                const isCurrentMonth = yr === now.getFullYear() && mm === (now.getMonth()+1);
+                let expPV;
+                if (isCurrentMonth) {
+                    expPV = 0;
+                    for (let d=1;d<=now.getDate();d++) {
+                        const mmdd = String(mm).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+                        const dayPvs = getPvsystDay(mmdd);
+                        if (d<now.getDate()) expPV += dayPvs.reduce((a,b)=>a+b,0);
+                        else { for (let h=0;h<=currentHour;h++) expPV += dayPvs[h]||0; }
+                    }
+                    expPV *= factor;
+                } else {
+                    expPV = (mt[String(mm)]||0) * factor;
+                }
+                labels.push(monthNames[mm] + ' ' + String(yr).slice(2));
+                actGen.push(Math.round(md['PV Yield (kWh)'] || 0));
+                expGen.push(Math.round(expPV));
+            });
+
+            if (ovLifetimeChart) ovLifetimeChart.destroy();
+            ovLifetimeChart = new Chart(ctx, {
+                data: { labels, datasets: [
+                    { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.6)', borderColor:'#4ade80', borderWidth:1, borderRadius:3 },
+                    { type:'line', label:'Expected PV (kWh)', data:expGen, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.3, fill:false }
+                ]},
+                options: {
+                    responsive:true, maintainAspectRatio:false,
+                    interaction:{mode:'index',intersect:false},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
+                    scales:{
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
+                        y:{beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
                     }
                 }
             });
@@ -2061,6 +2281,7 @@
         let monthlyDailyChart = null;
         let monthlyTOUChart = null;
         let monthlyInited = false;
+        let monthlyChartYM = ''; // Track which month is displayed for click-to-navigate
         const monthlyDsVis = { 'm-avgPV':true,'m-expPVAvg':true,'m-actGen':true,'m-irrad':true,'m-actLoad':false,'m-actGrid':false,'m-actPeak':true,'m-actStd':true,'m-actOff':true,'m-expPeak':false,'m-expStd':false,'m-expOff':false };
 
         function goToMonthly() {
@@ -2290,6 +2511,7 @@
         }
 
         function renderMonthlyDailyChart(ym, numDays, currentHour, isCurrentMonth, yr, mo) {
+            monthlyChartYM = ym;
             const ctx = document.getElementById('monthlyDailyChart');
             if (!ctx) return;
             const labels = [];
@@ -2380,6 +2602,18 @@
                         x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
                         y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:(v)=>fmtTick(v)}},
                         y2:{position:'right',beginAtZero:true,max:100,title:{display:true,text:covTitle,color:'#FFD700',font:{size:12},padding:{top:25}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:12},callback:v=>Math.round(v)+'%'}}
+                    },
+                    onClick: (evt, elems) => {
+                        if (elems.length > 0) {
+                            const idx = elems[0].index;
+                            const day = idx + 1;
+                            const [cy,cm] = monthlyChartYM.split('-');
+                            const dateStr = cy+'-'+cm+'-'+String(day).padStart(2,'0');
+                            document.getElementById('dailyDatePicker').value = dateStr;
+                            const btn = document.querySelectorAll('.tab-nav button')[1];
+                            switchTab('daily', btn);
+                            loadDailyDate(dateStr);
+                        }
                     }
                 }
             });
@@ -3201,6 +3435,163 @@
             });
         }
         // ══════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════
+        // LAYOUT EDITOR (drag-and-drop + hide/restore)
+        // ══════════════════════════════════════════════════
+        let editMode = false;
+        const LAYOUT_KEY = 'nautica-layout-v1';
+        let dragSrcBlock = null;
+
+        function toggleEditMode() {
+            editMode = !editMode;
+            document.body.classList.toggle('edit-mode', editMode);
+            const btn = document.getElementById('editLayoutBtn');
+            btn.classList.toggle('editing', editMode);
+            btn.textContent = editMode ? '✓ Done' : '✎ Edit';
+            const container = document.getElementById('overviewLayout');
+            if (!container) return;
+            const blocks = container.querySelectorAll('.dash-block');
+            blocks.forEach(b => {
+                b.setAttribute('draggable', editMode ? 'true' : 'false');
+                if (editMode) {
+                    b.addEventListener('dragstart', dndDragStart);
+                    b.addEventListener('dragend', dndDragEnd);
+                    b.addEventListener('dragover', dndDragOver);
+                    b.addEventListener('dragleave', dndDragLeave);
+                    b.addEventListener('drop', dndDrop);
+                } else {
+                    b.removeEventListener('dragstart', dndDragStart);
+                    b.removeEventListener('dragend', dndDragEnd);
+                    b.removeEventListener('dragover', dndDragOver);
+                    b.removeEventListener('dragleave', dndDragLeave);
+                    b.removeEventListener('drop', dndDrop);
+                }
+            });
+            updateHiddenSidebar();
+        }
+
+        function dndDragStart(e) {
+            dragSrcBlock = this;
+            this.classList.add('dnd-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.dataset.block);
+        }
+
+        function dndDragEnd(e) {
+            this.classList.remove('dnd-dragging');
+            document.querySelectorAll('.dash-block.dnd-over').forEach(b => b.classList.remove('dnd-over'));
+            dragSrcBlock = null;
+        }
+
+        function dndDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (this !== dragSrcBlock) this.classList.add('dnd-over');
+        }
+
+        function dndDragLeave(e) {
+            this.classList.remove('dnd-over');
+        }
+
+        function dndDrop(e) {
+            e.preventDefault();
+            this.classList.remove('dnd-over');
+            if (this === dragSrcBlock || !dragSrcBlock) return;
+            const container = document.getElementById('overviewLayout');
+            const blocks = [...container.querySelectorAll('.dash-block')];
+            const fromIdx = blocks.indexOf(dragSrcBlock);
+            const toIdx = blocks.indexOf(this);
+            if (fromIdx < 0 || toIdx < 0) return;
+            if (fromIdx < toIdx) {
+                this.after(dragSrcBlock);
+            } else {
+                this.before(dragSrcBlock);
+            }
+            saveLayout();
+        }
+
+        function hideBlock(blockId) {
+            const block = document.querySelector('.dash-block[data-block="'+blockId+'"]');
+            if (!block) return;
+            block.style.display = 'none';
+            block.dataset.hidden = 'true';
+            updateHiddenSidebar();
+            saveLayout();
+        }
+
+        function restoreBlock(blockId) {
+            const block = document.querySelector('.dash-block[data-block="'+blockId+'"]');
+            if (!block) return;
+            block.style.display = '';
+            delete block.dataset.hidden;
+            updateHiddenSidebar();
+            saveLayout();
+            // Re-render charts if needed
+            if (blockId === 'chart') {
+                if (ovChartView === 'today') {
+                    const pH = dashData?.hourly?.current_hour;
+                    const ch = (pH !== undefined && pH !== null) ? pH : new Date().getHours();
+                    renderHourlyChart(ch);
+                } else if (ovChartView === 'month') { renderOvMonthChart(); }
+                else { renderOvLifetimeChart(); }
+            }
+        }
+
+        function updateHiddenSidebar() {
+            const sidebar = document.getElementById('hiddenBlocksSidebar');
+            const list = document.getElementById('hiddenBlocksList');
+            const hidden = document.querySelectorAll('.dash-block[data-hidden="true"]');
+            if (hidden.length > 0 && editMode) {
+                sidebar.classList.add('has-items');
+                list.innerHTML = '';
+                hidden.forEach(b => {
+                    const name = b.dataset.blockName || b.dataset.block;
+                    const item = document.createElement('span');
+                    item.className = 'hidden-block-item';
+                    item.textContent = '+ ' + name;
+                    item.onclick = () => restoreBlock(b.dataset.block);
+                    list.appendChild(item);
+                });
+            } else {
+                sidebar.classList.remove('has-items');
+            }
+        }
+
+        function saveLayout() {
+            const container = document.getElementById('overviewLayout');
+            if (!container) return;
+            const blocks = container.querySelectorAll('.dash-block');
+            const layout = [];
+            blocks.forEach(b => {
+                layout.push({ id: b.dataset.block, hidden: b.dataset.hidden === 'true' });
+            });
+            localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+        }
+
+        function loadLayout() {
+            const raw = localStorage.getItem(LAYOUT_KEY);
+            if (!raw) return;
+            try {
+                const layout = JSON.parse(raw);
+                const container = document.getElementById('overviewLayout');
+                if (!container) return;
+                // Reorder blocks
+                layout.forEach(item => {
+                    const block = container.querySelector('.dash-block[data-block="'+item.id+'"]');
+                    if (block) {
+                        container.appendChild(block);
+                        if (item.hidden) {
+                            block.style.display = 'none';
+                            block.dataset.hidden = 'true';
+                        } else {
+                            block.style.display = '';
+                            delete block.dataset.hidden;
+                        }
+                    }
+                });
+            } catch(e) {}
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             await loadCredentials();
             if (checkSession()) {
