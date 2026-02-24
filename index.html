@@ -237,24 +237,16 @@
         }
         .slab:hover { border-color: rgba(255,215,0,0.3); box-shadow: 0 5px 25px rgba(255,215,0,0.1); }
         .slab-clickable { cursor: pointer; }
-        .donut-wrap { position: absolute; top: 12px; right: 12px; width: 110px; height: 110px; cursor: pointer; z-index: 5; }
-        .donut-wrap canvas { width: 100% !important; height: 100% !important; }
-        .donut-wrap.show-table { width: auto; height: auto; top: 8px; right: 8px; left: 8px; }
-        .donut-wrap.show-table canvas { display: none; }
-        .donut-wrap .donut-table { display: none; }
-        .donut-wrap.show-table .donut-table {
-            display: flex; flex-direction: column; gap: 8px;
-            background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.15);
-            border-radius: 10px; padding: 12px 16px;
-        }
-        .donut-table-header { font-size: var(--font-xs); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
-        .donut-table-header .dt-close { color: #666; font-size: 1.1em; cursor: pointer; }
-        .donut-table-row { display: flex; align-items: center; gap: 8px; }
-        .donut-table-row .dt-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-        .donut-table-row .dt-label { color: var(--text-secondary); font-size: var(--font-base); }
-        .donut-table-row .dt-val { color: var(--text-primary); font-weight: 700; margin-left: auto; font-size: var(--font-base); }
-        .donut-table-row .dt-kwh { color: #888; font-size: var(--font-xs); padding-left: 6px; }
-        .overview-grid .slab { position: relative; }
+        .donut-wrap { position: absolute; top: 12px; right: 12px; width: 110px; cursor: pointer; z-index: 5; }
+        .donut-wrap canvas { width: 110px !important; height: 110px !important; display: block; }
+        .donut-table-panel { display: none; margin-top: 8px; padding: 8px 10px; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.15); border-radius: 8px; width: 110px; }
+        .donut-table-panel.open { display: block; }
+        .donut-table-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+        .donut-table-row .dt-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .donut-table-row .dt-label { color: var(--text-secondary); font-size: var(--font-xs); }
+        .donut-table-row .dt-val { color: var(--text-primary); font-weight: 700; margin-left: auto; font-size: var(--font-xs); }
+        .donut-table-sub { color: #888; font-size: 0.75em; padding-left: 14px; margin-bottom: 2px; }
+        .overview-grid .slab { position: relative; min-height: 130px; }
         .slab-label { font-size: var(--font-base); font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
         .slab-value { font-size: var(--font-xl); font-weight: 700; color: var(--gold); margin-bottom: 5px; white-space: nowrap; }
         .slab-value .slab-unit { font-size: var(--font-base); font-weight: 400; }
@@ -525,9 +517,9 @@
                 <div class="overview-grid">
                     <div class="slab slab-clickable" onclick="goToDaily()">
                         <div class="slab-label">Today</div>
-                        <div class="donut-wrap" onclick="event.stopPropagation();this.classList.toggle('show-table')">
+                        <div class="donut-wrap" onclick="event.stopPropagation();document.getElementById('donut-today-panel').classList.toggle('open')">
                             <canvas id="donut-today"></canvas>
-                            <div class="donut-table" id="donut-today-table"></div>
+                            <div class="donut-table-panel" id="donut-today-panel"></div>
                         </div>
                         <div class="slab-value"><span id="ov-today-gen">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ov-today-exp">--</span> <span class="exp-unit">kWh</span></div>
@@ -560,9 +552,9 @@
                     </div>
                     <div class="slab slab-clickable" onclick="goToMonthly()">
                         <div class="slab-label">This Month</div>
-                        <div class="donut-wrap" onclick="event.stopPropagation();this.classList.toggle('show-table')">
+                        <div class="donut-wrap" onclick="event.stopPropagation();document.getElementById('donut-month-panel').classList.toggle('open')">
                             <canvas id="donut-month"></canvas>
-                            <div class="donut-table" id="donut-month-table"></div>
+                            <div class="donut-table-panel" id="donut-month-panel"></div>
                         </div>
                         <div class="slab-value"><span id="ov-month-gen">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ov-month-exp">--</span> <span class="exp-unit">kWh</span></div>
@@ -595,9 +587,9 @@
                     </div>
                     <div class="slab slab-clickable" onclick="goToLifetime()">
                         <div class="slab-label">Lifetime</div>
-                        <div class="donut-wrap" onclick="event.stopPropagation();this.classList.toggle('show-table')">
+                        <div class="donut-wrap" onclick="event.stopPropagation();document.getElementById('donut-lifetime-panel').classList.toggle('open')">
                             <canvas id="donut-lifetime"></canvas>
-                            <div class="donut-table" id="donut-lifetime-table"></div>
+                            <div class="donut-table-panel" id="donut-lifetime-panel"></div>
                         </div>
                         <div class="slab-value"><span id="ov-lifetime-gen">--</span> <span class="slab-unit">kWh</span></div>
                         <div class="slab-expected">Expected: <span class="exp-val" id="ov-lifetime-exp">--</span> <span class="exp-unit">kWh</span></div>
@@ -1448,18 +1440,19 @@
         const donutCharts = {};
         function renderOverviewDonut(id, pvToLoad, gridImport) {
             const canvas = document.getElementById('donut-' + id);
-            const tableEl = document.getElementById('donut-' + id + '-table');
-            if (!canvas || !tableEl) return;
+            const panelEl = document.getElementById('donut-' + id + '-panel');
+            if (!canvas || !panelEl) return;
 
             const total = pvToLoad + gridImport;
             const pvPct = total > 0 ? (pvToLoad / total * 100) : 0;
             const gridPct = total > 0 ? (gridImport / total * 100) : 0;
 
             // Data table content
-            tableEl.innerHTML = `
-                <div class="donut-table-header"><span>Load Source</span><span class="dt-close">✕</span></div>
-                <div class="donut-table-row"><span class="dt-dot" style="background:#4ade80;"></span><span class="dt-label">Solar</span><span class="dt-val">${pvPct.toFixed(1)}%</span><span class="dt-kwh">${fmt(pvToLoad)} kWh</span></div>
-                <div class="donut-table-row"><span class="dt-dot" style="background:#f97316;"></span><span class="dt-label">Grid</span><span class="dt-val">${gridPct.toFixed(1)}%</span><span class="dt-kwh">${fmt(gridImport)} kWh</span></div>
+            panelEl.innerHTML = `
+                <div class="donut-table-row"><span class="dt-dot" style="background:#4ade80;"></span><span class="dt-label">Solar</span><span class="dt-val">${pvPct.toFixed(1)}%</span></div>
+                <div class="donut-table-sub">${fmt(pvToLoad)} kWh</div>
+                <div class="donut-table-row"><span class="dt-dot" style="background:#f97316;"></span><span class="dt-label">Grid</span><span class="dt-val">${gridPct.toFixed(1)}%</span></div>
+                <div class="donut-table-sub">${fmt(gridImport)} kWh</div>
             `;
 
             if (donutCharts[id]) donutCharts[id].destroy();
