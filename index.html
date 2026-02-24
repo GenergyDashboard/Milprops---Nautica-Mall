@@ -722,11 +722,11 @@
                     </div>
                     <div class="chart-legend-row">
                         <div class="chart-legend-defaults">
-                            <div class="chart-legend-item" data-pvd="pvd-median" onclick="togglePvdDs('pvd-median')"><span class="legend-swatch" style="background:#16a34a;height:4px;border-radius:2px;margin-top:5px;"></span>Median (P50)</div>
-                            <div class="chart-legend-item" data-pvd="pvd-p50" onclick="togglePvdDs('pvd-p50')"><span class="legend-swatch" style="background:#4ade80;opacity:0.7;"></span>50% (P25–P75)</div>
-                            <div class="chart-legend-item" data-pvd="pvd-p80" onclick="togglePvdDs('pvd-p80')"><span class="legend-swatch" style="background:#4ade80;opacity:0.3;"></span>80% (P10–P90)</div>
-                            <div class="chart-legend-item" data-pvd="pvd-min" onclick="togglePvdDs('pvd-min')"><span class="legend-swatch" style="background:transparent;border:1.5px solid #86efac;height:2px;border-radius:1px;margin-top:6px;"></span>Min</div>
-                            <div class="chart-legend-item" data-pvd="pvd-max" onclick="togglePvdDs('pvd-max')"><span class="legend-swatch" style="background:transparent;border:1.5px solid #bbf7d0;height:2px;border-radius:1px;margin-top:6px;"></span>Max</div>
+                            <div class="chart-legend-item" data-pvd="pvd-median" onclick="togglePvdDs('pvd-median')"><span style="display:inline-block;width:18px;height:4px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:6px;"></span>Median (P50)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-p50" onclick="togglePvdDs('pvd-p50')"><span style="display:inline-block;width:14px;height:14px;background:rgba(34,197,94,0.45);border-radius:3px;vertical-align:middle;margin-right:6px;"></span>50% (P25–P75)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-p80" onclick="togglePvdDs('pvd-p80')"><span style="display:inline-block;width:14px;height:14px;background:rgba(34,197,94,0.18);border-radius:3px;vertical-align:middle;margin-right:6px;"></span>80% (P10–P90)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-min" onclick="togglePvdDs('pvd-min')"><span style="display:inline-block;width:18px;height:2px;background:#facc15;border-radius:1px;vertical-align:middle;margin-right:6px;"></span>Min</div>
+                            <div class="chart-legend-item" data-pvd="pvd-max" onclick="togglePvdDs('pvd-max')"><span style="display:inline-block;width:18px;height:2px;background:#a78bfa;border-radius:1px;vertical-align:middle;margin-right:6px;"></span>Max</div>
                             <div class="chart-legend-item" data-pvd="pvd-load" onclick="togglePvdDs('pvd-load')"><span class="legend-swatch dashed" style="border-color:#999;"></span>Median Load</div>
                         </div>
                     </div>
@@ -2071,15 +2071,15 @@
                 type: 'line',
                 data: { labels, datasets: [
                     // P10-P90 band (lighter outer band)
-                    { label:'P10', data:p10, borderColor:'transparent', backgroundColor:'rgba(74,222,128,0.12)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
-                    { label:'P90', data:p90, borderColor:'rgba(74,222,128,0.2)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
+                    { label:'P10', data:p10, borderColor:'transparent', backgroundColor:'rgba(34,197,94,0.12)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
+                    { label:'P90', data:p90, borderColor:'transparent', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
                     // P25-P75 band (darker inner band)
-                    { label:'P25', data:p25, borderColor:'transparent', backgroundColor:'rgba(74,222,128,0.3)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
-                    { label:'P75', data:p75, borderColor:'rgba(74,222,128,0.45)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
-                    // Min - thin light green
-                    { label:'Min', data:minPV, borderColor:'#86efac', borderWidth:1.5, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-min'] },
-                    // Max - thin lighter green
-                    { label:'Max', data:maxPV, borderColor:'#bbf7d0', borderWidth:1.5, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-max'] },
+                    { label:'P25', data:p25, borderColor:'transparent', backgroundColor:'rgba(34,197,94,0.35)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
+                    { label:'P75', data:p75, borderColor:'transparent', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
+                    // Min - yellow so it pops
+                    { label:'Min', data:minPV, borderColor:'#facc15', borderWidth:1.5, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-min'] },
+                    // Max - purple so it's clearly different
+                    { label:'Max', data:maxPV, borderColor:'#a78bfa', borderWidth:1.5, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-max'] },
                     // Median (P50) - bold dark green
                     { label:'Median (P50)', data:medianPV, borderColor:'#16a34a', borderWidth:3, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-median'] },
                     // Median Load - dashed gray
@@ -2099,39 +2099,13 @@
                                 const names = {4:'Min',5:'Max',6:'Median PV',7:'Median Load'};
                                 return (names[c.datasetIndex]||c.dataset.label) + ': ' + c.parsed.y.toFixed(1) + ' kW';
                             }}
-                        },
-                        // TOU period background shading
-                        touBands: { id: 'touBands' }
+                        }
                     },
                     scales:{
                         x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11}},title:{display:true,text:'Hour of Day',color:'#bbb',font:{size:13}}},
                         y:{beginAtZero:true,title:{display:true,text:'PV Output (kW)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
                     }
-                },
-                plugins: [{
-                    id: 'touBands',
-                    beforeDraw: (chart) => {
-                        if (!finConfig) return;
-                        const fc = finConfig;
-                        const now = new Date();
-                        const season = (fc.seasons||{})[String(now.getMonth()+1)] || 'low_demand';
-                        const wd = now.getDay();
-                        const dayType = wd===0?'sunday':wd===6?'saturday':'weekday';
-                        const schedule = (fc.tou_schedule||{})[season]?.[dayType] || [];
-                        const ctx2 = chart.ctx;
-                        const xAxis = chart.scales.x;
-                        const yAxis = chart.scales.y;
-                        const colors = {peak:'rgba(239,68,68,0.08)',standard:'rgba(245,158,11,0.06)',off_peak:'rgba(255,255,255,0)'};
-                        for (let h = 0; h < 24; h++) {
-                            const period = schedule[h] || 'off_peak';
-                            if (period === 'off_peak') continue;
-                            const x0 = xAxis.getPixelForValue(h) - (xAxis.getPixelForValue(1) - xAxis.getPixelForValue(0)) / 2;
-                            const x1 = x0 + (xAxis.getPixelForValue(1) - xAxis.getPixelForValue(0));
-                            ctx2.fillStyle = colors[period] || 'transparent';
-                            ctx2.fillRect(x0, yAxis.top, x1 - x0, yAxis.bottom - yAxis.top);
-                        }
-                    }
-                }]
+                }
             });
         }
 
@@ -3773,12 +3747,34 @@
                 const layout = JSON.parse(raw);
                 const container = document.getElementById('overviewLayout');
                 if (!container) return;
-                // Reorder blocks
-                layout.forEach(item => {
-                    const block = container.querySelector('.dash-block[data-block="'+item.id+'"]');
+                const savedIds = layout.map(item => item.id);
+                // Get original HTML order before any reordering
+                const originalOrder = [...container.querySelectorAll('.dash-block')].map(b => b.dataset.block);
+                // Build merged order: saved order + new blocks inserted at original positions
+                const mergedOrder = [...savedIds];
+                originalOrder.forEach(id => {
+                    if (!savedIds.includes(id)) {
+                        // Find where this block was relative to others in original order
+                        const origIdx = originalOrder.indexOf(id);
+                        // Find the last saved block that comes before this one in original order
+                        let insertAt = mergedOrder.length;
+                        for (let i = origIdx - 1; i >= 0; i--) {
+                            const prevId = originalOrder[i];
+                            const mergedIdx = mergedOrder.indexOf(prevId);
+                            if (mergedIdx >= 0) { insertAt = mergedIdx + 1; break; }
+                        }
+                        mergedOrder.splice(insertAt, 0, id);
+                    }
+                });
+                // Build hidden map from saved layout
+                const hiddenMap = {};
+                layout.forEach(item => { hiddenMap[item.id] = item.hidden; });
+                // Apply merged order
+                mergedOrder.forEach(id => {
+                    const block = container.querySelector('.dash-block[data-block="'+id+'"]');
                     if (block) {
                         container.appendChild(block);
-                        if (item.hidden) {
+                        if (hiddenMap[id]) {
                             block.style.display = 'none';
                             block.dataset.hidden = 'true';
                         } else {
