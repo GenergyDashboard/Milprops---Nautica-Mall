@@ -712,6 +712,28 @@
                 </div>
                 </div><!-- end dash-block chart -->
 
+                <div class="dash-block" data-block="pvdist" data-block-name="PV Distribution" draggable="false">
+                    <span class="block-handle" title="Drag to reorder">⠿</span>
+                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('pvdist')">✕</span>
+                <div class="chart-container">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                        <h3>Actual PV by Hour</h3>
+                        <span class="daily-status" id="pvDistStatus" style="margin:0;"></span>
+                    </div>
+                    <div class="chart-legend-row">
+                        <div class="chart-legend-defaults">
+                            <div class="chart-legend-item" data-pvd="pvd-median" onclick="togglePvdDs('pvd-median')"><span class="legend-swatch" style="background:#16a34a;"></span>Median (P50)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-p50" onclick="togglePvdDs('pvd-p50')"><span class="legend-swatch" style="background:rgba(74,222,128,0.5);"></span>50% (P25-P75)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-p80" onclick="togglePvdDs('pvd-p80')"><span class="legend-swatch" style="background:rgba(74,222,128,0.2);"></span>80% (P10-P90)</div>
+                            <div class="chart-legend-item" data-pvd="pvd-min" onclick="togglePvdDs('pvd-min')"><span class="legend-swatch" style="background:rgba(74,222,128,0.35);"></span>Min</div>
+                            <div class="chart-legend-item" data-pvd="pvd-max" onclick="togglePvdDs('pvd-max')"><span class="legend-swatch" style="background:rgba(74,222,128,0.35);"></span>Max</div>
+                            <div class="chart-legend-item" data-pvd="pvd-load" onclick="togglePvdDs('pvd-load')"><span class="legend-swatch dashed" style="border-color:#999;"></span>Median Load</div>
+                        </div>
+                    </div>
+                    <div class="chart-wrap"><canvas id="pvDistChart"></canvas></div>
+                </div>
+                </div><!-- end dash-block pvdist -->
+
                 <div class="dash-block" data-block="env" data-block-name="Environmental Impact" draggable="false">
                     <span class="block-handle" title="Drag to reorder">⠿</span>
                     <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('env')">✕</span>
@@ -1525,6 +1547,9 @@
             // Hourly chart (only render if on 'today' view)
             if (ovChartView === 'today') renderHourlyChart(currentHour);
 
+            // PV Distribution chart
+            renderPvDistChart();
+
             // Donut charts: what's powering the load (PV to Load vs Grid Import)
             const todayGrid = d.today?.data?.['Import (kWh)'] || 0;
             const monthGrid = d.current_month?.data?.['Import (kWh)'] || 0;
@@ -1934,6 +1959,179 @@
                         y:{beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
                     }
                 }
+            });
+        }
+
+        // ══════════════════════════════════════════════════
+        // PV DISTRIBUTION CHART (Percentile bands)
+        // ══════════════════════════════════════════════════
+        let pvDistChart = null;
+        const pvdDsVis = {'pvd-median':true,'pvd-p50':true,'pvd-p80':true,'pvd-min':true,'pvd-max':true,'pvd-load':true};
+
+        function togglePvdDs(key) {
+            pvdDsVis[key] = !pvdDsVis[key];
+            const el = document.querySelector('[data-pvd="'+key+'"]');
+            if (el) el.classList.toggle('off', !pvdDsVis[key]);
+            if (!pvDistChart) return;
+            // Map keys to dataset indices
+            // Order: 0=P10fill, 1=P90, 2=P25fill, 3=P75, 4=Min, 5=Max, 6=Median, 7=Load
+            const map = {
+                'pvd-p80': [0,1], 'pvd-p50': [2,3],
+                'pvd-min': [4], 'pvd-max': [5],
+                'pvd-median': [6], 'pvd-load': [7]
+            };
+            if (map[key]) {
+                map[key].forEach(i => { pvDistChart.data.datasets[i].hidden = !pvdDsVis[key]; });
+                pvDistChart.update();
+            }
+        }
+
+        function percentile(arr, p) {
+            if (!arr.length) return 0;
+            const sorted = [...arr].sort((a,b) => a - b);
+            const idx = (p / 100) * (sorted.length - 1);
+            const lo = Math.floor(idx), hi = Math.ceil(idx);
+            if (lo === hi) return sorted[lo];
+            return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+        }
+
+        function renderPvDistChart() {
+            const ctx = document.getElementById('pvDistChart');
+            if (!ctx || !dailyHist) return;
+
+            // Collect hourly PV and load values across all days
+            const pvByHour = Array.from({length:24}, () => []);
+            const loadByHour = Array.from({length:24}, () => []);
+
+            // Use dailyHist records that have hourly data
+            Object.entries(dailyHist).forEach(([dateStr, rec]) => {
+                if (!rec) return;
+                const pvArr = rec.hourly?.pv;
+                const loadArr = rec.hourly?.load;
+                if (pvArr && pvArr.length >= 24) {
+                    for (let h = 0; h < 24; h++) pvByHour[h].push(pvArr[h] || 0);
+                } else if (rec.pv > 0 && pvsyst?.daily_hourly) {
+                    // Distribute daily total using PVSyst pattern
+                    const dp = new Date(dateStr + 'T12:00:00');
+                    const mmdd = String(dp.getMonth()+1).padStart(2,'0') + '-' + String(dp.getDate()).padStart(2,'0');
+                    const pattern = getPvsystDay(mmdd);
+                    const pTotal = pattern.reduce((a,b)=>a+b,0) || 1;
+                    for (let h = 0; h < 24; h++) pvByHour[h].push(rec.pv * (pattern[h] / pTotal));
+                }
+                if (loadArr && loadArr.length >= 24) {
+                    for (let h = 0; h < 24; h++) loadByHour[h].push(loadArr[h] || 0);
+                } else if (rec.consumption > 0) {
+                    // Use avg_load pattern to distribute
+                    const avgL = dashData.hourly?.avg_load || new Array(24).fill(1);
+                    const lTotal = avgL.reduce((a,b)=>a+b,0) || 1;
+                    for (let h = 0; h < 24; h++) loadByHour[h].push(rec.consumption * (avgL[h] / lTotal));
+                }
+            });
+
+            // Also include today's live hourly data
+            const todayPV = dashData?.hourly?.pv || [];
+            const todayLoad = dashData?.hourly?.load || [];
+            const pH = dashData?.hourly?.current_hour;
+            const curH = (pH !== undefined && pH !== null) ? pH : new Date().getHours();
+            if (todayPV.length >= curH) {
+                for (let h = 0; h <= curH; h++) pvByHour[h].push(todayPV[h] || 0);
+            }
+            if (todayLoad.length >= curH) {
+                for (let h = 0; h <= curH; h++) loadByHour[h].push(todayLoad[h] || 0);
+            }
+
+            // Compute percentiles
+            const hours = Array.from({length:24}, (_,i) => i);
+            const numDays = Math.max(...pvByHour.map(a => a.length), 0);
+            const statusEl = document.getElementById('pvDistStatus');
+            if (statusEl) statusEl.textContent = numDays > 0 ? numDays + ' days of data' : 'No hourly data';
+            const medianPV = [], p10 = [], p25 = [], p75 = [], p90 = [], minPV = [], maxPV = [], medianLoad = [];
+
+            hours.forEach(h => {
+                const pv = pvByHour[h];
+                const ld = loadByHour[h];
+                if (pv.length === 0) {
+                    medianPV.push(0); p10.push(0); p25.push(0); p75.push(0); p90.push(0); minPV.push(0); maxPV.push(0);
+                } else {
+                    medianPV.push(percentile(pv, 50));
+                    p10.push(percentile(pv, 10));
+                    p25.push(percentile(pv, 25));
+                    p75.push(percentile(pv, 75));
+                    p90.push(percentile(pv, 90));
+                    minPV.push(Math.min(...pv));
+                    maxPV.push(Math.max(...pv));
+                }
+                medianLoad.push(ld.length > 0 ? percentile(ld, 50) : 0);
+            });
+
+            const labels = hours.map(h => String(h));
+
+            if (pvDistChart) pvDistChart.destroy();
+            pvDistChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [
+                    // P10-P90 band (fill between P10 and P90)
+                    { label:'P10', data:p10, borderColor:'transparent', backgroundColor:'rgba(74,222,128,0.12)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
+                    { label:'P90', data:p90, borderColor:'rgba(74,222,128,0.25)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p80'] },
+                    // P25-P75 band (fill between P25 and P75)
+                    { label:'P25', data:p25, borderColor:'transparent', backgroundColor:'rgba(74,222,128,0.25)', fill:'+1', pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
+                    { label:'P75', data:p75, borderColor:'rgba(74,222,128,0.4)', backgroundColor:'transparent', borderWidth:0, fill:false, pointRadius:0, tension:0.4, hidden:!pvdDsVis['pvd-p50'] },
+                    // Min
+                    { label:'Min', data:minPV, borderColor:'rgba(74,222,128,0.4)', borderWidth:1, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-min'] },
+                    // Max
+                    { label:'Max', data:maxPV, borderColor:'rgba(74,222,128,0.4)', borderWidth:1, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-max'] },
+                    // Median (P50) - bold green
+                    { label:'Median (P50)', data:medianPV, borderColor:'#16a34a', borderWidth:3, pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-median'] },
+                    // Median Load - dashed gray
+                    { label:'Median Load', data:medianLoad, borderColor:'#999', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.4, fill:false, hidden:!pvdDsVis['pvd-load'] }
+                ]},
+                options: {
+                    responsive:true, maintainAspectRatio:false,
+                    interaction:{mode:'index',intersect:false},
+                    plugins:{
+                        legend:{display:false},
+                        tooltip:{
+                            backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',
+                            titleFont:{size:15},bodyFont:{size:14},
+                            borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,
+                            filter: item => [4,5,6,7].includes(item.datasetIndex),
+                            callbacks:{label:c => {
+                                const names = {4:'Min',5:'Max',6:'Median PV',7:'Median Load'};
+                                return (names[c.datasetIndex]||c.dataset.label) + ': ' + c.parsed.y.toFixed(1) + ' kW';
+                            }}
+                        },
+                        // TOU period background shading
+                        touBands: { id: 'touBands' }
+                    },
+                    scales:{
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11}},title:{display:true,text:'Hour of Day',color:'#bbb',font:{size:13}}},
+                        y:{beginAtZero:true,title:{display:true,text:'Consumed PV (kW)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
+                    }
+                },
+                plugins: [{
+                    id: 'touBands',
+                    beforeDraw: (chart) => {
+                        if (!finConfig) return;
+                        const fc = finConfig;
+                        const now = new Date();
+                        const season = (fc.seasons||{})[String(now.getMonth()+1)] || 'low_demand';
+                        const wd = now.getDay();
+                        const dayType = wd===0?'sunday':wd===6?'saturday':'weekday';
+                        const schedule = (fc.tou_schedule||{})[season]?.[dayType] || [];
+                        const ctx2 = chart.ctx;
+                        const xAxis = chart.scales.x;
+                        const yAxis = chart.scales.y;
+                        const colors = {peak:'rgba(239,68,68,0.08)',standard:'rgba(245,158,11,0.06)',off_peak:'rgba(255,255,255,0)'};
+                        for (let h = 0; h < 24; h++) {
+                            const period = schedule[h] || 'off_peak';
+                            if (period === 'off_peak') continue;
+                            const x0 = xAxis.getPixelForValue(h) - (xAxis.getPixelForValue(1) - xAxis.getPixelForValue(0)) / 2;
+                            const x1 = x0 + (xAxis.getPixelForValue(1) - xAxis.getPixelForValue(0));
+                            ctx2.fillStyle = colors[period] || 'transparent';
+                            ctx2.fillRect(x0, yAxis.top, x1 - x0, yAxis.bottom - yAxis.top);
+                        }
+                    }
+                }]
             });
         }
 
