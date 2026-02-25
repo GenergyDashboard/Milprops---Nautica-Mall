@@ -720,6 +720,14 @@
                         <h3>Upper and Lower Yield</h3>
                         <span class="daily-status" id="pvDistStatus" style="margin:0;"></span>
                     </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                        <div class="chart-view-switch" id="pvdPeriodBtns">
+                            <button class="active" onclick="setPvdPeriod('month',this)">This Month</button>
+                            <button onclick="setPvdPeriod('year',this)">This Year</button>
+                            <button onclick="setPvdPeriod('lifetime',this)">Lifetime</button>
+                        </div>
+                        <input type="month" id="pvdMonthPicker" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;color:var(--text-primary);padding:5px 10px;font-size:var(--font-xs);font-family:inherit;cursor:pointer;" onchange="setPvdCustomMonth(this.value)">
+                    </div>
                     <div class="chart-legend-row">
                         <div class="chart-legend-defaults">
                             <div class="chart-legend-item" data-pvd="pvd-median" onclick="togglePvdDs('pvd-median')"><span style="display:inline-block;width:18px;height:4px;background:#16a34a;border-radius:2px;vertical-align:middle;margin-right:6px;"></span>Median (P50)</div>
@@ -1995,27 +2003,75 @@
             return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
         }
 
+        let pvdPeriod = 'month'; // 'month', 'year', 'lifetime', 'custom'
+        let pvdCustomMonth = ''; // 'YYYY-MM' for custom month
+
+        function setPvdPeriod(period, btn) {
+            pvdPeriod = period;
+            document.querySelectorAll('#pvdPeriodBtns button').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderPvDistChart();
+        }
+
+        function setPvdCustomMonth(val) {
+            if (!val) return;
+            pvdPeriod = 'custom';
+            pvdCustomMonth = val;
+            document.querySelectorAll('#pvdPeriodBtns button').forEach(b => b.classList.remove('active'));
+            renderPvDistChart();
+        }
+
         function renderPvDistChart() {
             const ctx = document.getElementById('pvDistChart');
             if (!ctx || !dailyHist) return;
 
-            // Collect hourly PV and load values across all days
+            // Set month picker default
+            const picker = document.getElementById('pvdMonthPicker');
+            if (picker && !picker.value) {
+                const now = new Date();
+                picker.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+            }
+
+            // Determine date filter
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const curYM = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+            const curYear = String(now.getFullYear());
+            let filterFn;
+            let periodLabel = '';
+            if (pvdPeriod === 'month') {
+                filterFn = ds => ds.startsWith(curYM);
+                periodLabel = 'This Month';
+            } else if (pvdPeriod === 'year') {
+                filterFn = ds => ds.startsWith(curYear);
+                periodLabel = 'This Year';
+            } else if (pvdPeriod === 'lifetime') {
+                filterFn = () => true;
+                periodLabel = 'Lifetime';
+            } else if (pvdPeriod === 'custom' && pvdCustomMonth) {
+                filterFn = ds => ds.startsWith(pvdCustomMonth);
+                const [cy,cm] = pvdCustomMonth.split('-');
+                const mNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                periodLabel = mNames[parseInt(cm)] + ' ' + cy;
+            } else {
+                filterFn = ds => ds.startsWith(curYM);
+                periodLabel = 'This Month';
+            }
+
+            // Collect hourly PV and load values across filtered days
             const pvByHour = Array.from({length:24}, () => []);
             const loadByHour = Array.from({length:24}, () => []);
 
-            // Use dailyHist records that have hourly data
-            const todayStr = new Date().toISOString().split('T')[0];
             const pH = dashData?.hourly?.current_hour;
-            const curH = (pH !== undefined && pH !== null) ? pH : new Date().getHours();
+            const curH = (pH !== undefined && pH !== null) ? pH : now.getHours();
             let todayInHist = false;
 
             Object.entries(dailyHist).forEach(([dateStr, rec]) => {
-                if (!rec) return;
+                if (!rec || !filterFn(dateStr)) return;
                 const isToday = dateStr === todayStr;
                 if (isToday) todayInHist = true;
                 const pvArr = rec.hourly?.pv;
                 const loadArr = rec.hourly?.load;
-                // For today: only use hours up to current hour (future hours are 0 and would corrupt min)
                 const maxH = isToday ? curH : 23;
                 if (pvArr && pvArr.length >= 24) {
                     for (let h = 0; h <= maxH; h++) pvByHour[h].push(pvArr[h] || 0);
@@ -2035,8 +2091,8 @@
                 }
             });
 
-            // Only add today's live data if not already in dailyHist
-            if (!todayInHist) {
+            // Add today's live data if in filter range and not already in dailyHist
+            if (!todayInHist && filterFn(todayStr)) {
                 const todayPV = dashData?.hourly?.pv || [];
                 const todayLoad = dashData?.hourly?.load || [];
                 if (todayPV.length >= curH) {
@@ -2052,7 +2108,7 @@
             // Count unique days (use the hour with most entries, typically midday)
             const numDays = pvByHour[12].length || pvByHour[0].length || 0;
             const statusEl = document.getElementById('pvDistStatus');
-            if (statusEl) statusEl.textContent = numDays > 0 ? numDays + ' days of data' : 'No hourly data';
+            if (statusEl) statusEl.textContent = numDays > 0 ? numDays + ' days — ' + periodLabel : 'No hourly data';
             const medianPV = [], p10 = [], p25 = [], p75 = [], p90 = [], minPerHour = [], maxPerHour = [], medianLoad = [];
 
             hours.forEach(h => {
