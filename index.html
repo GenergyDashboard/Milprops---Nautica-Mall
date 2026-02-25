@@ -118,6 +118,38 @@
         .hidden-block-item { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; margin: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; color: var(--text-secondary); font-size: var(--font-xs); }
         .hidden-block-item:hover { border-color: var(--gold); color: var(--gold); }
 
+        /* Report tab */
+        .report-controls { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+        .report-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .report-row label { color: var(--text-secondary); font-size: var(--font-xs); text-transform: uppercase; letter-spacing: 1px; min-width: 80px; font-weight: 500; }
+        .report-row input[type="date"], .report-row input[type="month"] { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 8px 12px; font-size: var(--font-xs); font-family: inherit; }
+        .report-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+        .report-presets button { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 7px 14px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; transition: all 0.2s; }
+        .report-presets button:hover { background: rgba(255,255,255,0.08); }
+        .report-presets button.active { background: rgba(255,215,0,0.15); border-color: var(--gold); color: var(--gold); }
+        .report-interval { background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); border-radius: 8px; color: var(--gold); padding: 7px 14px; font-size: var(--font-xs); display: inline-block; }
+        .report-fields { display: flex; gap: 10px; flex-wrap: wrap; }
+        .report-field-chk { display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: var(--font-xs); color: var(--text-primary); transition: all 0.2s; user-select: none; }
+        .report-field-chk:hover { border-color: rgba(255,255,255,0.3); }
+        .report-field-chk.checked { background: rgba(74,222,128,0.1); border-color: #4ade80; }
+        .report-field-chk input { accent-color: #4ade80; cursor: pointer; }
+        .report-gen-btn { background: linear-gradient(135deg, #4ade80, #22c55e); border: none; border-radius: 10px; color: #000; padding: 10px 28px; font-size: var(--font-base); font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s; }
+        .report-gen-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(74,222,128,0.3); }
+        .report-export-btn { background: transparent; border: 1px solid var(--gold); border-radius: 8px; color: var(--gold); padding: 8px 18px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; transition: all 0.2s; }
+        .report-export-btn:hover { background: rgba(255,215,0,0.15); }
+        .report-table-wrap { max-height: 600px; overflow: auto; border-radius: 12px; border: 1px solid var(--card-border); }
+        .report-table { width: 100%; border-collapse: collapse; font-size: var(--font-xs); }
+        .report-table thead { position: sticky; top: 0; z-index: 2; }
+        .report-table th { background: var(--card-bg); color: var(--gold); padding: 10px 12px; text-align: right; border-bottom: 2px solid var(--gold); font-weight: 600; white-space: nowrap; }
+        .report-table th:first-child, .report-table th:nth-child(2) { text-align: left; }
+        .report-table td { padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: right; color: var(--text-primary); white-space: nowrap; }
+        .report-table td:first-child, .report-table td:nth-child(2) { text-align: left; color: var(--text-secondary); }
+        .report-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .report-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 16px; }
+        .report-summary .slab { text-align: center; padding: 14px; }
+        .report-summary .slab-label { font-size: 0.75em; }
+        .report-summary .slab-value { font-size: 1.3em; }
+
         /* Login/User section in header */
         #loginSection { opacity: 0.3; transition: opacity 0.3s; }
         #loginSection:hover { opacity: 1; }
@@ -536,6 +568,7 @@
                 <button onclick="switchTab('monthly', this)">Monthly Overview</button>
                 <button onclick="switchTab('lifetime', this)">Lifetime Stats</button>
                 <button onclick="switchTab('financial', this)">Financial Overview</button>
+                <button onclick="switchTab('report', this)">Report</button>
             </div>
 
             <!-- OVERVIEW TAB -->
@@ -1166,6 +1199,69 @@
                 </div>
             </div>
 
+            <!-- REPORT TAB -->
+            <div id="tab-report" class="tab-content">
+                <div class="overview-title">Report Generator</div>
+                <div class="report-controls">
+                    <!-- Date Range -->
+                    <div class="report-row">
+                        <label>Date Range</label>
+                        <input type="date" id="rptStartDate">
+                        <span style="color:var(--text-secondary);">to</span>
+                        <input type="date" id="rptEndDate">
+                    </div>
+                    <!-- Presets -->
+                    <div class="report-row">
+                        <label>Presets</label>
+                        <div class="report-presets" id="rptPresets">
+                            <button class="active" onclick="setRptPreset('today',this)">Today</button>
+                            <button onclick="setRptPreset('week',this)">This Week</button>
+                            <button onclick="setRptPreset('month',this)">This Month</button>
+                            <button onclick="setRptPreset('lastmonth',this)">Last Month</button>
+                            <input type="month" id="rptMonthPicker" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;color:var(--text-primary);padding:7px 10px;font-size:var(--font-xs);font-family:inherit;cursor:pointer;" onchange="setRptPreset('custom',null,this.value)">
+                            <button onclick="setRptPreset('lifetime',this)">Lifetime</button>
+                        </div>
+                    </div>
+                    <!-- Interval -->
+                    <div class="report-row">
+                        <label>Interval</label>
+                        <span class="report-interval">Hourly</span>
+                    </div>
+                    <!-- Data Fields -->
+                    <div class="report-row" style="align-items:flex-start;">
+                        <label style="margin-top:6px;">Data Fields</label>
+                        <div class="report-fields" id="rptFields">
+                            <label class="report-field-chk checked"><input type="checkbox" checked data-field="actGen"> Actual Generation</label>
+                            <label class="report-field-chk checked"><input type="checkbox" checked data-field="predGen"> Predicted Generation</label>
+                            <label class="report-field-chk checked"><input type="checkbox" checked data-field="actLoad"> Actual Load</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="actGrid"> Actual Grid</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="utilCost"> Utility Costs</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="expSav"> Export Savings</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="pvSav"> PV Savings</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="irrad"> Irradiation</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="tou"> TOU Period</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="season"> Season</label>
+                        </div>
+                    </div>
+                    <!-- Generate -->
+                    <div class="report-row" style="gap:12px;">
+                        <button class="report-gen-btn" onclick="generateReport()">Generate Report</button>
+                        <button class="report-export-btn" id="rptExportBtn" style="display:none;" onclick="exportReportCSV()">⬇ Export CSV</button>
+                        <span class="daily-status" id="rptStatus" style="margin:0;"></span>
+                    </div>
+                </div>
+                <!-- Summary -->
+                <div class="report-summary" id="rptSummary" style="display:none;"></div>
+                <!-- Table -->
+                <div class="report-table-wrap" id="rptTableWrap" style="display:none;">
+                    <table class="report-table">
+                        <thead><tr id="rptTableHead"></tr></thead>
+                        <tbody id="rptTableBody"></tbody>
+                        <tfoot><tr id="rptTableFoot" style="font-weight:700;border-top:2px solid var(--gold);"></tr></tfoot>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <div class="last-updated" id="lastUpdated"></div>
@@ -1321,6 +1417,9 @@
             }
             if (tab === 'financial' && dashData) {
                 renderFinancialTab();
+            }
+            if (tab === 'report' && dashData) {
+                initReportTab();
             }
         }
 
@@ -3668,6 +3767,273 @@
             });
         }
         // ══════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════
+        // REPORT TAB
+        // ══════════════════════════════════════════════════
+        let rptInited = false;
+
+        function initReportTab() {
+            if (!rptInited) {
+                rptInited = true;
+                // Wire up field checkbox toggling
+                document.querySelectorAll('#rptFields .report-field-chk input').forEach(cb => {
+                    cb.addEventListener('change', () => cb.parentElement.classList.toggle('checked', cb.checked));
+                });
+                // Set default dates to today
+                setRptPreset('today', document.querySelector('#rptPresets button'));
+            }
+        }
+
+        function setRptPreset(preset, btn, customVal) {
+            const start = document.getElementById('rptStartDate');
+            const end = document.getElementById('rptEndDate');
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            document.querySelectorAll('#rptPresets button').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            if (preset === 'today') {
+                start.value = todayStr; end.value = todayStr;
+            } else if (preset === 'week') {
+                const day = now.getDay();
+                const mon = new Date(now); mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+                start.value = mon.toISOString().split('T')[0]; end.value = todayStr;
+            } else if (preset === 'month') {
+                start.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-01';
+                end.value = todayStr;
+            } else if (preset === 'lastmonth') {
+                const lm = new Date(now.getFullYear(), now.getMonth()-1, 1);
+                const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+                start.value = lm.toISOString().split('T')[0];
+                end.value = lmEnd.toISOString().split('T')[0];
+            } else if (preset === 'custom' && customVal) {
+                const [cy, cm] = customVal.split('-').map(Number);
+                const isCurrentMonth = cy === now.getFullYear() && cm === now.getMonth()+1;
+                start.value = customVal + '-01';
+                end.value = isCurrentMonth ? todayStr : new Date(cy, cm, 0).toISOString().split('T')[0];
+            } else if (preset === 'lifetime') {
+                const keys = Object.keys(dailyHist || {}).sort();
+                if (keys.length > 0) { start.value = keys[0]; end.value = todayStr; }
+            }
+        }
+
+        function getSelectedFields() {
+            const fields = {};
+            document.querySelectorAll('#rptFields input[type="checkbox"]').forEach(cb => {
+                fields[cb.dataset.field] = cb.checked;
+            });
+            return fields;
+        }
+
+        function generateReport() {
+            const startStr = document.getElementById('rptStartDate').value;
+            const endStr = document.getElementById('rptEndDate').value;
+            if (!startStr || !endStr) { document.getElementById('rptStatus').textContent = 'Select a date range'; return; }
+            if (!dashData || !pvsyst) { document.getElementById('rptStatus').textContent = 'Data not loaded'; return; }
+
+            const fields = getSelectedFields();
+            const startDate = new Date(startStr + 'T00:00:00');
+            const endDate = new Date(endStr + 'T23:59:59');
+            const todayStr = new Date().toISOString().split('T')[0];
+            const pH = dashData?.hourly?.current_hour;
+            const curH = (pH !== undefined && pH !== null) ? pH : new Date().getHours();
+            const fc = finConfig || {};
+            const rates = fc.rates || {};
+            const seasons = fc.seasons || {};
+            const tou_sched = fc.tou_schedule || {};
+            const exportCredits = fc.export_credits || {};
+
+            const rows = [];
+            const totals = { actGen:0, predGen:0, actLoad:0, actGrid:0, utilCost:0, expSav:0, pvSav:0, irrad:0 };
+
+            // Iterate each day in range
+            const d = new Date(startDate);
+            while (d <= endDate) {
+                const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                const yr = d.getFullYear(), mo = d.getMonth()+1, day = d.getDate();
+                const mm = String(mo).padStart(2,'0');
+                const mmdd = mm + '-' + String(day).padStart(2,'0');
+                const isToday = ds === todayStr;
+                const maxHour = isToday ? curH : 23;
+
+                // Get hourly data
+                const rec = dailyHist?.[ds];
+                const factor = degradationFactor(yr);
+                const pvsPat = getPvsystDay(mmdd);
+                const monthlyAvg = calcPvsystMonthlyHourlyAvg(yr, mo);
+                const season = seasons[String(mo)] || 'low_demand';
+                const seasonLabel = season === 'high_demand' ? 'High Demand' : 'Low Demand';
+                const wd = d.getDay();
+                const dayType = wd===0?'sunday':wd===6?'saturday':'weekday';
+                const schedule = tou_sched[season]?.[dayType] || [];
+
+                // Hourly arrays
+                let pvH, loadH, gridH, expH;
+                if (isToday && dashData.hourly) {
+                    pvH = dashData.hourly.pv || []; loadH = dashData.hourly.load || [];
+                    gridH = dashData.hourly.grid || []; expH = dashData.hourly.export || [];
+                } else if (rec?.hourly?.pv) {
+                    pvH = rec.hourly.pv; loadH = rec.hourly.load || [];
+                    gridH = rec.hourly.grid || []; expH = rec.hourly.export || [];
+                } else {
+                    // Distribute daily totals using patterns
+                    const dailyPV = rec?.pv || 0;
+                    const dailyLoad = rec?.consumption || 0;
+                    const dailyGrid = rec?.import || 0;
+                    const dailyExp = rec?.export || 0;
+                    const pTotal = pvsPat.reduce((a,b)=>a+b,0) || 1;
+                    const avgL = dashData.hourly?.avg_load || new Array(24).fill(1);
+                    const lTotal = avgL.reduce((a,b)=>a+b,0) || 1;
+                    pvH = pvsPat.map(v => dailyPV * (v/pTotal));
+                    loadH = avgL.map(v => dailyLoad * (v/lTotal));
+                    gridH = avgL.map(v => dailyGrid * (v/lTotal));
+                    expH = pvsPat.map(v => dailyExp * (v/pTotal));
+                }
+
+                // Irradiation for this day
+                const irradDay = irradData?.daily_records?.[ds]?.hourly_wm2 || new Array(24).fill(0);
+
+                for (let h = 0; h <= maxHour; h++) {
+                    const actGenH = pvH[h] || 0;
+                    const predGenH = monthlyAvg[h] || 0;
+                    const actLoadH = loadH[h] || 0;
+                    const actGridH = gridH[h] || 0;
+                    const expHv = expH[h] || 0;
+                    const scH = Math.max(0, actGenH - expHv);
+                    const period = schedule[h] || 'off_peak';
+                    const rate = rates[season]?.[period] || 0;
+                    const credit = exportCredits[period] || 0;
+                    const utilCostH = actGridH * rate;
+                    const expSavH = expHv * credit;
+                    const pvSavH = scH * rate;
+                    const irradH = irradDay[h] || 0;
+
+                    const periodLabels = {peak:'Peak',standard:'Standard',off_peak:'Off-Peak'};
+
+                    rows.push({
+                        date: ds, hour: String(h).padStart(2,'0')+':00',
+                        actGen: actGenH, predGen: predGenH, actLoad: actLoadH, actGrid: actGridH,
+                        utilCost: utilCostH, expSav: expSavH, pvSav: pvSavH, irrad: irradH,
+                        tou: periodLabels[period]||period, season: seasonLabel
+                    });
+                    totals.actGen += actGenH; totals.predGen += predGenH;
+                    totals.actLoad += actLoadH; totals.actGrid += actGridH;
+                    totals.utilCost += utilCostH; totals.expSav += expSavH;
+                    totals.pvSav += pvSavH; totals.irrad += irradH;
+                }
+                d.setDate(d.getDate() + 1);
+            }
+
+            // Render
+            renderReportTable(rows, totals, fields);
+            rptReportData = { rows, totals, fields };
+            document.getElementById('rptStatus').textContent = rows.length + ' hourly records';
+            document.getElementById('rptExportBtn').style.display = 'inline-block';
+            document.getElementById('rptTableWrap').style.display = 'block';
+            document.getElementById('rptSummary').style.display = 'grid';
+        }
+
+        let rptReportData = null;
+
+        function renderReportTable(rows, totals, fields) {
+            const colDefs = [
+                { key:'date', label:'Date', show:true, fmt: v=>v },
+                { key:'hour', label:'Hour', show:true, fmt: v=>v },
+                { key:'actGen', label:'Act. Gen (kW)', show:fields.actGen, fmt: v=>v.toFixed(1), numeric:true },
+                { key:'predGen', label:'Pred. Gen (kW)', show:fields.predGen, fmt: v=>v.toFixed(1), numeric:true },
+                { key:'actLoad', label:'Act. Load (kW)', show:fields.actLoad, fmt: v=>v.toFixed(1), numeric:true },
+                { key:'actGrid', label:'Act. Grid (kW)', show:fields.actGrid, fmt: v=>v.toFixed(1), numeric:true },
+                { key:'utilCost', label:'Utility Cost (R)', show:fields.utilCost, fmt: v=>v.toFixed(2), numeric:true },
+                { key:'expSav', label:'Export Savings (R)', show:fields.expSav, fmt: v=>v.toFixed(2), numeric:true },
+                { key:'pvSav', label:'PV Savings (R)', show:fields.pvSav, fmt: v=>v.toFixed(2), numeric:true },
+                { key:'irrad', label:'Irradiation (W/m²)', show:fields.irrad, fmt: v=>Math.round(v), numeric:true },
+                { key:'tou', label:'TOU Period', show:fields.tou, fmt: v=>v },
+                { key:'season', label:'Season', show:fields.season, fmt: v=>v }
+            ];
+            const activeCols = colDefs.filter(c => c.show);
+
+            // Header
+            const thead = document.getElementById('rptTableHead');
+            thead.innerHTML = activeCols.map(c => '<th>' + c.label + '</th>').join('');
+
+            // Body (limit visible rows for performance, show all in export)
+            const maxDisplay = 2000;
+            const tbody = document.getElementById('rptTableBody');
+            const displayRows = rows.slice(0, maxDisplay);
+            tbody.innerHTML = displayRows.map(row =>
+                '<tr>' + activeCols.map(c => '<td>' + c.fmt(row[c.key]) + '</td>').join('') + '</tr>'
+            ).join('');
+            if (rows.length > maxDisplay) {
+                tbody.innerHTML += '<tr><td colspan="' + activeCols.length + '" style="text-align:center;color:var(--text-secondary);padding:12px;">Showing ' + maxDisplay + ' of ' + rows.length + ' rows. Export CSV for full data.</td></tr>';
+            }
+
+            // Footer (totals)
+            const tfoot = document.getElementById('rptTableFoot');
+            tfoot.innerHTML = activeCols.map(c => {
+                if (c.key === 'date') return '<td>TOTALS</td>';
+                if (c.key === 'hour') return '<td>' + rows.length + ' hrs</td>';
+                if (c.numeric && totals[c.key] !== undefined) return '<td>' + fmt(totals[c.key]) + '</td>';
+                return '<td></td>';
+            }).join('');
+
+            // Summary cards
+            const summaryEl = document.getElementById('rptSummary');
+            const summaryCards = [];
+            if (fields.actGen) summaryCards.push({label:'Total Generation', val:fmt(totals.actGen)+' kWh'});
+            if (fields.predGen) summaryCards.push({label:'Total Predicted', val:fmt(totals.predGen)+' kWh'});
+            if (fields.actGen && fields.predGen) {
+                const perf = totals.predGen > 0 ? (totals.actGen/totals.predGen*100).toFixed(1) : '--';
+                summaryCards.push({label:'Performance Ratio', val:perf+'%'});
+            }
+            if (fields.actLoad) summaryCards.push({label:'Total Load', val:fmt(totals.actLoad)+' kWh'});
+            if (fields.actGrid) summaryCards.push({label:'Total Grid Import', val:fmt(totals.actGrid)+' kWh'});
+            if (fields.utilCost) summaryCards.push({label:'Total Utility Cost', val:'R '+fmt(totals.utilCost)});
+            if (fields.pvSav) summaryCards.push({label:'Total PV Savings', val:'R '+fmt(totals.pvSav)});
+            if (fields.expSav) summaryCards.push({label:'Total Export Savings', val:'R '+fmt(totals.expSav)});
+            if (fields.pvSav && fields.expSav) summaryCards.push({label:'Total Savings', val:'R '+fmt(totals.pvSav + totals.expSav)});
+            summaryEl.innerHTML = summaryCards.map(c =>
+                '<div class="slab"><div class="slab-label">' + c.label + '</div><div class="slab-value" style="color:var(--gold);">' + c.val + '</div></div>'
+            ).join('');
+        }
+
+        function exportReportCSV() {
+            if (!rptReportData) return;
+            const { rows, fields } = rptReportData;
+            const colDefs = [
+                { key:'date', label:'Date', show:true },
+                { key:'hour', label:'Hour', show:true },
+                { key:'actGen', label:'Actual Generation (kW)', show:fields.actGen },
+                { key:'predGen', label:'Predicted Generation (kW)', show:fields.predGen },
+                { key:'actLoad', label:'Actual Load (kW)', show:fields.actLoad },
+                { key:'actGrid', label:'Actual Grid (kW)', show:fields.actGrid },
+                { key:'utilCost', label:'Utility Cost (R)', show:fields.utilCost },
+                { key:'expSav', label:'Export Savings (R)', show:fields.expSav },
+                { key:'pvSav', label:'PV Savings (R)', show:fields.pvSav },
+                { key:'irrad', label:'Irradiation (W/m²)', show:fields.irrad },
+                { key:'tou', label:'TOU Period', show:fields.tou },
+                { key:'season', label:'Season', show:fields.season }
+            ];
+            const activeCols = colDefs.filter(c => c.show);
+            const header = activeCols.map(c => c.label).join(',');
+            const csvRows = rows.map(row =>
+                activeCols.map(c => {
+                    const v = row[c.key];
+                    if (typeof v === 'number') return v.toFixed(c.key.includes('Cost')||c.key.includes('Sav')?2:1);
+                    return '"'+String(v).replace(/"/g,'""')+'"';
+                }).join(',')
+            );
+            const csv = [header, ...csvRows].join('\n');
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const s = document.getElementById('rptStartDate').value;
+            const e = document.getElementById('rptEndDate').value;
+            a.download = 'Nautica_Report_' + s + '_to_' + e + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
         // ══════════════════════════════════════════════════
         // LAYOUT EDITOR (drag-and-drop + hide/restore)
         // ══════════════════════════════════════════════════
