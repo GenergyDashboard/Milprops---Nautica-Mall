@@ -2045,24 +2045,30 @@
             const numDays = Math.max(...pvByHour.map(a => a.length), 0);
             const statusEl = document.getElementById('pvDistStatus');
             if (statusEl) statusEl.textContent = numDays > 0 ? numDays + ' days of data' : 'No hourly data';
-            const medianPV = [], p10 = [], p25 = [], p75 = [], p90 = [], minPV = [], maxPV = [], medianLoad = [];
+            const medianPV = [], p10 = [], p25 = [], p75 = [], p90 = [], minPerHour = [], maxPerHour = [], medianLoad = [];
 
             hours.forEach(h => {
                 const pv = pvByHour[h];
                 const ld = loadByHour[h];
+                // Filter to only days with actual generation for min/max
+                const pvPos = pv.filter(v => v > 0);
                 if (pv.length === 0) {
-                    medianPV.push(0); p10.push(0); p25.push(0); p75.push(0); p90.push(0); minPV.push(0); maxPV.push(0);
+                    medianPV.push(0); p10.push(0); p25.push(0); p75.push(0); p90.push(0); minPerHour.push(0); maxPerHour.push(0);
                 } else {
                     medianPV.push(percentile(pv, 50));
                     p10.push(percentile(pv, 10));
                     p25.push(percentile(pv, 25));
                     p75.push(percentile(pv, 75));
                     p90.push(percentile(pv, 90));
-                    minPV.push(Math.min(...pv));
-                    maxPV.push(Math.max(...pv));
+                    minPerHour.push(pvPos.length > 0 ? Math.min(...pvPos) : 0);
+                    maxPerHour.push(pvPos.length > 0 ? Math.max(...pvPos) : 0);
                 }
                 medianLoad.push(ld.length > 0 ? percentile(ld, 50) : 0);
             });
+
+            // Use per-hour min/max curves (not flat averages)
+            const minPV = minPerHour;
+            const maxPV = maxPerHour;
 
             const labels = hours.map(h => String(h));
 
