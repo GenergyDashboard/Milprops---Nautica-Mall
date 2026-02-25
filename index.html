@@ -2005,29 +2005,33 @@
 
             // Use dailyHist records that have hourly data
             const todayStr = new Date().toISOString().split('T')[0];
+            const pH = dashData?.hourly?.current_hour;
+            const curH = (pH !== undefined && pH !== null) ? pH : new Date().getHours();
             let todayInHist = false;
+
             Object.entries(dailyHist).forEach(([dateStr, rec]) => {
                 if (!rec) return;
-                if (dateStr === todayStr) todayInHist = true;
+                const isToday = dateStr === todayStr;
+                if (isToday) todayInHist = true;
                 const pvArr = rec.hourly?.pv;
                 const loadArr = rec.hourly?.load;
+                // For today: only use hours up to current hour (future hours are 0 and would corrupt min)
+                const maxH = isToday ? curH : 23;
                 if (pvArr && pvArr.length >= 24) {
-                    for (let h = 0; h < 24; h++) pvByHour[h].push(pvArr[h] || 0);
+                    for (let h = 0; h <= maxH; h++) pvByHour[h].push(pvArr[h] || 0);
                 } else if (rec.pv > 0 && pvsyst?.daily_hourly) {
-                    // Distribute daily total using PVSyst pattern
                     const dp = new Date(dateStr + 'T12:00:00');
                     const mmdd = String(dp.getMonth()+1).padStart(2,'0') + '-' + String(dp.getDate()).padStart(2,'0');
                     const pattern = getPvsystDay(mmdd);
                     const pTotal = pattern.reduce((a,b)=>a+b,0) || 1;
-                    for (let h = 0; h < 24; h++) pvByHour[h].push(rec.pv * (pattern[h] / pTotal));
+                    for (let h = 0; h <= maxH; h++) pvByHour[h].push(rec.pv * (pattern[h] / pTotal));
                 }
                 if (loadArr && loadArr.length >= 24) {
-                    for (let h = 0; h < 24; h++) loadByHour[h].push(loadArr[h] || 0);
+                    for (let h = 0; h <= maxH; h++) loadByHour[h].push(loadArr[h] || 0);
                 } else if (rec.consumption > 0) {
-                    // Use avg_load pattern to distribute
                     const avgL = dashData.hourly?.avg_load || new Array(24).fill(1);
                     const lTotal = avgL.reduce((a,b)=>a+b,0) || 1;
-                    for (let h = 0; h < 24; h++) loadByHour[h].push(rec.consumption * (avgL[h] / lTotal));
+                    for (let h = 0; h <= maxH; h++) loadByHour[h].push(rec.consumption * (avgL[h] / lTotal));
                 }
             });
 
@@ -2035,8 +2039,6 @@
             if (!todayInHist) {
                 const todayPV = dashData?.hourly?.pv || [];
                 const todayLoad = dashData?.hourly?.load || [];
-                const pH = dashData?.hourly?.current_hour;
-                const curH = (pH !== undefined && pH !== null) ? pH : new Date().getHours();
                 if (todayPV.length >= curH) {
                     for (let h = 0; h <= curH; h++) pvByHour[h].push(todayPV[h] || 0);
                 }
