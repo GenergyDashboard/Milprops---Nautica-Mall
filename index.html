@@ -2066,8 +2066,9 @@
                     p25.push(percentile(pv, 25));
                     p75.push(percentile(pv, 75));
                     p90.push(percentile(pv, 90));
-                    // Absolute min and max across all days for this hour
-                    minPerHour.push(Math.min(...pv));
+                    // Min: lowest non-zero value (skip 0s from non-generating periods)
+                    const pvNonZero = pv.filter(v => v > 0);
+                    minPerHour.push(pvNonZero.length > 0 ? Math.min(...pvNonZero) : 0);
                     maxPerHour.push(Math.max(...pv));
                 }
                 medianLoad.push(ld.length > 0 ? percentile(ld, 50) : 0);
