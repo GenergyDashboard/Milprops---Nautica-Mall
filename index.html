@@ -135,6 +135,8 @@
         .report-field-chk input { accent-color: #4ade80; cursor: pointer; }
         .report-gen-btn { background: linear-gradient(135deg, #4ade80, #22c55e); border: none; border-radius: 10px; color: #000; padding: 10px 28px; font-size: var(--font-base); font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s; }
         .report-gen-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(74,222,128,0.3); }
+        .rpt-date-pill { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 8px 16px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; transition: all 0.2s; display: inline-block; min-width: 100px; text-align: center; }
+        .rpt-date-pill:hover { border-color: var(--gold); color: var(--gold); }
         .report-export-btn { background: transparent; border: 1px solid var(--gold); border-radius: 8px; color: var(--gold); padding: 8px 18px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; transition: all 0.2s; }
         .report-export-btn:hover { background: rgba(255,215,0,0.15); }
         .report-table-wrap { max-height: 600px; overflow: auto; border-radius: 12px; border: 1px solid var(--card-border); }
@@ -1206,9 +1208,11 @@
                     <!-- Date Range -->
                     <div class="report-row">
                         <label>Date Range</label>
-                        <input type="date" id="rptStartDate">
+                        <span class="rpt-date-pill" onclick="document.getElementById('rptStartDate').showPicker()" id="rptStartLabel">--</span>
+                        <input type="date" id="rptStartDate" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;" onchange="updateRptDateLabels()">
                         <span style="color:var(--text-secondary);">to</span>
-                        <input type="date" id="rptEndDate">
+                        <span class="rpt-date-pill" onclick="document.getElementById('rptEndDate').showPicker()" id="rptEndLabel">--</span>
+                        <input type="date" id="rptEndDate" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;" onchange="updateRptDateLabels()">
                     </div>
                     <!-- Presets -->
                     <div class="report-row">
@@ -1217,9 +1221,6 @@
                             <button class="active" onclick="setRptPreset('today',this)">Today</button>
                             <button onclick="setRptPreset('week',this)">This Week</button>
                             <button onclick="setRptPreset('month',this)">This Month</button>
-                            <button onclick="setRptPreset('lastmonth',this)">Last Month</button>
-                            <input type="month" id="rptMonthPicker" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;color:var(--text-primary);padding:7px 10px;font-size:var(--font-xs);font-family:inherit;cursor:pointer;" onchange="setRptPreset('custom',null,this.value)">
-                            <button onclick="setRptPreset('lifetime',this)">Lifetime</button>
                         </div>
                     </div>
                     <!-- Interval -->
@@ -1231,7 +1232,9 @@
                     <div class="report-row" style="align-items:flex-start;">
                         <label style="margin-top:6px;">Data Fields</label>
                         <div class="report-fields" id="rptFields">
-                            <label class="report-field-chk checked"><input type="checkbox" checked data-field="actGen"> Actual Generation</label>
+                            <label class="report-field-chk checked"><input type="checkbox" checked data-field="totalGen"> Total Generation</label>
+                            <label class="report-field-chk checked"><input type="checkbox" checked data-field="pvToLoad"> PV to Load</label>
+                            <label class="report-field-chk checked"><input type="checkbox" checked data-field="pvToGrid"> PV to Grid</label>
                             <label class="report-field-chk checked"><input type="checkbox" checked data-field="predGen"> Predicted Generation</label>
                             <label class="report-field-chk checked"><input type="checkbox" checked data-field="actLoad"> Actual Load</label>
                             <label class="report-field-chk"><input type="checkbox" data-field="actGrid"> Actual Grid</label>
@@ -1241,6 +1244,8 @@
                             <label class="report-field-chk"><input type="checkbox" data-field="irrad"> Irradiation</label>
                             <label class="report-field-chk"><input type="checkbox" data-field="tou"> TOU Period</label>
                             <label class="report-field-chk"><input type="checkbox" data-field="season"> Season</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="wdType"> Weekday / Weekend</label>
+                            <label class="report-field-chk"><input type="checkbox" data-field="dayName"> Day Name</label>
                         </div>
                     </div>
                     <!-- Generate -->
@@ -3775,16 +3780,25 @@
         function initReportTab() {
             if (!rptInited) {
                 rptInited = true;
-                // Wire up field checkbox toggling
                 document.querySelectorAll('#rptFields .report-field-chk input').forEach(cb => {
                     cb.addEventListener('change', () => cb.parentElement.classList.toggle('checked', cb.checked));
                 });
-                // Set default dates to today
                 setRptPreset('today', document.querySelector('#rptPresets button'));
             }
         }
 
-        function setRptPreset(preset, btn, customVal) {
+        function updateRptDateLabels() {
+            const s = document.getElementById('rptStartDate').value;
+            const e = document.getElementById('rptEndDate').value;
+            const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const fmtDate = v => { if (!v) return '--'; const p = v.split('-'); return parseInt(p[2])+' '+mNames[parseInt(p[1])-1]+' '+p[0]; };
+            document.getElementById('rptStartLabel').textContent = fmtDate(s);
+            document.getElementById('rptEndLabel').textContent = fmtDate(e);
+            // Deactivate preset buttons since user manually changed dates
+            document.querySelectorAll('#rptPresets button').forEach(b => b.classList.remove('active'));
+        }
+
+        function setRptPreset(preset, btn) {
             const start = document.getElementById('rptStartDate');
             const end = document.getElementById('rptEndDate');
             const now = new Date();
@@ -3801,20 +3815,12 @@
             } else if (preset === 'month') {
                 start.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-01';
                 end.value = todayStr;
-            } else if (preset === 'lastmonth') {
-                const lm = new Date(now.getFullYear(), now.getMonth()-1, 1);
-                const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-                start.value = lm.toISOString().split('T')[0];
-                end.value = lmEnd.toISOString().split('T')[0];
-            } else if (preset === 'custom' && customVal) {
-                const [cy, cm] = customVal.split('-').map(Number);
-                const isCurrentMonth = cy === now.getFullYear() && cm === now.getMonth()+1;
-                start.value = customVal + '-01';
-                end.value = isCurrentMonth ? todayStr : new Date(cy, cm, 0).toISOString().split('T')[0];
-            } else if (preset === 'lifetime') {
-                const keys = Object.keys(dailyHist || {}).sort();
-                if (keys.length > 0) { start.value = keys[0]; end.value = todayStr; }
             }
+            // Update pill labels
+            const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const fmtDate = v => { if (!v) return '--'; const p = v.split('-'); return parseInt(p[2])+' '+mNames[parseInt(p[1])-1]+' '+p[0]; };
+            document.getElementById('rptStartLabel').textContent = fmtDate(start.value);
+            document.getElementById('rptEndLabel').textContent = fmtDate(end.value);
         }
 
         function getSelectedFields() {
@@ -3844,7 +3850,7 @@
             const exportCredits = fc.export_credits || {};
 
             const rows = [];
-            const totals = { actGen:0, predGen:0, actLoad:0, actGrid:0, utilCost:0, expSav:0, pvSav:0, irrad:0 };
+            const totals = { totalGen:0, pvToLoad:0, pvToGrid:0, predGen:0, actLoad:0, actGrid:0, utilCost:0, expSav:0, pvSav:0, irrad:0 };
 
             // Iterate each day in range
             const d = new Date(startDate);
@@ -3866,6 +3872,9 @@
                 const wd = d.getDay();
                 const dayType = wd===0?'sunday':wd===6?'saturday':'weekday';
                 const schedule = tou_sched[season]?.[dayType] || [];
+                const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                const wdTypeLabel = (wd === 0 || wd === 6) ? 'Weekend' : 'Weekday';
+                const dayNameLabel = dayNames[wd];
 
                 // Hourly arrays
                 let pvH, loadH, gridH, expH;
@@ -3912,11 +3921,14 @@
 
                     rows.push({
                         date: ds, hour: String(h).padStart(2,'0')+':00',
-                        actGen: actGenH, predGen: predGenH, actLoad: actLoadH, actGrid: actGridH,
+                        totalGen: actGenH, pvToLoad: scH, pvToGrid: expHv,
+                        predGen: predGenH, actLoad: actLoadH, actGrid: actGridH,
                         utilCost: utilCostH, expSav: expSavH, pvSav: pvSavH, irrad: irradH,
-                        tou: periodLabels[period]||period, season: seasonLabel
+                        tou: periodLabels[period]||period, season: seasonLabel,
+                        wdType: wdTypeLabel, dayName: dayNameLabel
                     });
-                    totals.actGen += actGenH; totals.predGen += predGenH;
+                    totals.totalGen += actGenH; totals.pvToLoad += scH; totals.pvToGrid += expHv;
+                    totals.predGen += predGenH;
                     totals.actLoad += actLoadH; totals.actGrid += actGridH;
                     totals.utilCost += utilCostH; totals.expSav += expSavH;
                     totals.pvSav += pvSavH; totals.irrad += irradH;
@@ -3939,7 +3951,11 @@
             const colDefs = [
                 { key:'date', label:'Date', show:true, fmt: v=>v },
                 { key:'hour', label:'Hour', show:true, fmt: v=>v },
-                { key:'actGen', label:'Act. Gen (kW)', show:fields.actGen, fmt: v=>v.toFixed(1), numeric:true },
+                { key:'dayName', label:'Day', show:fields.dayName, fmt: v=>v },
+                { key:'wdType', label:'Weekday/End', show:fields.wdType, fmt: v=>v },
+                { key:'totalGen', label:'Total Gen (kW)', show:fields.totalGen, fmt: v=>v.toFixed(1), numeric:true },
+                { key:'pvToLoad', label:'PV to Load (kW)', show:fields.pvToLoad, fmt: v=>v.toFixed(1), numeric:true },
+                { key:'pvToGrid', label:'PV to Grid (kW)', show:fields.pvToGrid, fmt: v=>v.toFixed(1), numeric:true },
                 { key:'predGen', label:'Pred. Gen (kW)', show:fields.predGen, fmt: v=>v.toFixed(1), numeric:true },
                 { key:'actLoad', label:'Act. Load (kW)', show:fields.actLoad, fmt: v=>v.toFixed(1), numeric:true },
                 { key:'actGrid', label:'Act. Grid (kW)', show:fields.actGrid, fmt: v=>v.toFixed(1), numeric:true },
@@ -3979,10 +3995,12 @@
             // Summary cards
             const summaryEl = document.getElementById('rptSummary');
             const summaryCards = [];
-            if (fields.actGen) summaryCards.push({label:'Total Generation', val:fmt(totals.actGen)+' kWh'});
+            if (fields.totalGen) summaryCards.push({label:'Total Generation', val:fmt(totals.totalGen)+' kWh'});
+            if (fields.pvToLoad) summaryCards.push({label:'PV to Load', val:fmt(totals.pvToLoad)+' kWh'});
+            if (fields.pvToGrid) summaryCards.push({label:'PV to Grid', val:fmt(totals.pvToGrid)+' kWh'});
             if (fields.predGen) summaryCards.push({label:'Total Predicted', val:fmt(totals.predGen)+' kWh'});
-            if (fields.actGen && fields.predGen) {
-                const perf = totals.predGen > 0 ? (totals.actGen/totals.predGen*100).toFixed(1) : '--';
+            if (fields.totalGen && fields.predGen) {
+                const perf = totals.predGen > 0 ? (totals.totalGen/totals.predGen*100).toFixed(1) : '--';
                 summaryCards.push({label:'Performance Ratio', val:perf+'%'});
             }
             if (fields.actLoad) summaryCards.push({label:'Total Load', val:fmt(totals.actLoad)+' kWh'});
@@ -4002,7 +4020,11 @@
             const colDefs = [
                 { key:'date', label:'Date', show:true },
                 { key:'hour', label:'Hour', show:true },
-                { key:'actGen', label:'Actual Generation (kW)', show:fields.actGen },
+                { key:'dayName', label:'Day', show:fields.dayName },
+                { key:'wdType', label:'Weekday/Weekend', show:fields.wdType },
+                { key:'totalGen', label:'Total Generation (kW)', show:fields.totalGen },
+                { key:'pvToLoad', label:'PV to Load (kW)', show:fields.pvToLoad },
+                { key:'pvToGrid', label:'PV to Grid (kW)', show:fields.pvToGrid },
                 { key:'predGen', label:'Predicted Generation (kW)', show:fields.predGen },
                 { key:'actLoad', label:'Actual Load (kW)', show:fields.actLoad },
                 { key:'actGrid', label:'Actual Grid (kW)', show:fields.actGrid },
