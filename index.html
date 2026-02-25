@@ -925,9 +925,7 @@
                     <h3>Daily Generation for Selected Month</h3>
                     <div class="chart-legend-row">
                         <div class="chart-legend-defaults">
-                            <div class="chart-legend-item" data-mds="m-avgPV" onclick="toggleMonthlyDs('m-avgPV')"><span class="legend-swatch" style="background:#4ade80;border:1px solid #4ade80;"></span>Actual PV Average (kWh)</div>
-                            <div class="chart-legend-item" data-mds="m-expPVAvg" onclick="toggleMonthlyDs('m-expPVAvg')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV (kWh)</div>
-                            <div class="chart-legend-item" data-mds="m-actGen" onclick="toggleMonthlyDs('m-actGen')"><span class="legend-swatch" style="background:rgba(74,222,128,0.7);"></span>PV Generation (kWh)</div>
+                            <div class="chart-legend-item" data-mds="m-actGen" onclick="toggleMonthlyDs('m-actGen')"><span class="legend-swatch" style="background:rgba(74,222,128,0.5);border:1px solid #4ade80;"></span>PV Generation (kWh)</div>
                             <div class="chart-legend-item" data-mds="m-irrad" onclick="toggleMonthlyDs('m-irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Scaled Irradiation (kWh equiv)</div>
                         </div>
                         <div class="chart-legend-more" onclick="this.classList.toggle('open')">
@@ -2454,7 +2452,7 @@
         let monthlyTOUChart = null;
         let monthlyInited = false;
         let monthlyChartYM = ''; // Track which month is displayed for click-to-navigate
-        const monthlyDsVis = { 'm-avgPV':true,'m-expPVAvg':true,'m-actGen':true,'m-irrad':true,'m-actLoad':false,'m-actGrid':false,'m-actPeak':true,'m-actStd':true,'m-actOff':true,'m-expPeak':false,'m-expStd':false,'m-expOff':false };
+        const monthlyDsVis = { 'm-actGen':true,'m-irrad':true,'m-actLoad':false,'m-actGrid':false,'m-actPeak':true,'m-actStd':true,'m-actOff':true,'m-expPeak':false,'m-expStd':false,'m-expOff':false };
 
         function goToMonthly() {
             const btn = document.querySelectorAll('.tab-nav button')[2];
@@ -2500,7 +2498,7 @@
             const el = document.querySelector(`[data-mds="${key}"]`);
             if (el) el.classList.toggle('off', !monthlyDsVis[key]);
             // Daily generation chart datasets
-            const dMap = {'m-avgPV':0,'m-expPVAvg':1,'m-actGen':2,'m-irrad':3,'m-actLoad':4,'m-actGrid':5};
+            const dMap = {'m-actGen':0,'m-irrad':1,'m-actLoad':2,'m-actGrid':3};
             if (monthlyDailyChart && dMap[key] !== undefined) { monthlyDailyChart.data.datasets[dMap[key]].hidden = !monthlyDsVis[key]; monthlyDailyChart.update(); }
             // TOU chart datasets
             const tMap = {'m-actPeak':0,'m-actStd':1,'m-actOff':2,'m-expPeak':3,'m-expStd':4,'m-expOff':5};
@@ -2719,16 +2717,8 @@
                 dailyData.push({d, dayActPV, dayExpPV, dayActLoad, dayActGrid, irradDaily});
             }
 
-            const avgPV = numDays > 0 ? totalActPV / numDays : 0;
-            const avgExpPV = numDays > 0 ? totalExpPV / numDays : 0;
             const avgActLoad = numDays > 0 ? totalActLoad / numDays : 0;
             const avgActGrid = numDays > 0 ? totalActGrid / numDays : 0;
-
-            // PV Coverage percentages for right axis
-            const monthSC = dashData.monthly?.[ym]?.['Self-consumption (kWh)'] || 0;
-            const actCovPct = totalActLoad > 0 ? (monthSC / totalActLoad * 100) : 0;
-            const expCovPct = dailyExpLoad > 0 ? (avgExpPV / dailyExpLoad * 100) : 0;
-            const covTitle = 'PV Coverage (%) — Act: ' + actCovPct.toFixed(1) + '% | Exp: ' + expCovPct.toFixed(1) + '%';
 
             // Scale irradiation to match generation magnitude
             const maxPV = Math.max(...dailyData.map(d=>d.dayActPV), 1);
@@ -2743,18 +2733,12 @@
                 actGridArr.push(Math.round(avgActGrid));
             });
 
-            // Flat coverage % lines plotted on y2 so they land at exact % positions
-            const actCovLine = new Array(numDays).fill(Math.round(actCovPct * 10) / 10);
-            const expCovLine = new Array(numDays).fill(Math.round(expCovPct * 10) / 10);
-
             const fmtTick = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
             if (monthlyDailyChart) monthlyDailyChart.destroy();
             monthlyDailyChart = new Chart(ctx, {
                 data: { labels,
                     datasets: [
-                        { type:'line', label:'Actual PV Average (kWh)', data:actCovLine, borderColor:'#4ade80', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-avgPV'], order:1 },
-                        { type:'line', label:'Expected PV (kWh)', data:expCovLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'y2', hidden:!monthlyDsVis['m-expPVAvg'], order:1 },
                         { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:3, yAxisID:'y', hidden:!monthlyDsVis['m-actGen'], order:3 },
                         { type:'line', label:'Scaled Irradiation (kWh equiv)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'y', hidden:!monthlyDsVis['m-irrad'], order:2 },
                         { type:'line', label:'Actual Load (Avg)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2.5, pointRadius:0, tension:0, fill:false, yAxisID:'y', hidden:!monthlyDsVis['m-actLoad'], order:0 },
@@ -2766,14 +2750,12 @@
                     layout:{padding:{top:25,right:10}},
                     interaction:{mode:'index',intersect:false},
                     plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>{
-                        if (c.datasetIndex <= 1) {return c.dataset.label.replace(' (kWh)','')+': '+c.parsed.y.toFixed(1)+'%';}
                         const suffix=c.dataset.label.includes('Irrad')?'kWh (scaled)':'kWh';
                         return c.dataset.label+': '+fmtTick(c.parsed.y)+' '+suffix;
                     }}}},
                     scales:{
                         x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:(v)=>fmtTick(v)}},
-                        y2:{position:'right',beginAtZero:true,max:100,title:{display:true,text:covTitle,color:'#FFD700',font:{size:12},padding:{top:25}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:12},callback:v=>Math.round(v)+'%'}}
+                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:(v)=>fmtTick(v)}}
                     },
                     onClick: (evt, elems) => {
                         if (elems.length > 0) {
