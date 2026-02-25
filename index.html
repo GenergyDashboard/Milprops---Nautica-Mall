@@ -3915,7 +3915,7 @@
                     const utilCostH = actGridH * rate;
                     const expSavH = expHv * credit;
                     const pvSavH = scH * rate;
-                    const irradH = irradDay[h] || 0;
+                    const irradH = (h > 0 ? irradDay[h - 1] : 0) || 0;
 
                     const periodLabels = {peak:'Peak',standard:'Standard',off_peak:'Off-Peak'};
 
