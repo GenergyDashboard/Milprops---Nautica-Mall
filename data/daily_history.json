@@ -2661,12 +2661,12 @@
     }
   },
   "2026-02-26": {
-    "current_hour": 11,
-    "pv": 1216.96,
-    "import": 1685.24,
-    "export": 90.8,
-    "self_consumption": 1126.16,
-    "consumption": 2811.4,
+    "current_hour": 12,
+    "pv": 1721.51,
+    "import": 1690.36,
+    "export": 242.8,
+    "self_consumption": 1478.71,
+    "consumption": 3169.07,
     "hourly": {
       "pv": [
         0.0,
@@ -2681,7 +2681,7 @@
         272.44,
         432.93,
         345.54,
-        0.0,
+        504.55,
         0.0,
         0.0,
         0.0,
@@ -2707,7 +2707,7 @@
         358.86,
         376.94,
         380.74,
-        0.0,
+        357.67,
         0.0,
         0.0,
         0.0,
@@ -2733,7 +2733,7 @@
         89.22,
         25.21,
         41.6,
-        0.0,
+        5.12,
         0.0,
         0.0,
         0.0,
@@ -2759,7 +2759,7 @@
         2.8,
         81.2,
         6.4,
-        0.0,
+        152.0,
         0.0,
         0.0,
         0.0,
@@ -2784,13 +2784,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1053.97,
-        "import": 413.31,
-        "self_consumption": 963.57,
-        "export": 90.4,
-        "utility_cost": 662.45,
-        "pv_savings": 1544.41,
-        "export_savings": 147.54
+        "generation": 1558.52,
+        "import": 418.43,
+        "self_consumption": 1316.12,
+        "export": 242.4,
+        "utility_cost": 670.66,
+        "pv_savings": 2109.48,
+        "export_savings": 395.62
       },
       "off_peak": {
         "generation": 0.0,
@@ -2804,17 +2804,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 267.77,
-        "standard": 1654.47,
+        "peak": 351.6,
+        "standard": 2172.41,
         "off_peak": 0.0,
-        "total": 1922.24
+        "total": 2524.0
       },
       "export_savings": {
-        "standard": 135.83,
+        "standard": 363.22,
         "off_peak": 0.0,
-        "total": 135.83
+        "total": 363.22
       },
-      "total": 2058.07
+      "total": 2887.22
     }
   }
 }
