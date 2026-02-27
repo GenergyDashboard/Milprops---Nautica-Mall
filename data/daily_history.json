@@ -2818,12 +2818,12 @@
     }
   },
   "2026-02-27": {
-    "current_hour": 15,
-    "pv": 3782.91,
-    "import": 1491.97,
-    "export": 878.4,
-    "self_consumption": 2904.51,
-    "consumption": 4396.48,
+    "current_hour": 16,
+    "pv": 4149.02,
+    "import": 1499.26,
+    "export": 906.4,
+    "self_consumption": 3242.62,
+    "consumption": 4741.88,
     "hourly": {
       "pv": [
         0.0,
@@ -2842,7 +2842,7 @@
         552.57,
         528.31,
         466.33,
-        0.0,
+        366.11,
         0.0,
         0.0,
         0.0,
@@ -2868,7 +2868,7 @@
         383.77,
         369.51,
         359.13,
-        0.0,
+        345.4,
         0.0,
         0.0,
         0.0,
@@ -2894,7 +2894,7 @@
         0.0,
         0.0,
         0.0,
-        0.0,
+        7.29,
         0.0,
         0.0,
         0.0,
@@ -2920,7 +2920,7 @@
         168.8,
         158.8,
         107.2,
-        0.0,
+        28.0,
         0.0,
         0.0,
         0.0,
@@ -2941,13 +2941,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 3481.16,
-        "import": 261.12,
-        "self_consumption": 2603.56,
-        "export": 877.6,
-        "utility_cost": 418.52,
-        "pv_savings": 4172.99,
-        "export_savings": 1432.33
+        "generation": 3847.27,
+        "import": 268.41,
+        "self_consumption": 2941.67,
+        "export": 905.6,
+        "utility_cost": 430.21,
+        "pv_savings": 4714.91,
+        "export_savings": 1478.03
       },
       "off_peak": {
         "generation": 0.0,
@@ -2961,17 +2961,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 673.74,
-        "standard": 4276.57,
+        "peak": 752.17,
+        "standard": 4774.4,
         "off_peak": 0.0,
-        "total": 4950.31
+        "total": 5526.56
       },
       "export_savings": {
-        "standard": 1316.99,
+        "standard": 1358.97,
         "off_peak": 0.0,
-        "total": 1316.99
+        "total": 1358.97
       },
-      "total": 6267.3
+      "total": 6885.53
     }
   }
 }
