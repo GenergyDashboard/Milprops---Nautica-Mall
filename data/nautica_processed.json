@@ -1,6 +1,6 @@
 {
   "plant": "Nautica Shopping Centre",
-  "last_updated": "2026-02-27 20:31",
+  "last_updated": "2026-02-27 21:29",
   "yesterday": {
     "date": "2026-02-26",
     "data": {
@@ -30,13 +30,13 @@
       "PV Yield (kWh)": 4442.04,
       "Inverter Yield (kWh)": 4442.04,
       "Export (kWh)": 906.4,
-      "Import (kWh)": 2033.28,
+      "Import (kWh)": 2233.6,
       "Loss Due to Export Limitation (kWh)": 0.0,
       "Loss Due to Export Limitation(R.)": 0.0,
       "Charge (kWh)": 0.0,
       "Discharge (kWh)": 0.0,
       "Revenue (R.)": 1341.47,
-      "Consumption (kWh)": 5568.92,
+      "Consumption (kWh)": 5769.24,
       "Self-consumption (kWh)": 3535.64,
       "Self-consumption Rate (%)": 79.59
     }
@@ -51,11 +51,11 @@
       "PV Yield (kWh)": 106187.5,
       "Inverter Yield (kWh)": 106187.5,
       "Export (kWh)": 20081.67,
-      "Import (kWh)": 67153.68,
+      "Import (kWh)": 67354.0,
       "Specific Energy (kWh/kWp)": 0.0,
       "Loss Due to Export Limitation (kWh)": 0.0,
       "Loss Due to Export Limitation(R.)": 0.0,
-      "Consumption (kWh)": 153259.51,
+      "Consumption (kWh)": 153459.83,
       "Self-consumption (kWh)": 86105.84,
       "Self-consumption Rate (%)": 81.09,
       "Peak Power (kW)": 593.66,
@@ -674,11 +674,11 @@
       "PV Yield (kWh)": 106187.5,
       "Inverter Yield (kWh)": 106187.5,
       "Export (kWh)": 20081.67,
-      "Import (kWh)": 67153.68,
+      "Import (kWh)": 67354.0,
       "Specific Energy (kWh/kWp)": 0.0,
       "Loss Due to Export Limitation (kWh)": 0.0,
       "Loss Due to Export Limitation(R.)": 0.0,
-      "Consumption (kWh)": 153259.51,
+      "Consumption (kWh)": 153459.83,
       "Self-consumption (kWh)": 86105.84,
       "Self-consumption Rate (%)": 81.09,
       "Peak Power (kW)": 593.66,
@@ -749,8 +749,8 @@
       "PV Yield (kWh)": 246703.72,
       "Inverter Yield (kWh)": 246703.72,
       "Export (kWh)": 47801.27,
-      "Import (kWh)": 139672.08,
-      "Consumption (kWh)": 338574.53,
+      "Import (kWh)": 139872.4,
+      "Consumption (kWh)": 338774.85,
       "Self-consumption (kWh)": 198902.46,
       "CO\u2082 Avoided (t)": 98.67,
       "Standard Coal Saved (t)": 83.09,
@@ -768,8 +768,8 @@
     "PV Yield (kWh)": 1875698.14,
     "Inverter Yield (kWh)": 1875698.14,
     "Export (kWh)": 190315.27,
-    "Import (kWh)": 1734265.38,
-    "Consumption (kWh)": 3418108.57,
+    "Import (kWh)": 1734465.7,
+    "Consumption (kWh)": 3418308.89,
     "Self-consumption (kWh)": 1685382.88,
     "CO\u2082 Avoided (t)": 872.44,
     "Standard Coal Saved (t)": 734.69,
@@ -827,7 +827,7 @@
     }
   },
   "hourly": {
-    "current_hour": 19,
+    "current_hour": 20,
     "pv": [
       0.0,
       0.0,
@@ -875,7 +875,7 @@
       327.51,
       268.35,
       231.18,
-      0.0,
+      200.32,
       0.0,
       0.0,
       0.0
@@ -901,7 +901,7 @@
       105.99,
       201.21,
       226.82,
-      0.0,
+      200.32,
       0.0,
       0.0,
       0.0
@@ -953,7 +953,7 @@
       248.82,
       166.29,
       110.26,
-      158.51,
+      165.93,
       119.46,
       119.46,
       119.46
@@ -979,7 +979,7 @@
       68.43,
       94.87,
       107.53,
-      158.51,
+      165.93,
       119.46,
       119.46,
       119.46
