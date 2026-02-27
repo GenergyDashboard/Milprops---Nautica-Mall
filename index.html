@@ -933,22 +933,33 @@
                     <div id="ovLegendMonth" style="display:none;">
                         <div class="chart-legend-row">
                             <div class="chart-legend-defaults">
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:rgba(74,222,128,0.6);"></span>PV Generation</div>
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:rgba(249,115,22,0.6);"></span>Grid Import</div>
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:#ef4444;border-radius:0;height:3px;align-self:center;"></span>Load</div>
-                                <div class="chart-legend-item"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV</div>
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:rgba(255,215,0,0.4);"></span>Irradiation (scaled)</div>
+                                <div class="chart-legend-item" data-om="om-pvGen" onclick="toggleOvMonthDs('om-pvGen')"><span class="legend-swatch" style="background:rgba(74,222,128,0.5);border:1px solid #4ade80;"></span>PV Generation (kWh)</div>
+                                <div class="chart-legend-item" data-om="om-avgPV" onclick="toggleOvMonthDs('om-avgPV')"><span class="legend-swatch" style="background:#4ade80;"></span>Avg PV (MTD)</div>
+                                <div class="chart-legend-item" data-om="om-avgExpPV" onclick="toggleOvMonthDs('om-avgExpPV')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Avg Predicted PV (MTD)</div>
+                                <div class="chart-legend-item" data-om="om-irrad" onclick="toggleOvMonthDs('om-irrad')"><span class="legend-swatch" style="background:rgba(255,215,0,0.5);"></span>Scaled Irradiation (kWh equiv)</div>
+                            </div>
+                            <div class="chart-legend-more" onclick="this.classList.toggle('open')">
+                                <span class="more-btn">More ▼</span>
+                                <div class="more-items">
+                                    <div class="chart-legend-item off" data-om="om-grid" onclick="event.stopPropagation();toggleOvMonthDs('om-grid')"><span class="legend-swatch" style="background:rgba(249,115,22,0.6);"></span>Grid Import (kWh)</div>
+                                    <div class="chart-legend-item off" data-om="om-load" onclick="event.stopPropagation();toggleOvMonthDs('om-load')"><span class="legend-swatch" style="background:#ef4444;"></span>Load (kWh)</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div id="ovLegendLifetime" style="display:none;">
                         <div class="chart-legend-row">
                             <div class="chart-legend-defaults">
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:rgba(74,222,128,0.6);"></span>PV Generation</div>
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:rgba(249,115,22,0.6);"></span>Grid Import</div>
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:#ef4444;border-radius:0;height:3px;align-self:center;"></span>Load</div>
-                                <div class="chart-legend-item"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected PV</div>
-                                <div class="chart-legend-item"><span class="legend-swatch" style="background:#FFD700;border:1px solid #FFD700;"></span>Cum. Performance</div>
+                                <div class="chart-legend-item" data-ol="ol-cumPerf" onclick="toggleOvLifeDs('ol-cumPerf')"><span class="legend-swatch" style="background:#FFD700;border:1px solid #FFD700;"></span>Cumulative Performance (%)</div>
+                                <div class="chart-legend-item" data-ol="ol-actGen" onclick="toggleOvLifeDs('ol-actGen')"><span class="legend-swatch" style="background:rgba(74,222,128,0.6);"></span>Actual Generation</div>
+                                <div class="chart-legend-item" data-ol="ol-expGen" onclick="toggleOvLifeDs('ol-expGen')"><span class="legend-swatch dashed" style="border-color:#60a5fa;"></span>Expected Generation</div>
+                            </div>
+                            <div class="chart-legend-more" onclick="this.classList.toggle('open')">
+                                <span class="more-btn">More ▼</span>
+                                <div class="more-items">
+                                    <div class="chart-legend-item off" data-ol="ol-grid" onclick="event.stopPropagation();toggleOvLifeDs('ol-grid')"><span class="legend-swatch" style="background:rgba(249,115,22,0.6);"></span>Grid Import (kWh)</div>
+                                    <div class="chart-legend-item off" data-ol="ol-load" onclick="event.stopPropagation();toggleOvLifeDs('ol-load')"><span class="legend-swatch" style="background:#ef4444;"></span>Load (kWh)</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2255,6 +2266,32 @@
         let ovMonthChart = null, ovLifetimeChart = null;
         let ovDayDate = null; // null = today, otherwise 'YYYY-MM-DD'
 
+        // Overview Month chart visibility
+        const ovMonthVis = {'om-pvGen':true,'om-avgPV':true,'om-avgExpPV':true,'om-irrad':true,'om-grid':false,'om-load':false};
+        const ovMonthDsMap = {'om-grid':0,'om-pvGen':1,'om-avgPV':2,'om-avgExpPV':3,'om-irrad':4,'om-load':5};
+        function toggleOvMonthDs(key) {
+            ovMonthVis[key] = !ovMonthVis[key];
+            const el = document.querySelector('[data-om="'+key+'"]');
+            if (el) el.classList.toggle('off', !ovMonthVis[key]);
+            if (ovMonthChart && ovMonthDsMap[key] !== undefined) {
+                ovMonthChart.data.datasets[ovMonthDsMap[key]].hidden = !ovMonthVis[key];
+                ovMonthChart.update();
+            }
+        }
+
+        // Overview Lifetime chart visibility
+        const ovLifeVis = {'ol-cumPerf':true,'ol-actGen':true,'ol-expGen':true,'ol-grid':false,'ol-load':false};
+        const ovLifeDsMap = {'ol-cumPerf':0,'ol-grid':1,'ol-actGen':2,'ol-expGen':3,'ol-load':4};
+        function toggleOvLifeDs(key) {
+            ovLifeVis[key] = !ovLifeVis[key];
+            const el = document.querySelector('[data-ol="'+key+'"]');
+            if (el) el.classList.toggle('off', !ovLifeVis[key]);
+            if (ovLifetimeChart && ovLifeDsMap[key] !== undefined) {
+                ovLifetimeChart.data.datasets[ovLifeDsMap[key]].hidden = !ovLifeVis[key];
+                ovLifetimeChart.update();
+            }
+        }
+
         function fmtOvDayLabel(dateStr) {
             if (!dateStr) return 'Today';
             const today = new Date().toISOString().split('T')[0];
@@ -2350,9 +2387,10 @@
             const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const pipeH = dashData.hourly?.current_hour;
             const currentHour = (pipeH !== undefined && pipeH !== null) ? pipeH : now.getHours();
-            const labels = [], actGen = [], expGen = [], actGrid = [], actLoad = [], irradScaled = [];
+            const labels = [], actGen = [], actGrid = [], actLoad = [], irradScaledArr = [];
 
             const dailyData = [];
+            let totalActPV = 0, totalExpPV = 0;
             for (let d = 1; d <= numDays; d++) {
                 const dateStr = yr+'-'+mm+'-'+String(d).padStart(2,'0');
                 const dh = dailyHist?.[dateStr];
@@ -2364,46 +2402,56 @@
                 } else { dayExp = dayPvs.reduce((a,b)=>a+b,0); }
                 dayExp *= factor;
                 const irradDaily = dayPvs.reduce((a,b)=>a+b,0);
+                const dayPV = dh ? dh.pv : 0;
+                totalActPV += dayPV; totalExpPV += dayExp;
                 dailyData.push({
-                    d, dayExp, irradDaily,
-                    pv: dh ? dh.pv : 0,
+                    d, dayExp, irradDaily, pv: dayPV,
                     grid: dh ? (dh.import||0) : 0,
                     load: dh ? (dh.consumption||0) : 0
                 });
             }
+
+            // Averages
+            const avgActPV = numDays > 0 ? totalActPV / numDays : 0;
+            const avgExpPV = numDays > 0 ? totalExpPV / numDays : 0;
 
             // Scale irradiation to match PV magnitude
             const maxPV = Math.max(...dailyData.map(d=>d.pv), 1);
             const maxIrrad = Math.max(...dailyData.map(d=>d.irradDaily), 1);
             const irradScale = maxPV / maxIrrad;
 
+            const avgActPVLine = [], avgExpPVLine = [];
             dailyData.forEach(dd => {
                 labels.push(String(dd.d).padStart(2,'0') + ' ' + monthNames[mo]);
                 actGen.push(Math.round(dd.pv));
                 actGrid.push(Math.round(dd.grid));
                 actLoad.push(Math.round(dd.load));
-                expGen.push(Math.round(dd.dayExp));
-                irradScaled.push(Math.round(dd.irradDaily * irradScale));
+                irradScaledArr.push(Math.round(dd.irradDaily * irradScale));
+                avgActPVLine.push(Math.round(avgActPV));
+                avgExpPVLine.push(Math.round(avgExpPV));
             });
 
             const fmtTick = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
-            // Calculate max for syncing stacked bar axis with line axis
+            // Sync y-axis: always calculate from all data so toggling doesn't clip
             const maxStacked = Math.max(...actGen.map((v,i) => v + actGrid[i]), 1);
-            const maxLine = Math.max(...actLoad, ...expGen, ...irradScaled, 1);
-            const yMax = Math.ceil(Math.max(maxStacked, maxLine) * 1.1);
+            const maxLine = Math.max(...actLoad, ...avgExpPVLine, ...irradScaledArr, 1);
+            const yMax = Math.ceil(Math.max(maxStacked, maxLine) * 1.15);
 
             if (ovMonthChart) ovMonthChart.destroy();
+            // Dataset order: 0=grid, 1=pvGen, 2=avgPV, 3=avgExpPV, 4=irrad, 5=load
             ovMonthChart = new Chart(ctx, {
                 data: { labels, datasets: [
-                    { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.6)', borderColor:'#4ade80', borderWidth:1, borderRadius:{topLeft:0,topRight:0}, stack:'energy', yAxisID:'y', order:3 },
-                    { type:'bar', label:'Grid Import (kWh)', data:actGrid, backgroundColor:'rgba(249,115,22,0.6)', borderColor:'#f97316', borderWidth:1, borderRadius:{topLeft:3,topRight:3}, stack:'energy', yAxisID:'y', order:3 },
-                    { type:'line', label:'Load (kWh)', data:actLoad, borderColor:'#ef4444', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false, yAxisID:'yLine', order:0 },
-                    { type:'line', label:'Expected PV (kWh)', data:expGen, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.3, fill:false, yAxisID:'yLine', order:1 },
-                    { type:'line', label:'Irradiation (scaled)', data:irradScaled, backgroundColor:'rgba(255,215,0,0.12)', borderColor:'rgba(255,215,0,0.5)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'yLine', order:2 }
+                    { type:'bar', label:'Grid Import (kWh)', data:actGrid, backgroundColor:'rgba(249,115,22,0.6)', borderColor:'#f97316', borderWidth:1, borderRadius:0, stack:'energy', yAxisID:'y', hidden:!ovMonthVis['om-grid'], order:3 },
+                    { type:'bar', label:'PV Generation (kWh)', data:actGen, backgroundColor:'rgba(74,222,128,0.5)', borderColor:'#4ade80', borderWidth:1, borderRadius:{topLeft:3,topRight:3}, stack:'energy', yAxisID:'y', hidden:!ovMonthVis['om-pvGen'], order:3 },
+                    { type:'line', label:'Avg PV (MTD)', data:avgActPVLine, borderColor:'#4ade80', borderWidth:2, pointRadius:0, tension:0, fill:false, yAxisID:'yLine', hidden:!ovMonthVis['om-avgPV'], order:1 },
+                    { type:'line', label:'Avg Predicted PV (MTD)', data:avgExpPVLine, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0, fill:false, yAxisID:'yLine', hidden:!ovMonthVis['om-avgExpPV'], order:1 },
+                    { type:'line', label:'Scaled Irradiation (kWh equiv)', data:irradScaledArr, backgroundColor:'rgba(255,215,0,0.15)', borderColor:'rgba(255,215,0,0.6)', borderWidth:1.5, pointRadius:0, tension:0.4, fill:true, yAxisID:'yLine', hidden:!ovMonthVis['om-irrad'], order:2 },
+                    { type:'line', label:'Load (kWh)', data:actLoad, borderColor:'#ef4444', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false, yAxisID:'yLine', hidden:!ovMonthVis['om-load'], order:0 }
                 ]},
                 options: {
                     responsive:true, maintainAspectRatio:false,
+                    layout:{padding:{top:25,right:10}},
                     interaction:{mode:'index',intersect:false},
                     plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>{
                         if(c.dataset.label.includes('Irrad')) return c.dataset.label+': '+fmtTick(c.parsed.y)+' kWh (scaled)';
@@ -2440,7 +2488,6 @@
             const pipeH = dashData.hourly?.current_hour;
             const currentHour = (pipeH !== undefined && pipeH !== null) ? pipeH : now.getHours();
             const mt = pvsyst?.monthly_totals_kwh || {};
-            const avgDailyLoad = (dashData.hourly?.avg_load||[]).reduce((a,b)=>a+b,0);
             const labels = [], actGenArr = [], expGenArr = [], actGridArr = [], actLoadArr = [], cumPerfArr = [];
             const fmtTick = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
@@ -2471,32 +2518,30 @@
                 cumExpected += expPV;
                 cumMap[ym] = cumExpected > 0 ? (cumActual/cumExpected*100) : 0;
 
-                const actPV = md['PV Yield (kWh)'] || 0;
-                const actLoad = md['Consumption (kWh)'] || 0;
-                const actGrid = md['Import (kWh)'] || 0;
-
                 labels.push(monthNames[mm] + ' ' + String(yr).slice(2));
-                actGenArr.push(Math.round(actPV));
-                actGridArr.push(Math.round(actGrid));
-                actLoadArr.push(Math.round(actLoad));
+                actGenArr.push(Math.round(md['PV Yield (kWh)'] || 0));
+                actGridArr.push(Math.round(md['Import (kWh)'] || 0));
+                actLoadArr.push(Math.round(md['Consumption (kWh)'] || 0));
                 expGenArr.push(Math.round(expPV));
                 cumPerfArr.push(Math.round((cumMap[ym]||0) * 10) / 10);
             });
 
             if (ovLifetimeChart) ovLifetimeChart.destroy();
 
-            // Sync stacked bar axis with line axis
-            const maxStacked = Math.max(...actGenArr.map((v,i) => v + actGridArr[i]), 1);
-            const maxLine = Math.max(...actLoadArr, ...expGenArr, 1);
-            const yMax = Math.ceil(Math.max(maxStacked, maxLine) * 1.1);
+            // Sync y-axes: account for stacked actual (PV+Grid) vs expected vs load
+            const ltMaxStacked = Math.max(...actGenArr.map((v,i) => v + actGridArr[i]), 1);
+            const ltMaxBars = Math.max(ltMaxStacked, ...expGenArr, 1);
+            const ltMaxLine = Math.max(...actLoadArr, 1);
+            const ltYMax = Math.ceil(Math.max(ltMaxBars, ltMaxLine) * 1.15);
 
+            // Dataset order: 0=cumPerf, 1=grid(bottom of actual stack), 2=actGen(top of actual), 3=expGen(side-by-side), 4=load
             ovLifetimeChart = new Chart(ctx, {
                 data: { labels, datasets: [
-                    { type:'line', label:'Cumulative Performance (%)', data:cumPerfArr, borderColor:'#FFD700', backgroundColor:'rgba(255,215,0,0.1)', borderWidth:2.5, pointRadius:2, pointBackgroundColor:'#FFD700', tension:0.3, fill:false, yAxisID:'y2', order:0 },
-                    { type:'bar', label:'PV Generation (kWh)', data:actGenArr, backgroundColor:'rgba(74,222,128,0.6)', borderColor:'#4ade80', borderWidth:1, borderRadius:{topLeft:0,topRight:0}, stack:'energy', yAxisID:'y', order:3 },
-                    { type:'bar', label:'Grid Import (kWh)', data:actGridArr, backgroundColor:'rgba(249,115,22,0.6)', borderColor:'#f97316', borderWidth:1, borderRadius:{topLeft:3,topRight:3}, stack:'energy', yAxisID:'y', order:3 },
-                    { type:'line', label:'Load (kWh)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false, yAxisID:'yLine', order:1 },
-                    { type:'line', label:'Expected PV (kWh)', data:expGenArr, borderColor:'#60a5fa', borderWidth:2, borderDash:[6,4], pointRadius:0, tension:0.3, fill:false, yAxisID:'yLine', order:2 }
+                    { type:'line', label:'Cumulative Performance (%)', data:cumPerfArr, borderColor:'#FFD700', backgroundColor:'rgba(255,215,0,0.1)', borderWidth:2.5, pointRadius:2, pointBackgroundColor:'#FFD700', tension:0.3, fill:false, yAxisID:'y2', hidden:!ovLifeVis['ol-cumPerf'], order:0 },
+                    { type:'bar', label:'Grid Import (kWh)', data:actGridArr, backgroundColor:'rgba(249,115,22,0.6)', borderColor:'#f97316', borderWidth:1, borderRadius:0, stack:'actual', yAxisID:'y', hidden:!ovLifeVis['ol-grid'], order:2 },
+                    { type:'bar', label:'Actual Generation (kWh)', data:actGenArr, backgroundColor:'rgba(74,222,128,0.7)', borderColor:'#4ade80', borderWidth:1, borderRadius:{topLeft:3,topRight:3}, stack:'actual', yAxisID:'y', hidden:!ovLifeVis['ol-actGen'], order:2 },
+                    { type:'bar', label:'Expected Generation (kWh)', data:expGenArr, backgroundColor:'rgba(96,165,250,0.35)', borderColor:'#60a5fa', borderWidth:1, borderDash:[4,4], borderRadius:3, stack:'expected', yAxisID:'y', hidden:!ovLifeVis['ol-expGen'], order:2 },
+                    { type:'line', label:'Load (kWh)', data:actLoadArr, borderColor:'#ef4444', borderWidth:2, pointRadius:0, tension:0.3, fill:false, yAxisID:'yLine', hidden:!ovLifeVis['ol-load'], order:1 }
                 ]},
                 options: {
                     responsive:true, maintainAspectRatio:false,
@@ -2507,9 +2552,9 @@
                     }}}},
                     scales:{
                         x:{stacked:true, grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
-                        y:{stacked:true, beginAtZero:true, max:yMax, title:{display:chartMobile().showAxisTitles,text:'Energy (kWh)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:v=>fmtTick(v)}},
-                        yLine:{type:'linear',display:false,beginAtZero:true,max:yMax,stacked:false},
-                        y2:{position:'right',beginAtZero:false,min:0,max:150,title:{display:chartMobile().showAxisTitles,text:'Performance (%)',color:'#FFD700',font:{size:chartMobile().titleFont}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:chartMobile().tickFont},callback:v=>v+'%'}}
+                        y:{stacked:true, beginAtZero:true, max:ltYMax, title:{display:chartMobile().showAxisTitles,text:'Energy (kWh)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:v=>fmtTick(v)}},
+                        yLine:{type:'linear',display:false,beginAtZero:true,max:ltYMax,stacked:false},
+                        y2:{position:'right',beginAtZero:true,suggestedMin:50,suggestedMax:120,title:{display:chartMobile().showAxisTitles,text:'Performance (%)',color:'#FFD700',font:{size:chartMobile().titleFont}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:chartMobile().tickFont},callback:v=>Math.round(v)+'%'}}
                     }
                 }
             });
