@@ -9,7 +9,22 @@
         // Fix blurry text on high-DPI screens
         Chart.defaults.devicePixelRatio = Math.max(window.devicePixelRatio || 2, 2);
         Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
-        Chart.defaults.font.size = 12;
+        const isMobile = () => window.innerWidth <= 600;
+        Chart.defaults.font.size = isMobile() ? 10 : 12;
+        // Responsive chart helper: returns font sizes and layout settings for current screen
+        function chartMobile() {
+            const m = isMobile();
+            return {
+                tickFont: m ? 9 : 12,
+                titleFont: m ? 10 : 13,
+                tooltipTitleFont: m ? 12 : 15,
+                tooltipBodyFont: m ? 11 : 14,
+                tooltipPad: m ? 10 : 16,
+                showAxisTitles: !m,
+                pointRadius: m ? 0 : 0,
+                barBorderWidth: m ? 0.5 : 1,
+            };
+        }
     </script>
     <style>
         :root {
@@ -96,6 +111,11 @@
         .chart-view-switch button { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); padding: 6px 14px; font-size: var(--font-xs); font-family: inherit; cursor: pointer; transition: all 0.2s; }
         .chart-view-switch button:hover { background: rgba(255,255,255,0.08); }
         .chart-view-switch button.active { background: rgba(255,215,0,0.15); border-color: var(--gold); color: var(--gold); }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 5px; }
+        .chart-header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ov-day-nav { display: flex; align-items: center; gap: 6px; }
+        .ov-day-btn { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-primary); width: 34px; height: 34px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .ov-day-btn:hover { border-color: var(--gold); color: var(--gold); }
 
         /* Layout editor */
         .edit-layout-btn { background: transparent; border: 1px solid var(--card-border); border-radius: 8px; color: #888; padding: 6px 12px; font-size: 12px; font-family: inherit; cursor: pointer; transition: all 0.2s; display: none; }
@@ -437,8 +457,11 @@
         .tou-pill.off-peak { background: rgba(74,222,128,0.2); color: var(--green); }
         .legend-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
         .legend-swatch.dashed { border: 2px dashed; background: transparent; }
-        .chart-wrap { position: relative; height: 350px; padding-right: 5px; margin-top: 8px; }
-        @media (max-width: 900px) { .chart-wrap { height: 280px; } }
+        .chart-wrap { position: relative; height: 350px; padding-right: 5px; margin-top: 8px; touch-action: pan-y; }
+        .env-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; align-items: stretch; }
+        .fin-tou-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
+
+        @media (max-width: 900px) { .chart-wrap { height: 300px; } }
 
         /* ══════════════════════════════════════════════════ */
         /* SHARED                                             */
@@ -449,11 +472,12 @@
         .last-updated { text-align: center; color: var(--text-dim); font-size: var(--font-xs); padding: 10px; }
 
         /* ══════════════════════════════════════════════════ */
-        /* RESPONSIVE                                         */
+        /* RESPONSIVE — TABLET (≤900px)                      */
         /* ══════════════════════════════════════════════════ */
         @media (max-width: 900px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .overview-grid, .env-grid-3, .daily-grid, .monthly-grid { grid-template-columns: 1fr; }
+            .env-grid-4 { grid-template-columns: repeat(2, 1fr); }
             .stat-card .value, .slab-value { font-size: 1.8em; }
             .header { flex-direction: column; gap: 15px; text-align: center; }
             .header-right { align-items: center; }
@@ -463,13 +487,176 @@
             .env-metric-cell .icon { font-size: var(--font-base); }
             .env-metric-cell .name { font-size: var(--font-xs); }
         }
-        @media (max-width: 500px) {
-            .container { padding: 10px; }
-            .stats-grid { grid-template-columns: 1fr; }
-            .stat-card { padding: 20px 15px; }
-            .stat-card .value { font-size: 1.6em; }
-            .env-table tbody td { font-size: var(--font-xs); }
-            .modal-content { padding: 25px 20px; margin: 10px; }
+
+        /* ══════════════════════════════════════════════════ */
+        /* RESPONSIVE — MOBILE (≤600px)                      */
+        /* ══════════════════════════════════════════════════ */
+        @media (max-width: 600px) {
+            :root { --font-scale: 0.95; }
+            .container { padding: 6px; }
+
+            /* ─── Header ─── */
+            .header { padding: 12px; border-radius: 12px; gap: 10px; }
+            .header h1 { font-size: 1.05em; letter-spacing: 0.5px; }
+            .powered-by { font-size: 0.75em; }
+            .header-right { gap: 6px; }
+            .font-sizer button { padding: 4px 8px; font-size: 0.8em; }
+            .edit-layout-btn { padding: 4px 8px !important; font-size: 0.75em !important; }
+
+            /* ─── Tab Navigation: scrollable pill strip ─── */
+            .tab-nav {
+                flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+                gap: 6px; margin-bottom: 14px; padding: 2px 0 6px;
+                scrollbar-width: none; scroll-snap-type: x mandatory;
+            }
+            .tab-nav::-webkit-scrollbar { display: none; }
+            .tab-nav button {
+                flex-shrink: 0; padding: 10px 16px; font-size: 0.82em;
+                white-space: nowrap; scroll-snap-align: start;
+                border-radius: 10px;
+            }
+
+            /* ─── Info bar ─── */
+            .info-bar { padding: 10px; gap: 4px; border-radius: 10px; }
+            .info-item { padding: 3px 0; }
+            .info-item .lbl, .info-item .val { font-size: 0.78em; }
+
+            /* ─── Overview title ─── */
+            .overview-title { font-size: 1.15em; margin-bottom: 14px; }
+
+            /* ═══ CHARTS — the big fix ═══ */
+            .chart-wrap { height: 300px !important; }
+            .chart-container { padding: 14px 6px 10px; border-radius: 12px; margin-bottom: 16px; }
+            .chart-container h3 { font-size: 0.88em; margin-bottom: 2px; }
+
+            /* Chart header with day nav + view switch */
+            .chart-header { flex-direction: column; align-items: stretch; gap: 8px; }
+            .chart-header-controls { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+            .chart-view-switch { gap: 3px; }
+            .chart-view-switch button { padding: 7px 10px; font-size: 0.76em; border-radius: 8px; }
+            .ov-day-btn { width: 36px; height: 36px; font-size: 18px; border-radius: 10px; }
+            #ovDayLabel { font-size: 0.82em !important; min-width: 80px !important; }
+
+            /* Chart legends: single column, left-aligned */
+            .chart-legend-row { grid-template-columns: 1fr; gap: 6px; margin-bottom: 10px; }
+            .chart-legend-defaults { grid-column: 1; gap: 6px 12px; justify-content: flex-start; }
+            .chart-legend-item { font-size: 0.78em; padding: 3px 0; min-height: 30px; }
+            .chart-legend-more { grid-column: 1; justify-self: start; }
+            .more-btn { font-size: 0.8em; padding: 6px 10px; }
+            .more-items { min-width: 180px; left: 0; right: auto; }
+
+            /* PV Dist controls */
+            #pvdPeriodBtns { gap: 3px; }
+            #pvdPeriodBtns button { padding: 7px 10px; font-size: 0.76em; }
+            #pvdMonthPicker { padding: 6px 8px; font-size: 0.78em; }
+
+            /* ═══ OVERVIEW SLABS ═══ */
+            .overview-grid { gap: 12px; margin-bottom: 16px; }
+            .slab { padding: 16px 12px; border-radius: 12px; }
+            .slab-value { font-size: 1.9em; }
+            .slab-label { font-size: 0.8em; margin-bottom: 8px; letter-spacing: 0.5px; }
+            .slab-expected { font-size: 0.8em; }
+            .slab-status { font-size: 0.8em; }
+            .slab-perf { padding: 10px 8px; margin-top: 10px; gap: 6px; }
+            .slab-perf-item .perf-value { font-size: 1.05em; }
+            .slab-perf-item .perf-label { font-size: 0.7em; }
+            .donut-wrap { width: 80px; margin-left: 6px; }
+            .donut-wrap canvas { width: 80px !important; height: 80px !important; }
+            .flow-lines { gap: 6px; margin-top: 8px; }
+            .flow-line { padding: 6px 10px; border-radius: 8px; }
+            .flow-line .fl-label { font-size: 0.76em; }
+            .flow-line .fl-value { font-size: 0.85em; }
+
+            /* Savings dropdowns */
+            .slab-savings { padding: 8px 10px; border-radius: 8px; margin-top: 8px; }
+            .slab-savings .sv-value { font-size: 1em; }
+            .slab-savings .sv-label { font-size: 0.76em; }
+            .savings-sub { padding: 6px 8px; }
+            .savings-sub .sub-value { font-size: 0.85em; }
+            .savings-sub .sub-label { font-size: 0.76em; }
+            .tou-row .tou-label { font-size: 0.72em; padding: 2px 6px; }
+            .tou-row .tou-val { font-size: 0.72em; }
+
+            /* Lifetime overview slabs */
+            #lifetimeGrid .slab-value { font-size: clamp(1.3em, 5.5vw, 1.9em); }
+            #lifetimeGrid .slab { padding: 12px 10px; }
+            #lifetimeGrid .donut-wrap { width: 70px; }
+            #lifetimeGrid .donut-wrap canvas { width: 70px !important; height: 70px !important; }
+
+            /* ─── Daily Tab ─── */
+            .daily-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+
+            /* ─── Monthly Tab ─── */
+            .monthly-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .monthly-grid .slab-value { font-size: 1.4em; }
+            .month-selector { gap: 5px; }
+            .month-selector select, .month-selector button { padding: 8px 10px; font-size: 0.8em; }
+
+            /* ─── Lifetime Tab ─── */
+            .env-grid-4 { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .env-section-title { font-size: 1em; margin-bottom: 10px; }
+            .env-grid-3 { gap: 10px; }
+            .env-box { padding: 12px 10px; border-radius: 12px; }
+            .env-box h3 { font-size: 0.72em; margin-bottom: 8px; }
+            .env-row .env-name { font-size: 0.76em; }
+            .env-row .env-val { font-size: 0.85em; }
+            .env-row { padding: 7px 0; }
+            .lt-range-btn { padding: 8px 12px !important; font-size: 0.8em !important; }
+
+            /* Env table */
+            .env-table-wrap { border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .env-table thead th { padding: 8px 6px; font-size: 0.72em; }
+            .env-table tbody td { padding: 7px 6px; font-size: 0.72em; }
+
+            /* ─── Financial Tab ─── */
+            .fin-tou-grid { grid-template-columns: 1fr; gap: 10px; }
+            #tab-financial .slab { padding: 14px 10px; }
+            #tab-financial .slab-value { font-size: 1.5em; }
+
+            /* ─── Report Tab ─── */
+            .report-controls { gap: 12px; }
+            .report-row { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+            .report-row label { min-width: unset; font-size: 0.75em; }
+            .report-presets { gap: 5px; }
+            .report-presets button { padding: 9px 14px; font-size: 0.82em; }
+            .report-fields { gap: 6px; }
+            .report-field-chk { padding: 8px 10px; font-size: 0.78em; }
+            .report-gen-btn { padding: 14px 24px; font-size: 0.92em; width: 100%; border-radius: 12px; }
+            .report-export-btn { padding: 12px 16px; font-size: 0.82em; width: 100%; text-align: center; }
+            .rpt-date-pill { padding: 10px 14px; font-size: 0.82em; min-width: 85px; }
+            .report-table-wrap { border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .report-table th { padding: 8px 6px; font-size: 0.72em; }
+            .report-table td { padding: 6px 6px; font-size: 0.72em; }
+            .report-summary { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+            .report-summary .slab { padding: 10px 8px; }
+            .report-summary .slab-value { font-size: 1.1em; }
+            .report-summary .slab-label { font-size: 0.68em; }
+
+            /* ─── Daily savings table scroll ─── */
+            .daily-savings-table .env-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+            /* ─── Modal ─── */
+            .modal-content { padding: 20px 16px; margin: 8px; border-radius: 14px; }
+        }
+
+        /* ══════════════════════════════════════════════════ */
+        /* RESPONSIVE — SMALL MOBILE (≤400px)                */
+        /* ══════════════════════════════════════════════════ */
+        @media (max-width: 400px) {
+            .container { padding: 4px; }
+            .slab-value { font-size: 1.5em; }
+            .donut-wrap { width: 65px; }
+            .donut-wrap canvas { width: 65px !important; height: 65px !important; }
+            .daily-grid { grid-template-columns: 1fr; }
+            .monthly-grid { grid-template-columns: 1fr; }
+            .env-grid-4 { grid-template-columns: 1fr; }
+            .report-summary { grid-template-columns: 1fr; }
+            .overview-grid .slab-perf { flex-direction: column; gap: 6px; }
+            .chart-wrap { height: 260px !important; }
+            .chart-header-controls { flex-direction: column; gap: 6px; align-items: stretch; }
+            .chart-header-controls .chart-view-switch { justify-content: center; }
+            .chart-header-controls .ov-day-nav { justify-content: center; }
+            .tab-nav button { padding: 9px 12px; font-size: 0.78em; }
         }
     </style>
 </head>
@@ -701,14 +888,14 @@
                     <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('chart')">✕</span>
                 <!-- Hourly Generation Pattern Chart -->
                 <div class="chart-container">
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:5px;">
+                    <div class="chart-header">
                         <h3 id="ovChartTitle">Hourly Generation Pattern</h3>
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div id="ovDayNav" style="display:flex;align-items:center;gap:6px;">
-                                <button onclick="shiftOvDay(-1)" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;color:var(--text-primary);width:32px;height:32px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--card-border)';this.style.color='var(--text-primary)'">‹</button>
+                        <div class="chart-header-controls">
+                            <div class="ov-day-nav" id="ovDayNav">
+                                <button class="ov-day-btn" onclick="shiftOvDay(-1)">‹</button>
                                 <span id="ovDayLabel" style="color:var(--text-secondary);font-size:var(--font-xs);min-width:90px;text-align:center;cursor:pointer;" onclick="document.getElementById('ovDayPicker').showPicker()">Today</span>
                                 <input type="date" id="ovDayPicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;" onchange="setOvDay(this.value)">
-                                <button onclick="shiftOvDay(1)" style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;color:var(--text-primary);width:32px;height:32px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--card-border)';this.style.color='var(--text-primary)'">›</button>
+                                <button class="ov-day-btn" onclick="shiftOvDay(1)">›</button>
                             </div>
                             <div class="chart-view-switch">
                                 <button class="active" onclick="setOvChartView('today',this)">Today</button>
@@ -1073,7 +1260,7 @@
 
                 <!-- ENVIRONMENTAL IMPACT -->
                 <div class="env-section-title">Environmental Impact</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:30px;align-items:stretch;">
+                <div class="env-grid-4">
                     <div class="env-box" style="display:flex;flex-direction:column;align-items:center;text-align:center;">
                         <h3>🌳 Trees Equivalent</h3>
                         <div class="slab-value" style="text-align:center;font-size:clamp(1.2em,2.5vw,1.8em);margin-top:auto;"><span id="lt-env-trees">0</span></div>
@@ -1148,7 +1335,7 @@
                 </div>
 
                 <!-- PEAK / STANDARD / OFF-PEAK SAVINGS -->
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:30px;">
+                <div class="fin-tou-grid">
                     <div class="slab" style="text-align:center;">
                         <div class="slab-label"><span class="tou-pill peak" style="font-size:0.9em;">Peak</span></div>
                         <div class="slab-value" style="font-size:1.8em;"><span style="color:#fff;">R </span><span id="fin-peak-savings">--</span></div>
@@ -1929,8 +2116,8 @@
                         legend: { display: false },
                         tooltip: {
                             backgroundColor: '#111', titleColor: '#fff', bodyColor: '#ccc',
-                            titleFont: { size: 15 }, bodyFont: { size: 14 },
-                            borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 16,
+                            titleFont: { size: chartMobile().tooltipTitleFont }, bodyFont: { size: chartMobile().tooltipBodyFont },
+                            borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: chartMobile().tooltipPad,
                             callbacks: {
                                 label: function(ctx) {
                                     const unit = ctx.datasetIndex === 2 ? ' W/m²' : ' kW';
@@ -1942,19 +2129,19 @@
                     scales: {
                         x: {
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#bbb', font: { size: 12 }, maxRotation: 0 }
+                            ticks: { color: '#bbb', font: { size: chartMobile().tickFont }, maxRotation: 0, autoSkipPadding: isMobile() ? 8 : 3 }
                         },
                         y: {
                             position: 'left', beginAtZero: true,
-                            title: { display: true, text: 'Power (kW) - Generation, Load, Grid', color: '#bbb', font: { size: 13 } },
+                            title: { display: chartMobile().showAxisTitles, text: 'Power (kW)', color: '#bbb', font: { size: chartMobile().titleFont } },
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#bbb', font: { size: 12 } }
+                            ticks: { color: '#bbb', font: { size: chartMobile().tickFont } }
                         },
                         y2: {
                             position: 'right', beginAtZero: true,
-                            title: { display: true, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: 13 } },
+                            title: { display: chartMobile().showAxisTitles, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: chartMobile().titleFont } },
                             grid: { drawOnChartArea: false },
-                            ticks: { color: '#FFD700', font: { size: 13 } }
+                            ticks: { color: '#FFD700', font: { size: chartMobile().tickFont } }
                         }
                     }
                 }
@@ -2082,10 +2269,10 @@
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Energy (kWh)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont}}}
                     },
                     onClick: (evt, elems) => {
                         if (elems.length > 0) {
@@ -2148,10 +2335,10 @@
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Energy (kWh)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont}}}
                     }
                 }
             });
@@ -2349,8 +2536,8 @@
                         legend:{display:false},
                         tooltip:{
                             backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',
-                            titleFont:{size:15},bodyFont:{size:14},
-                            borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,
+                            titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},
+                            borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,
                             filter: item => [4,5,6,7].includes(item.datasetIndex),
                             callbacks:{label:c => {
                                 const names = {4:'Min',5:'Max',6:'Median PV',7:'Median Load'};
@@ -2359,8 +2546,8 @@
                         }
                     },
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11}},title:{display:true,text:'Hour of Day',color:'#bbb',font:{size:13}}},
-                        y:{beginAtZero:true,title:{display:true,text:'PV Output (kW)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12}}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:0,autoSkipPadding:isMobile()?6:3},title:{display:chartMobile().showAxisTitles,text:'Hour',color:'#bbb',font:{size:chartMobile().titleFont}}},
+                        y:{beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'PV Output (kW)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont}}}
                     }
                 }
             });
@@ -2694,11 +2881,11 @@
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111', titleColor: '#fff', bodyColor: '#ccc', titleFont: { size: 15 }, bodyFont: { size: 14 }, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 16, callbacks: { label: function(c) { const u = c.datasetIndex === 2 ? ' W/m²' : ' kW'; return c.dataset.label + ': ' + (c.parsed.y||0).toFixed(1) + u; } } } },
+                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111', titleColor: '#fff', bodyColor: '#ccc', titleFont: { size: chartMobile().tooltipTitleFont }, bodyFont: { size: chartMobile().tooltipBodyFont }, borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: chartMobile().tooltipPad, callbacks: { label: function(c) { const u = c.datasetIndex === 2 ? ' W/m²' : ' kW'; return c.dataset.label + ': ' + (c.parsed.y||0).toFixed(1) + u; } } } },
                     scales: {
-                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#bbb', font: { size: 12 }, maxRotation: 0 } },
-                        y: { position: 'left', beginAtZero: true, title: { display: true, text: 'Power (kW)', color: '#bbb', font: { size: 13 } }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#bbb', font: { size: 12 } } },
-                        y2: { position: 'right', beginAtZero: true, title: { display: true, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: 13 } }, grid: { drawOnChartArea: false }, ticks: { color: '#FFD700', font: { size: 13 } } }
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#bbb', font: { size: chartMobile().tickFont }, maxRotation: 0, autoSkipPadding: isMobile() ? 8 : 3 } },
+                        y: { position: 'left', beginAtZero: true, title: { display: chartMobile().showAxisTitles, text: 'Power (kW)', color: '#bbb', font: { size: chartMobile().titleFont } }, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#bbb', font: { size: chartMobile().tickFont } } },
+                        y2: { position: 'right', beginAtZero: true, title: { display: chartMobile().showAxisTitles, text: 'Irradiation (W/m²)', color: '#FFD700', font: { size: chartMobile().titleFont } }, grid: { drawOnChartArea: false }, ticks: { color: '#FFD700', font: { size: chartMobile().tickFont } } }
                     }
                 }
             });
@@ -3015,13 +3202,13 @@
                     responsive:true, maintainAspectRatio:false,
                     layout:{padding:{top:25,right:10}},
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>{
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>{
                         const suffix=c.dataset.label.includes('Irrad')?'kWh (scaled)':'kWh';
                         return c.dataset.label+': '+fmtTick(c.parsed.y)+' '+suffix;
                     }}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:(v)=>fmtTick(v)}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{position:'left',beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Energy (kWh)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:(v)=>fmtTick(v)}}
                     },
                     onClick: (evt, elems) => {
                         if (elems.length > 0) {
@@ -3366,14 +3553,14 @@
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>{
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>{
                         if (c.datasetIndex===0) return c.dataset.label+': '+c.parsed.y.toFixed(1)+'%';
                         return c.dataset.label+': '+fmtTick(c.parsed.y)+' kWh';
                     }}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{position:'left',beginAtZero:true,title:{display:true,text:'Energy (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:v=>fmtTick(v)}},
-                        y2:{position:'right',beginAtZero:true,suggestedMin:50,suggestedMax:120,title:{display:true,text:'Cumulative Performance (%)',color:'#FFD700',font:{size:13}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:12},callback:v=>Math.round(v)+'%'}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{position:'left',beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Energy (kWh)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:v=>fmtTick(v)}},
+                        y2:{position:'right',beginAtZero:true,suggestedMin:50,suggestedMax:120,title:{display:chartMobile().showAxisTitles,text:'Performance (%)',color:'#FFD700',font:{size:chartMobile().titleFont}},grid:{drawOnChartArea:false},ticks:{color:'#FFD700',font:{size:chartMobile().tickFont},callback:v=>Math.round(v)+'%'}}
                     }
                 }
             });
@@ -3464,10 +3651,10 @@
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>'R '+String(Math.round(c.parsed.y)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>'R '+String(Math.round(c.parsed.y)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{beginAtZero:true,title:{display:true,text:'Savings (R)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:v=>fmtTick(v)}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Savings (R)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:v=>fmtTick(v)}}
                     }
                 }
             });
@@ -3667,11 +3854,11 @@
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>{const v=Math.round(c.parsed.y);return c.dataset.label+': R '+String(v).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>{const v=Math.round(c.parsed.y);return c.dataset.label+': R '+String(v).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}}},
                     scales:{
-                        x:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{stacked:true,beginAtZero:true,title:{display:true,text:'Monthly Savings (R)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:v=>fmtTick(v)}},
-                        y2:{position:'right',beginAtZero:true,title:{display:true,text:'Cumulative Savings (R)',color:'#ffd700',font:{size:13}},grid:{drawOnChartArea:false},ticks:{color:'#ffd700',font:{size:11},callback:v=>fmtTick(v)}}
+                        x:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{stacked:true,beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Savings (R)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:v=>fmtTick(v)}},
+                        y2:{position:'right',beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Cumulative (R)',color:'#ffd700',font:{size:chartMobile().titleFont}},grid:{drawOnChartArea:false},ticks:{color:'#ffd700',font:{size:chartMobile().tickFont},callback:v=>fmtTick(v)}}
                     }
                 }
             });
@@ -3742,10 +3929,10 @@
                 options: {
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)+' kWh'}}},
                     scales:{
-                        x:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{stacked:true,beginAtZero:true,title:{display:true,text:'Generation (kWh)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:v=>fmt(v)}}
+                        x:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{stacked:true,beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Generation (kWh)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:v=>fmt(v)}}
                     }
                 }
             });
@@ -3846,10 +4033,10 @@
                 options:{
                     responsive:true, maintainAspectRatio:false,
                     interaction:{mode:'index',intersect:false},
-                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:15},bodyFont:{size:14},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:16,callbacks:{label:c=>`${c.dataset.label}: R${fmt(c.parsed.y)}`}}},
+                    plugins:{legend:{display:false},tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#ccc',titleFont:{size:chartMobile().tooltipTitleFont},bodyFont:{size:chartMobile().tooltipBodyFont},borderColor:'rgba(255,255,255,0.1)',borderWidth:1,padding:chartMobile().tooltipPad,callbacks:{label:c=>`${c.dataset.label}: R${fmt(c.parsed.y)}`}}},
                     scales:{
-                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:11},maxRotation:45,minRotation:45}},
-                        y:{beginAtZero:true,title:{display:true,text:'Savings (R)',color:'#bbb',font:{size:13}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:12},callback:v=>'R '+String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}
+                        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},maxRotation:45,minRotation:isMobile()?0:45,autoSkip:true,maxTicksLimit:isMobile()?8:20}},
+                        y:{beginAtZero:true,title:{display:chartMobile().showAxisTitles,text:'Savings (R)',color:'#bbb',font:{size:chartMobile().titleFont}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#bbb',font:{size:chartMobile().tickFont},callback:v=>'R '+String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')}}
                     }
                 }
             });
