@@ -3289,12 +3289,12 @@
     }
   },
   "2026-03-02": {
-    "current_hour": 16,
-    "pv": 4134.92,
-    "import": 1405.19,
-    "export": 1303.6,
-    "self_consumption": 2831.32,
-    "consumption": 4236.51,
+    "current_hour": 17,
+    "pv": 4352.0,
+    "import": 1448.83,
+    "export": 1306.8,
+    "self_consumption": 3045.2,
+    "consumption": 4494.03,
     "hourly": {
       "pv": [
         0.0,
@@ -3314,7 +3314,7 @@
         533.17,
         472.71,
         367.86,
-        0.0,
+        217.08,
         0.0,
         0.0,
         0.0,
@@ -3340,7 +3340,7 @@
         318.37,
         297.91,
         284.26,
-        0.0,
+        257.52,
         0.0,
         0.0,
         0.0,
@@ -3366,7 +3366,7 @@
         0.0,
         0.0,
         0.0,
-        0.0,
+        43.64,
         0.0,
         0.0,
         0.0,
@@ -3392,7 +3392,7 @@
         214.8,
         174.8,
         83.6,
-        0.0,
+        3.2,
         0.0,
         0.0,
         0.0,
@@ -3412,13 +3412,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 3840.16,
-        "import": 246.4,
-        "self_consumption": 2536.56,
-        "export": 1303.6,
-        "utility_cost": 394.93,
-        "pv_savings": 4065.6,
-        "export_savings": 2127.61
+        "generation": 4057.24,
+        "import": 290.04,
+        "self_consumption": 2750.44,
+        "export": 1306.8,
+        "utility_cost": 464.88,
+        "pv_savings": 4408.41,
+        "export_savings": 2132.83
       },
       "off_peak": {
         "generation": 0.0,
@@ -3432,17 +3432,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 645.72,
-        "standard": 4175.01,
+        "peak": 694.5,
+        "standard": 4490.39,
         "off_peak": 0.0,
-        "total": 4820.73
+        "total": 5184.89
       },
       "export_savings": {
-        "standard": 1957.4,
+        "standard": 1962.21,
         "off_peak": 0.0,
-        "total": 1957.4
+        "total": 1962.21
       },
-      "total": 6778.13
+      "total": 7147.1
     }
   }
 }
