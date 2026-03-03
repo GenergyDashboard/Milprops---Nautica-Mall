@@ -3446,12 +3446,12 @@
     }
   },
   "2026-03-03": {
-    "current_hour": 16,
-    "pv": 4097.01,
-    "import": 1366.78,
-    "export": 1181.2,
-    "self_consumption": 2915.81,
-    "consumption": 4282.59,
+    "current_hour": 17,
+    "pv": 4309.52,
+    "import": 1429.63,
+    "export": 1182.0,
+    "self_consumption": 3127.52,
+    "consumption": 4557.15,
     "hourly": {
       "pv": [
         0.0,
@@ -3471,7 +3471,7 @@
         528.68,
         466.61,
         362.41,
-        0.0,
+        212.51,
         0.0,
         0.0,
         0.0,
@@ -3497,7 +3497,7 @@
         354.28,
         333.01,
         292.79,
-        0.0,
+        274.56,
         0.0,
         0.0,
         0.0,
@@ -3523,7 +3523,7 @@
         0.0,
         0.0,
         0.38,
-        0.0,
+        62.85,
         0.0,
         0.0,
         0.0,
@@ -3549,7 +3549,7 @@
         174.4,
         133.6,
         70.0,
-        0.0,
+        0.8,
         0.0,
         0.0,
         0.0,
@@ -3569,13 +3569,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 3827.54,
-        "import": 272.0,
-        "self_consumption": 2646.74,
-        "export": 1180.8,
-        "utility_cost": 435.96,
-        "pv_savings": 4242.19,
-        "export_savings": 1927.18
+        "generation": 4040.05,
+        "import": 334.85,
+        "self_consumption": 2858.45,
+        "export": 1181.6,
+        "utility_cost": 536.7,
+        "pv_savings": 4581.52,
+        "export_savings": 1928.49
       },
       "off_peak": {
         "generation": 0.0,
@@ -3589,17 +3589,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 674.24,
-        "standard": 4294.4,
+        "peak": 723.19,
+        "standard": 4606.2,
         "off_peak": 0.0,
-        "total": 4968.64
+        "total": 5329.4
       },
       "export_savings": {
-        "standard": 1771.47,
+        "standard": 1772.67,
         "off_peak": 0.0,
-        "total": 1771.47
+        "total": 1772.67
       },
-      "total": 6740.11
+      "total": 7102.07
     }
   }
 }
