@@ -3917,12 +3917,12 @@
     }
   },
   "2026-03-06": {
-    "current_hour": 16,
-    "pv": 2575.64,
-    "import": 2353.67,
-    "export": 300.0,
-    "self_consumption": 2275.64,
-    "consumption": 4629.31,
+    "current_hour": 17,
+    "pv": 2688.5,
+    "import": 2563.59,
+    "export": 301.2,
+    "self_consumption": 2387.3,
+    "consumption": 4950.89,
     "hourly": {
       "pv": [
         0.0,
@@ -3942,7 +3942,7 @@
         497.4,
         380.2,
         237.71,
-        0.0,
+        112.86,
         0.0,
         0.0,
         0.0,
@@ -3968,7 +3968,7 @@
         389.8,
         373.43,
         368.16,
-        0.0,
+        321.58,
         0.0,
         0.0,
         0.0,
@@ -3994,7 +3994,7 @@
         9.6,
         56.83,
         146.05,
-        0.0,
+        209.92,
         0.0,
         0.0,
         0.0,
@@ -4020,7 +4020,7 @@
         117.2,
         63.6,
         15.6,
-        0.0,
+        1.2,
         0.0,
         0.0,
         0.0,
@@ -4040,13 +4040,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 2453.6,
-        "import": 1104.89,
-        "self_consumption": 2153.6,
-        "export": 300.0,
-        "utility_cost": 1770.92,
-        "pv_savings": 3451.79,
-        "export_savings": 489.63
+        "generation": 2566.46,
+        "import": 1314.81,
+        "self_consumption": 2265.26,
+        "export": 301.2,
+        "utility_cost": 2107.38,
+        "pv_savings": 3630.76,
+        "export_savings": 491.59
       },
       "off_peak": {
         "generation": 0.0,
@@ -4060,17 +4060,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 506.07,
-        "standard": 3362.88,
+        "peak": 530.9,
+        "standard": 3527.89,
         "off_peak": 0.0,
-        "total": 3868.95
+        "total": 4058.79
       },
       "export_savings": {
-        "standard": 451.44,
+        "standard": 453.24,
         "off_peak": 0.0,
-        "total": 451.44
+        "total": 453.24
       },
-      "total": 4320.39
+      "total": 4512.03
     }
   }
 }
