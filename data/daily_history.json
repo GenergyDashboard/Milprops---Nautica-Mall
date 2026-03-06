@@ -3917,12 +3917,12 @@
     }
   },
   "2026-03-06": {
-    "current_hour": 15,
-    "pv": 2337.93,
-    "import": 2207.62,
-    "export": 284.4,
-    "self_consumption": 2053.53,
-    "consumption": 4261.15,
+    "current_hour": 16,
+    "pv": 2575.64,
+    "import": 2353.67,
+    "export": 300.0,
+    "self_consumption": 2275.64,
+    "consumption": 4629.31,
     "hourly": {
       "pv": [
         0.0,
@@ -3941,7 +3941,7 @@
         250.64,
         497.4,
         380.2,
-        0.0,
+        237.71,
         0.0,
         0.0,
         0.0,
@@ -3967,7 +3967,7 @@
         407.83,
         389.8,
         373.43,
-        0.0,
+        368.16,
         0.0,
         0.0,
         0.0,
@@ -3993,7 +3993,7 @@
         169.99,
         9.6,
         56.83,
-        0.0,
+        146.05,
         0.0,
         0.0,
         0.0,
@@ -4019,7 +4019,7 @@
         12.8,
         117.2,
         63.6,
-        0.0,
+        15.6,
         0.0,
         0.0,
         0.0,
@@ -4040,13 +4040,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 2215.89,
-        "import": 958.84,
-        "self_consumption": 1931.49,
-        "export": 284.4,
-        "utility_cost": 1536.83,
-        "pv_savings": 3095.79,
-        "export_savings": 464.17
+        "generation": 2453.6,
+        "import": 1104.89,
+        "self_consumption": 2153.6,
+        "export": 300.0,
+        "utility_cost": 1770.92,
+        "pv_savings": 3451.79,
+        "export_savings": 489.63
       },
       "off_peak": {
         "generation": 0.0,
@@ -4060,17 +4060,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 456.68,
-        "standard": 3034.65,
+        "peak": 506.07,
+        "standard": 3362.88,
         "off_peak": 0.0,
-        "total": 3491.33
+        "total": 3868.95
       },
       "export_savings": {
-        "standard": 427.96,
+        "standard": 451.44,
         "off_peak": 0.0,
-        "total": 427.96
+        "total": 451.44
       },
-      "total": 3919.29
+      "total": 4320.39
     }
   }
 }
