@@ -665,6 +665,26 @@
             .tab-nav button { padding: 9px 12px; font-size: 0.78em; }
         }
 
+        /* WARRANTY TAB */
+        .warranty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 10px; }
+        .warranty-card { background: var(--card-bg); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); padding: 20px; text-align: center; }
+        .warranty-card-title { color: #ccc; font-size: 0.85em; font-weight: 600; margin-bottom: 12px; min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
+        .warranty-donut-wrap { width: 140px; height: 140px; margin: 0 auto 12px; position: relative; }
+        .warranty-stats { display: flex; justify-content: center; gap: 16px; margin-top: 8px; }
+        .warranty-stat { text-align: center; }
+        .warranty-stat-val { font-size: 1.1em; font-weight: 700; }
+        .warranty-stat-label { font-size: 0.7em; color: #64748b; }
+        .warranty-status-active { color: #4ade80; }
+        .warranty-status-expiring { color: #f59e0b; }
+        .warranty-status-expired { color: #ef4444; }
+        @media (max-width: 600px) {
+            .warranty-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+            .warranty-donut-wrap { width: 110px; height: 110px; }
+        }
+        @media (max-width: 400px) {
+            .warranty-grid { grid-template-columns: 1fr; }
+        }
+
         /* CALC CONFIG PANEL */
         .calc-panel { display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:10000; background:rgba(0,0,0,0.7); justify-content:center; align-items:center; }
         .calc-panel.open { display:flex; }
@@ -791,6 +811,7 @@
                 <button onclick="switchTab('lifetime', this)">Lifetime Stats</button>
                 <button onclick="switchTab('financial', this)">Financial Overview</button>
                 <button onclick="switchTab('report', this)">Report</button>
+                <button onclick="switchTab('warranty', this)">Warranty</button>
             </div>
 
             <!-- OVERVIEW TAB -->
@@ -1607,6 +1628,30 @@
                 </div>
             </div>
 
+            <!-- WARRANTY TAB -->
+            <div id="tab-warranty" class="tab-content">
+                <div class="overview-title">System Warranties</div>
+                <div class="warranty-grid" id="warrantyDonuts"></div>
+                <div class="daily-savings-table" style="margin-top:30px;">
+                    <h3>Warranty Details</h3>
+                    <div class="env-table-wrap">
+                        <table class="env-table" id="warrantyTable">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Start Date</th>
+                                    <th>Duration</th>
+                                    <th>Expiry Date</th>
+                                    <th>Remaining</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="warrantyTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <div class="last-updated" id="lastUpdated"></div>
@@ -1810,6 +1855,9 @@
             }
             if (tab === 'report' && dashData) {
                 initReportTab();
+            }
+            if (tab === 'warranty') {
+                renderWarrantyTab();
             }
         }
 
@@ -4621,6 +4669,131 @@
 
 
         // ══════════════════════════════════════════════════
+        // WARRANTY TAB
+        // ══════════════════════════════════════════════════
+        const WARRANTY_DATA = [
+            { item: 'Solar Panel Performance', start: '2023-12-19', years: 25 },
+            { item: 'Mounting Structure', start: '2023-12-19', years: 20 },
+            { item: 'Solar Panel Manufacturer\'s Warranty', start: '2023-12-19', years: 12 },
+            { item: 'Inverters', start: '2023-12-19', years: 10 },
+            { item: 'Monitoring Platform', start: '2023-12-19', years: 10 },
+            { item: 'Workmanship', start: '2023-12-19', years: 1 }
+        ];
+        const warrantyCharts = {};
+
+        function renderWarrantyTab() {
+            const container = document.getElementById('warrantyDonuts');
+            const tbody = document.getElementById('warrantyTableBody');
+            if (!container || !tbody) return;
+
+            const now = new Date();
+            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+            let donutsHtml = '';
+            let tableHtml = '';
+
+            WARRANTY_DATA.forEach((w, idx) => {
+                const start = new Date(w.start + 'T00:00:00');
+                const expiry = new Date(start);
+                expiry.setFullYear(expiry.getFullYear() + w.years);
+
+                const totalMs = expiry.getTime() - start.getTime();
+                const elapsedMs = now.getTime() - start.getTime();
+                const remainMs = expiry.getTime() - now.getTime();
+
+                const elapsedYears = Math.max(0, elapsedMs / (365.25 * 24 * 60 * 60 * 1000));
+                const remainYears = Math.max(0, remainMs / (365.25 * 24 * 60 * 60 * 1000));
+                const pctRemain = Math.max(0, Math.min(100, (remainMs / totalMs) * 100));
+                const pctElapsed = 100 - pctRemain;
+
+                const isExpired = now >= expiry;
+                const isExpiring = !isExpired && remainYears < 1;
+                const statusClass = isExpired ? 'warranty-status-expired' : isExpiring ? 'warranty-status-expiring' : 'warranty-status-active';
+                const statusText = isExpired ? 'Expired' : isExpiring ? 'Expiring Soon' : 'Active';
+
+                const fmtDate = d => d.getDate() + ' ' + monthNames[d.getMonth()] + ' ' + d.getFullYear();
+
+                // Donut card
+                donutsHtml += '<div class="warranty-card">';
+                donutsHtml += '<div class="warranty-card-title">' + w.item + '</div>';
+                donutsHtml += '<div class="warranty-donut-wrap"><canvas id="wDonut-' + idx + '"></canvas></div>';
+                donutsHtml += '<div class="warranty-stats">';
+                donutsHtml += '<div class="warranty-stat"><div class="warranty-stat-val ' + statusClass + '">' + remainYears.toFixed(1) + ' yr</div><div class="warranty-stat-label">Remaining</div></div>';
+                donutsHtml += '<div class="warranty-stat"><div class="warranty-stat-val" style="color:#94a3b8;">' + elapsedYears.toFixed(1) + ' yr</div><div class="warranty-stat-label">Elapsed</div></div>';
+                donutsHtml += '</div>';
+                donutsHtml += '</div>';
+
+                // Table row
+                const remainText = isExpired ? 'Expired' : remainYears.toFixed(1) + ' years';
+                tableHtml += '<tr>';
+                tableHtml += '<td style="text-align:left;font-weight:600;">' + w.item + '</td>';
+                tableHtml += '<td>' + fmtDate(start) + '</td>';
+                tableHtml += '<td>' + w.years + ' years</td>';
+                tableHtml += '<td>' + fmtDate(expiry) + '</td>';
+                tableHtml += '<td>' + remainText + '</td>';
+                tableHtml += '<td class="' + statusClass + '" style="font-weight:600;">' + statusText + '</td>';
+                tableHtml += '</tr>';
+            });
+
+            container.innerHTML = donutsHtml;
+            tbody.innerHTML = tableHtml;
+
+            // Render donut charts
+            WARRANTY_DATA.forEach((w, idx) => {
+                const start = new Date(w.start + 'T00:00:00');
+                const expiry = new Date(start);
+                expiry.setFullYear(expiry.getFullYear() + w.years);
+
+                const totalMs = expiry.getTime() - start.getTime();
+                const remainMs = Math.max(0, expiry.getTime() - now.getTime());
+                const pctRemain = Math.max(0, Math.min(100, (remainMs / totalMs) * 100));
+
+                const canvas = document.getElementById('wDonut-' + idx);
+                if (!canvas) return;
+
+                const isExpired = now >= expiry;
+                const isExpiring = !isExpired && (remainMs / (365.25*24*60*60*1000)) < 1;
+                const remainColor = isExpired ? '#ef4444' : isExpiring ? '#f59e0b' : '#8bc34a';
+                const elapsedColor = '#5c4d7a';
+
+                if (warrantyCharts[idx]) warrantyCharts[idx].destroy();
+                warrantyCharts[idx] = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Remaining', 'Elapsed'],
+                        datasets: [{
+                            data: [pctRemain, 100 - pctRemain],
+                            backgroundColor: [remainColor, elapsedColor],
+                            borderColor: ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.2)'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        cutout: '68%',
+                        events: [],
+                        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                    },
+                    plugins: [{
+                        id: 'centerText',
+                        afterDraw: function(chart) {
+                            const {ctx: c, width, height} = chart;
+                            c.save();
+                            const pct = Math.round(pctRemain) + '%';
+                            c.font = 'bold 16px sans-serif';
+                            c.fillStyle = remainColor;
+                            c.textAlign = 'center';
+                            c.textBaseline = 'middle';
+                            c.fillText(pct, width / 2, height / 2);
+                            c.restore();
+                        }
+                    }]
+                });
+            });
+        }
+
+        // ══════════════════════════════════════════════════
         // CALC CONFIG EDITOR
         // ══════════════════════════════════════════════════
         const CALC_FIELDS = [
@@ -4647,11 +4820,6 @@
                 { key:'system_start_year', label:'Start Year', desc:'First operational year', unit:'year', step:1 },
                 { key:'system_start_month', label:'Start Month', desc:'First operational month (1-12)', unit:'month', step:1 },
                 { key:'hist_load_fallback', label:'Load Fallback Multiplier', desc:'expLoad = expPV × this (historical)', unit:'×', step:0.1 },
-            ]},
-            { section: 'Self-Consumption Ratios', fields: [
-                { key:'default_sc_ratio', label:'Default SC Ratio', desc:'Fallback when no actual data (lifetime/charts)', unit:'ratio', step:0.01 },
-                { key:'default_sc_ratio_tou', label:'TOU SC Ratio', desc:'Fallback for TOU savings distribution', unit:'ratio', step:0.01 },
-                { key:'daily_exp_sc_fraction', label:'Daily Expected SC', desc:'Fraction of expected PV to load (1.0=all)', unit:'ratio', step:0.05 },
             ]},
         ];
 
