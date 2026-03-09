@@ -902,7 +902,6 @@
                                 <span id="ovDayLabel" style="color:var(--text-secondary);font-size:var(--font-xs);min-width:90px;text-align:center;cursor:pointer;" onclick="document.getElementById('ovDayPicker').showPicker()">Today</span>
                                 <input type="date" id="ovDayPicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;" onchange="setOvDay(this.value)">
                                 <button class="ov-day-btn" onclick="shiftOvDay(1)">›</button>
-                                <button class="ov-day-btn" onclick="resetOvToday()" style="font-size:0.7em;padding:4px 10px;margin-left:4px;">Today</button>
                             </div>
                             <div class="chart-view-switch">
                                 <button class="active" onclick="setOvChartView('today',this)">Today</button>
@@ -1324,6 +1323,11 @@
                     </div>
                 </div>
 
+                </div><!-- end dash-block lt-slabs -->
+
+                <div class="dash-block" data-block="lt-tou" data-block-name="TOU Breakdown" draggable="false">
+                    <span class="block-handle" title="Drag to reorder">⠿</span>
+                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('lt-tou')">✕</span>
                 <!-- LIFETIME TOU FINANCIAL BREAKDOWN -->
                 <div class="daily-savings-table">
                     <h3>Lifetime Time of Use Financial Breakdown</h3>
@@ -1335,7 +1339,7 @@
                     </div>
                 </div>
 
-                </div><!-- end dash-block lt-slabs -->
+                </div><!-- end dash-block lt-tou -->
 
                 <div class="dash-block" data-block="lt-env" data-block-name="Environmental Impact" draggable="false">
                     <span class="block-handle" title="Drag to reorder">⠿</span>
@@ -1363,9 +1367,9 @@
 
                 </div><!-- end dash-block lt-env -->
 
-                <div class="dash-block" data-block="lt-charts" data-block-name="Charts" draggable="false">
+                <div class="dash-block" data-block="lt-genchart" data-block-name="Generation Chart" draggable="false">
                     <span class="block-handle" title="Drag to reorder">⠿</span>
-                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('lt-charts')">✕</span>
+                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('lt-genchart')">✕</span>
                 <!-- TIME RANGE SELECTOR -->
                 <div class="month-selector" style="margin-top:10px;">
                     <span style="color:#94a3b8;font-size:var(--font-xs);font-weight:600;">Range:</span>
@@ -1397,7 +1401,11 @@
                     </div>
                     <div class="chart-wrap"><canvas id="lifetimeGenChart"></canvas></div>
                 </div>
+                </div><!-- end dash-block lt-genchart -->
 
+                <div class="dash-block" data-block="lt-savchart" data-block-name="Savings Chart" draggable="false">
+                    <span class="block-handle" title="Drag to reorder">⠿</span>
+                    <span class="block-hide" title="Hide section" onclick="event.stopPropagation();hideBlock('lt-savchart')">✕</span>
                 <!-- ACTUAL vs PREDICTED SAVINGS CHART -->
                 <div class="chart-container">
                     <h3>Actual PV Savings vs Predicted Savings</h3>
@@ -1409,7 +1417,7 @@
                     </div>
                     <div class="chart-wrap"><canvas id="lifetimeSavChart"></canvas></div>
                 </div>
-                </div><!-- end dash-block lt-charts -->
+                </div><!-- end dash-block lt-savchart -->
                 </div><!-- end lifetimeLayout -->
             </div>
 
@@ -2312,10 +2320,9 @@
         function shiftOvDay(delta) {
             const base = ovDayDate ? new Date(ovDayDate + 'T12:00:00') : new Date();
             base.setDate(base.getDate() + delta);
-            const today = new Date();
-            if (base > today) return; // don't go into the future
             const ds = base.getFullYear() + '-' + String(base.getMonth()+1).padStart(2,'0') + '-' + String(base.getDate()).padStart(2,'0');
-            const todayStr = today.toISOString().split('T')[0];
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (ds > todayStr) return; // don't go into the future (compare date strings)
             ovDayDate = ds === todayStr ? null : ds;
             updateOvDayLabel();
             renderOvDayChart();
@@ -4647,13 +4654,16 @@
             delete block.dataset.hidden;
             updateAllHiddenSidebars();
             saveLayout();
-            // Re-render charts if needed
+            // Re-render charts if needed after restore (canvas may have had zero dimensions)
             if (blockId === 'chart') {
                 if (ovChartView === 'today') renderOvDayChart();
                 else if (ovChartView === 'month') renderOvMonthChart();
                 else renderOvLifetimeChart();
             }
             if (blockId === 'pvdist') renderPvDistChart();
+            if (blockId === 'lt-genchart' || blockId === 'lt-savchart') {
+                if (typeof renderLifetimeTab === 'function') renderLifetimeTab();
+            }
         }
 
         function updateAllHiddenSidebars() {
