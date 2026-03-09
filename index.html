@@ -4686,12 +4686,15 @@
                 html += '<div class="calc-section">';
                 html += '<div class="calc-section-title">Financial Config (from JSON — edit file to change)</div>';
                 const fc = finConfig;
+                const fmtRate = v => { const n = parseFloat(v); return isNaN(n) ? String(v) : 'R ' + n.toFixed(4); };
                 if (fc.rates) {
                     Object.entries(fc.rates).forEach(([season, periods]) => {
+                        if (typeof periods !== 'object' || periods === null) return;
                         Object.entries(periods).forEach(([period, rate]) => {
+                            if (typeof rate === 'object') return;
                             html += '<div class="calc-row">';
                             html += '<div class="calc-label">' + season + ' → ' + period + '</div>';
-                            html += '<input type="text" class="calc-input" value="R ' + rate.toFixed(4) + '" disabled style="opacity:0.6;">';
+                            html += '<input type="text" class="calc-input" value="' + fmtRate(rate) + '" disabled style="opacity:0.6;">';
                             html += '<div class="calc-unit">R/kWh</div>';
                             html += '</div>';
                         });
@@ -4699,9 +4702,10 @@
                 }
                 if (fc.export_credits) {
                     Object.entries(fc.export_credits).forEach(([period, rate]) => {
+                        if (typeof rate === 'object') return;
                         html += '<div class="calc-row">';
                         html += '<div class="calc-label">Export Credit → ' + period + '</div>';
-                        html += '<input type="text" class="calc-input" value="R ' + (rate||0).toFixed(4) + '" disabled style="opacity:0.6;">';
+                        html += '<input type="text" class="calc-input" value="' + fmtRate(rate) + '" disabled style="opacity:0.6;">';
                         html += '<div class="calc-unit">R/kWh</div>';
                         html += '</div>';
                     });
