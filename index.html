@@ -2846,22 +2846,25 @@
                 medianLoad.push(ldFiltered.length > 0 ? percentile(ldFiltered, 50) : 0);
             });
 
-            // Fix median load: if any hour has a 0 or near-0 median but load clearly exists,
-            // use avg_load profile scaled to the overall median daily load.
-            // Load is never truly 0 (base load always exists), so 0s indicate missing data.
-            const avgL = dashData.hourly?.avg_load || [];
-            if (avgL.length >= 24) {
-                const avgLTotal = avgL.reduce((a,b)=>a+b,0) || 1;
-                // Find the typical load level from hours with good data (e.g. hour 12)
-                const goodHours = medianLoad.filter(v => v > 0);
-                if (goodHours.length > 0) {
-                    const avgGoodMedian = goodHours.reduce((a,b)=>a+b,0) / goodHours.length;
-                    const avgLoadHourly = avgL.reduce((a,b)=>a+b,0) / 24;
-                    const scale = avgLoadHourly > 0 ? avgGoodMedian / avgLoadHourly : 1;
-                    for (let h = 0; h < 24; h++) {
-                        if (medianLoad[h] <= 0 && avgL[h] > 0) {
-                            medianLoad[h] = avgL[h] * scale;
-                        }
+            // Fix median load: replace any hour with suspiciously low values.
+            // For a commercial building, load never drops to near-0. If it does,
+            // it's bad data (truncated hourly arrays, pipeline gaps, etc.).
+            // Use avg_load profile as the reference shape.
+            const avgLRef = dashData.hourly?.avg_load || [];
+            if (avgLRef.length >= 24) {
+                // Calculate a robust threshold: 10% of the average non-zero median
+                const nonZeroMedians = medianLoad.filter(v => v > 0);
+                const threshold = nonZeroMedians.length > 0 ?
+                    (nonZeroMedians.reduce((a,b)=>a+b,0) / nonZeroMedians.length) * 0.1 : 0;
+                // Scale avg_load to match the median level
+                const avgLHourly = avgLRef.reduce((a,b)=>a+b,0) / 24;
+                const medianAvg = nonZeroMedians.length > 0 ?
+                    nonZeroMedians.reduce((a,b)=>a+b,0) / nonZeroMedians.length : 0;
+                const scale = avgLHourly > 0 ? medianAvg / avgLHourly : 1;
+
+                for (let h = 0; h < 24; h++) {
+                    if (medianLoad[h] < threshold && avgLRef[h] > 0) {
+                        medianLoad[h] = avgLRef[h] * scale;
                     }
                 }
             }
