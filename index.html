@@ -5532,7 +5532,7 @@
             if (sectPrIdx < 0) throw new Error('Could not find sectPr marker');
 
             // Build new body XML
-            const newBody = buildReportBodyXml(yr, mo, monthName, numDays, curH, isCurrentMonth, actPV, expPV, actSC, actExp, actGrid, actLoad, perf, coverage, sav, totalSavings, fN, fD);
+            const newBody = buildReportBodyXml(ym, yr, mo, monthName, numDays, curH, isCurrentMonth, actPV, expPV, actSC, actExp, actGrid, actLoad, perf, coverage, sav, totalSavings, fN, fD);
 
             docXml = docXml.substring(0, bodyStartIdx) + newBody + docXml.substring(sectPrIdx);
 
@@ -5548,7 +5548,7 @@
             URL.revokeObjectURL(url);
         }
 
-        function buildReportBodyXml(yr, mo, monthName, numDays, curH, isCurrentMonth, actPV, expPV, actSC, actExp, actGrid, actLoad, perf, coverage, sav, totalSavings, fN, fD) {
+        function buildReportBodyXml(ym, yr, mo, monthName, numDays, curH, isCurrentMonth, actPV, expPV, actSC, actExp, actGrid, actLoad, perf, coverage, sav, totalSavings, fN, fD) {
             const mm = String(mo).padStart(2,'0');
             const mNamesShort = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const now = new Date();
