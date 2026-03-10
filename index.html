@@ -665,6 +665,27 @@
             .tab-nav button { padding: 9px 12px; font-size: 0.78em; }
         }
 
+
+        /* DOWNTIME TAB */
+        .dt-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .dt-card { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px; text-align: center; }
+        .dt-card-label { color: #94a3b8; font-size: 0.8em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .dt-card-value { font-size: 1.8em; font-weight: 700; color: var(--gold); }
+        .dt-card-sub { color: #64748b; font-size: 0.75em; margin-top: 2px; }
+        .dt-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+        .dt-legend-item { display: flex; align-items: center; gap: 5px; color: #94a3b8; font-size: 0.8em; }
+        .dt-leg-box { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+        .dt-heatmap { overflow-x: auto; }
+        .dt-heatmap-grid { display: grid; gap: 1px; }
+        .dt-hm-cell { border-radius: 2px; min-width: 4px; min-height: 18px; cursor: pointer; transition: opacity 0.15s; }
+        .dt-hm-cell:hover { opacity: 0.7; }
+        .dt-hm-label { color: #64748b; font-size: 0.65em; text-align: center; white-space: nowrap; overflow: hidden; }
+        .dt-hm-hlabel { color: #64748b; font-size: 0.6em; text-align: right; padding-right: 4px; white-space: nowrap; }
+        .dt-hm-tooltip { position: fixed; background: #111; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.8em; pointer-events: none; z-index: 9999; display: none; }
+        @media (max-width: 600px) {
+            .dt-summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .dt-hm-cell { min-height: 14px; }
+        }
         /* WARRANTY TAB */
         .warranty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 10px; }
         .warranty-card { background: var(--card-bg); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); padding: 20px; text-align: center; }
@@ -812,6 +833,7 @@
                 <button onclick="switchTab('financial', this)">Financial Overview</button>
                 <button onclick="switchTab('report', this)">Report</button>
                 <button onclick="switchTab('warranty', this)">Warranty</button>
+                <button onclick="switchTab('downtime', this)">Downtime</button>
             </div>
 
             <!-- OVERVIEW TAB -->
@@ -1652,6 +1674,78 @@
                 </div>
             </div>
 
+            <!-- DOWNTIME TAB -->
+            <div id="tab-downtime" class="tab-content">
+                <div class="overview-title">Downtime Analysis</div>
+
+                <!-- Range selector -->
+                <div class="month-selector" style="margin-bottom:20px;">
+                    <button class="lt-range-btn active" onclick="setDtRange('today',this)">Today</button>
+                    <button class="lt-range-btn" onclick="setDtRange('month',this)">This Month</button>
+                    <button class="lt-range-btn" onclick="setDtRange('lifetime',this)">Lifetime</button>
+                    <span style="color:#94a3b8;margin-left:10px;">|</span>
+                    <select id="dtMonthSelect" onchange="setDtRange('custom',document.querySelector('#tab-downtime .lt-range-btn.active'))" style="background:#0d1117;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:6px 10px;font-size:var(--font-xs);"></select>
+                    <button class="btn-this-month" onclick="exportDowntime()" style="margin-left:auto;">⬇ Export CSV</button>
+                </div>
+
+                <!-- Summary cards -->
+                <div class="dt-summary-grid">
+                    <div class="dt-card">
+                        <div class="dt-card-label">PV Downtime</div>
+                        <div class="dt-card-value" id="dtPvHours">--</div>
+                        <div class="dt-card-sub">hours</div>
+                    </div>
+                    <div class="dt-card">
+                        <div class="dt-card-label">Grid Loss</div>
+                        <div class="dt-card-value" id="dtGridHours">--</div>
+                        <div class="dt-card-sub">hours</div>
+                    </div>
+                    <div class="dt-card">
+                        <div class="dt-card-label">Lost PV Generation</div>
+                        <div class="dt-card-value" id="dtLostKwh">--</div>
+                        <div class="dt-card-sub">kWh</div>
+                    </div>
+                    <div class="dt-card">
+                        <div class="dt-card-label">Lost Savings</div>
+                        <div class="dt-card-value" id="dtLostRand">--</div>
+                        <div class="dt-card-sub">ZAR</div>
+                    </div>
+                </div>
+
+                <!-- Heatmap -->
+                <div class="chart-container" style="margin-top:20px;">
+                    <h3 id="dtHeatmapTitle">Hourly Status — Today</h3>
+                    <div class="dt-legend">
+                        <span class="dt-legend-item"><span class="dt-leg-box" style="background:#22c55e;"></span>OK</span>
+                        <span class="dt-legend-item"><span class="dt-leg-box" style="background:#ef4444;"></span>PV Downtime</span>
+                        <span class="dt-legend-item"><span class="dt-leg-box" style="background:#7c3aed;"></span>Grid Loss</span>
+                        <span class="dt-legend-item"><span class="dt-leg-box" style="background:#1e293b;"></span>Night / No Data</span>
+                    </div>
+                    <div id="dtHeatmap" class="dt-heatmap"></div>
+                </div>
+
+                <!-- Events table -->
+                <div class="daily-savings-table" style="margin-top:20px;">
+                    <h3>Downtime Events</h3>
+                    <div class="env-table-wrap">
+                        <table class="env-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th>Duration</th>
+                                    <th>Type</th>
+                                    <th>Lost PV (kWh)</th>
+                                    <th>Lost Savings (R)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dtEventsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <div class="last-updated" id="lastUpdated"></div>
@@ -1858,6 +1952,9 @@
             }
             if (tab === 'warranty') {
                 renderWarrantyTab();
+            }
+            if (tab === 'downtime' && dashData) {
+                initDowntimeTab();
             }
         }
 
@@ -4691,6 +4788,345 @@
             URL.revokeObjectURL(url);
         }
 
+
+
+        // ══════════════════════════════════════════════════
+        // DOWNTIME ANALYSIS TAB
+        // ══════════════════════════════════════════════════
+        let dtRange = 'today';
+        let dtCustomYM = '';
+        let dtEvents = []; // cached for export
+
+        function initDowntimeTab() {
+            // Populate month selector
+            const sel = document.getElementById('dtMonthSelect');
+            if (sel && sel.options.length <= 1) {
+                sel.innerHTML = '<option value="">Select Month</option>';
+                const months = Object.keys(dashData.monthly || {}).sort().reverse();
+                const mNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                months.forEach(ym => {
+                    const [y,m] = ym.split('-');
+                    sel.innerHTML += '<option value="'+ym+'">'+mNames[parseInt(m)]+' '+y+'</option>';
+                });
+            }
+            renderDowntimeTab();
+        }
+
+        function setDtRange(range, btn) {
+            dtRange = range;
+            if (range === 'custom') {
+                dtCustomYM = document.getElementById('dtMonthSelect').value;
+                if (!dtCustomYM) return;
+            }
+            document.querySelectorAll('#tab-downtime .lt-range-btn').forEach(b => b.classList.remove('active'));
+            if (btn && btn.classList) btn.classList.add('active');
+            renderDowntimeTab();
+        }
+
+        function getExpectedPvHour(yr, mo, day, hour) {
+            // PVSyst monthly hourly average for this hour × degradation
+            const avg = calcPvsystMonthlyHourlyAvg(yr, mo);
+            return avg[hour] || 0;
+        }
+
+        function getHourTouRate(yr, mo, day, hour) {
+            if (!finConfig) return 0;
+            const fc = finConfig;
+            const season = (fc.seasons||{})[String(mo)] || 'low_demand';
+            const dt = new Date(yr, mo-1, day);
+            const wd = dt.getDay();
+            const dayType = wd===0?'sunday':wd===6?'saturday':'weekday';
+            const schedule = (fc.tou_schedule||{})[season]?.[dayType] || [];
+            const period = schedule[hour] || 'off_peak';
+            return (fc.rates||{})[season]?.[period] || 0;
+        }
+
+        function detectDowntime(dateStr, pvArr, loadArr, gridArr, maxHour) {
+            const dp = new Date(dateStr + 'T12:00:00');
+            const yr = dp.getFullYear(), mo = dp.getMonth()+1, day = dp.getDate();
+            const factor = degradationFactor(yr);
+            const events = [];
+            const hourStatus = []; // per-hour: 'ok','night','pv_down','grid_loss','no_data'
+
+            for (let h = 0; h <= (maxHour !== undefined ? maxHour : 23); h++) {
+                const expPV = getExpectedPvHour(yr, mo, day, h);
+                const actPV = pvArr?.[h] || 0;
+                const actLoad = loadArr?.[h] || 0;
+                const actGrid = gridArr?.[h] || 0;
+
+                // Nighttime: PVSyst expects < 2 kW
+                if (expPV < 2) {
+                    // But check for grid loss even at night
+                    if (actLoad < 1 && actGrid < 1 && h >= 0) {
+                        hourStatus.push('grid_loss');
+                    } else {
+                        hourStatus.push('night');
+                    }
+                    continue;
+                }
+
+                // Grid loss: no load, no grid, no PV — total blackout
+                if (actLoad < 1 && actGrid < 1 && actPV < 1) {
+                    hourStatus.push('grid_loss');
+                    continue;
+                }
+
+                // PV Downtime: expected significant PV but got nothing
+                if (actPV < 1 && expPV >= 2) {
+                    hourStatus.push('pv_down');
+                    continue;
+                }
+
+                hourStatus.push('ok');
+            }
+
+            // Pad remaining hours
+            while (hourStatus.length < 24) hourStatus.push('no_data');
+
+            // Build events from consecutive runs
+            let runStart = null, runType = null;
+            for (let h = 0; h < hourStatus.length; h++) {
+                const s = hourStatus[h];
+                if (s === 'pv_down' || s === 'grid_loss') {
+                    if (runType === s) continue; // same type, extend
+                    if (runStart !== null) {
+                        // Close previous run
+                        pushEvent(events, dateStr, yr, mo, day, runStart, h, runType);
+                    }
+                    runStart = h;
+                    runType = s;
+                } else {
+                    if (runStart !== null) {
+                        pushEvent(events, dateStr, yr, mo, day, runStart, h, runType);
+                        runStart = null; runType = null;
+                    }
+                }
+            }
+            if (runStart !== null) {
+                pushEvent(events, dateStr, yr, mo, day, runStart, hourStatus.length, runType);
+            }
+
+            return { hourStatus, events };
+        }
+
+        function pushEvent(events, dateStr, yr, mo, day, startH, endH, type) {
+            let lostKwh = 0, lostR = 0;
+            for (let h = startH; h < endH; h++) {
+                const exp = getExpectedPvHour(yr, mo, day, h);
+                const rate = getHourTouRate(yr, mo, day, h);
+                lostKwh += exp;
+                lostR += exp * rate;
+            }
+            events.push({
+                date: dateStr,
+                startH, endH,
+                duration: endH - startH,
+                type: type === 'grid_loss' ? 'Grid Loss' : 'PV Downtime',
+                lostKwh: Math.round(lostKwh * 10) / 10,
+                lostR: Math.round(lostR * 100) / 100
+            });
+        }
+
+        function renderDowntimeTab() {
+            if (!dashData || !dailyHist || !pvsyst) return;
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const curH = dashData.hourly?.current_hour ?? now.getHours();
+
+            // Determine date range
+            let dates = [];
+            let title = '';
+            if (dtRange === 'today') {
+                dates = [todayStr];
+                title = 'Hourly Status — Today';
+            } else if (dtRange === 'month') {
+                const ym = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+                dates = Object.keys(dailyHist).filter(d => d.startsWith(ym)).sort();
+                if (!dates.includes(todayStr)) dates.push(todayStr);
+                title = 'Daily Status — This Month';
+            } else if (dtRange === 'lifetime') {
+                dates = Object.keys(dailyHist).sort();
+                if (!dates.includes(todayStr)) dates.push(todayStr);
+                title = 'Monthly Status — Lifetime';
+            } else if (dtRange === 'custom' && dtCustomYM) {
+                dates = Object.keys(dailyHist).filter(d => d.startsWith(dtCustomYM)).sort();
+                title = 'Daily Status — ' + dtCustomYM;
+            }
+
+            // Scan all dates
+            let totalPvH = 0, totalGridH = 0, totalLostKwh = 0, totalLostR = 0;
+            const allResults = [];
+            dtEvents = [];
+
+            dates.forEach(dateStr => {
+                let pvArr, loadArr, gridArr, maxH;
+                if (dateStr === todayStr) {
+                    pvArr = dashData.hourly?.pv || [];
+                    loadArr = dashData.hourly?.load || [];
+                    gridArr = dashData.hourly?.grid || [];
+                    maxH = curH;
+                } else {
+                    const rec = dailyHist[dateStr];
+                    if (!rec) return;
+                    pvArr = rec.hourly?.pv || [];
+                    loadArr = rec.hourly?.load || [];
+                    gridArr = rec.hourly?.grid || [];
+                    maxH = 23;
+                }
+
+                const result = detectDowntime(dateStr, pvArr, loadArr, gridArr, maxH);
+                allResults.push({ dateStr, ...result });
+
+                result.events.forEach(ev => {
+                    dtEvents.push(ev);
+                    if (ev.type === 'Grid Loss') totalGridH += ev.duration;
+                    else totalPvH += ev.duration;
+                    totalLostKwh += ev.lostKwh;
+                    totalLostR += ev.lostR;
+                });
+            });
+
+            // Update summary cards
+            document.getElementById('dtPvHours').textContent = totalPvH || '0';
+            document.getElementById('dtGridHours').textContent = totalGridH || '0';
+            document.getElementById('dtLostKwh').textContent = fmt(Math.round(totalLostKwh));
+            document.getElementById('dtLostRand').textContent = 'R' + fmt(Math.round(totalLostR));
+            document.getElementById('dtHeatmapTitle').textContent = title;
+
+            // Render heatmap
+            renderDtHeatmap(allResults);
+
+            // Render events table
+            const tbody = document.getElementById('dtEventsBody');
+            if (dtEvents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#4ade80;padding:20px;">✓ No downtime detected</td></tr>';
+            } else {
+                let thtml = '';
+                dtEvents.forEach(ev => {
+                    const typeClass = ev.type === 'Grid Loss' ? 'style="color:#7c3aed;font-weight:600;"' : 'style="color:#ef4444;font-weight:600;"';
+                    thtml += '<tr>';
+                    thtml += '<td>' + ev.date + '</td>';
+                    thtml += '<td>' + String(ev.startH).padStart(2,'0') + ':00</td>';
+                    thtml += '<td>' + String(ev.endH).padStart(2,'0') + ':00</td>';
+                    thtml += '<td>' + ev.duration + 'h</td>';
+                    thtml += '<td ' + typeClass + '>' + ev.type + '</td>';
+                    thtml += '<td>' + ev.lostKwh.toFixed(1) + '</td>';
+                    thtml += '<td>R' + fmt(Math.round(ev.lostR)) + '</td>';
+                    thtml += '</tr>';
+                });
+                tbody.innerHTML = thtml;
+            }
+        }
+
+        function renderDtHeatmap(allResults) {
+            const container = document.getElementById('dtHeatmap');
+            if (!container) return;
+
+            const colorMap = {
+                'ok': '#22c55e', 'night': '#1e293b', 'pv_down': '#ef4444',
+                'grid_loss': '#7c3aed', 'no_data': '#0f172a'
+            };
+            const tipMap = {
+                'ok': 'Normal', 'night': 'Night', 'pv_down': 'PV Downtime',
+                'grid_loss': 'Grid Loss', 'no_data': 'No Data'
+            };
+
+            if (dtRange === 'today' && allResults.length === 1) {
+                // SINGLE DAY: 24 columns (hours), 1 row
+                const r = allResults[0];
+                let hHtml = '<div style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;">';
+                for (let h = 0; h < 24; h++) {
+                    const s = r.hourStatus[h] || 'no_data';
+                    const tip = String(h).padStart(2,'0')+':00 — '+tipMap[s];
+                    hHtml += '<div class="dt-hm-cell" style="background:'+colorMap[s]+';height:40px;" title="'+tip+'"></div>';
+                }
+                hHtml += '</div><div style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:2px;">';
+                for (let h = 0; h < 24; h++) {
+                    hHtml += '<div class="dt-hm-label">'+h+'</div>';
+                }
+                hHtml += '</div>';
+                container.innerHTML = hHtml;
+
+            } else if (dtRange === 'lifetime') {
+                // LIFETIME: group by month, show monthly summary bars
+                const monthMap = {};
+                allResults.forEach(r => {
+                    const ym = r.dateStr.substring(0,7);
+                    if (!monthMap[ym]) monthMap[ym] = { pvH:0, gridH:0, totalH:0 };
+                    r.hourStatus.forEach(s => {
+                        monthMap[ym].totalH++;
+                        if (s === 'pv_down') monthMap[ym].pvH++;
+                        if (s === 'grid_loss') monthMap[ym].gridH++;
+                    });
+                });
+                const months = Object.keys(monthMap).sort();
+                const mNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                let hHtml = '<div style="display:grid;grid-template-columns:repeat('+months.length+',1fr);gap:3px;align-items:end;height:120px;">';
+                const maxH = Math.max(...months.map(m => monthMap[m].pvH + monthMap[m].gridH), 1);
+                months.forEach(ym => {
+                    const d = monthMap[ym];
+                    const pvPx = Math.max(1, (d.pvH / maxH) * 100);
+                    const gridPx = Math.max(0, (d.gridH / maxH) * 100);
+                    const okPx = Math.max(2, 100 - pvPx - gridPx);
+                    const tip = ym+': '+d.pvH+'h PV downtime, '+d.gridH+'h grid loss';
+                    hHtml += '<div title="'+tip+'" style="display:flex;flex-direction:column;justify-content:flex-end;height:100%;">';
+                    if (d.pvH > 0) hHtml += '<div style="background:#ef4444;height:'+pvPx+'%;border-radius:2px 2px 0 0;min-height:2px;"></div>';
+                    if (d.gridH > 0) hHtml += '<div style="background:#7c3aed;height:'+gridPx+'%;min-height:2px;"></div>';
+                    hHtml += '<div style="background:#22c55e;height:'+okPx+'%;border-radius:0 0 2px 2px;min-height:2px;"></div>';
+                    hHtml += '</div>';
+                });
+                hHtml += '</div><div style="display:grid;grid-template-columns:repeat('+months.length+',1fr);gap:3px;margin-top:4px;">';
+                months.forEach(ym => {
+                    const [y,m] = ym.split('-');
+                    hHtml += '<div class="dt-hm-label">'+mNames[parseInt(m)]+'<br>'+y.slice(2)+'</div>';
+                });
+                hHtml += '</div>';
+                container.innerHTML = hHtml;
+
+            } else {
+                // DAILY VIEW (month or custom): rows=24 hours, columns=days
+                const numDays = allResults.length;
+                if (numDays === 0) { container.innerHTML = '<div style="color:#64748b;text-align:center;padding:20px;">No data</div>'; return; }
+
+                const colW = Math.max(16, Math.min(32, Math.floor(700 / numDays)));
+                let hHtml = '<div style="display:grid;grid-template-columns:40px repeat('+numDays+','+colW+'px);gap:1px;">';
+
+                // Hour labels column + header row
+                hHtml += '<div></div>';
+                allResults.forEach(r => {
+                    const day = parseInt(r.dateStr.split('-')[2]);
+                    hHtml += '<div class="dt-hm-label" style="font-size:0.6em;">'+day+'</div>';
+                });
+
+                // 24 hour rows
+                for (let h = 0; h < 24; h++) {
+                    hHtml += '<div class="dt-hm-hlabel">'+String(h).padStart(2,'0')+':00</div>';
+                    allResults.forEach(r => {
+                        const s = r.hourStatus[h] || 'no_data';
+                        const tip = r.dateStr+' '+String(h).padStart(2,'0')+':00 — '+tipMap[s];
+                        hHtml += '<div class="dt-hm-cell" style="background:'+colorMap[s]+';width:'+colW+'px;height:18px;" title="'+tip+'"></div>';
+                    });
+                }
+                hHtml += '</div>';
+                container.innerHTML = hHtml;
+            }
+        }
+
+        function exportDowntime() {
+            if (dtEvents.length === 0) { alert('No downtime events to export.'); return; }
+            const header = 'Date,Start,End,Duration (h),Type,Lost PV (kWh),Lost Savings (R)';
+            const rows = dtEvents.map(ev =>
+                ev.date+','+String(ev.startH).padStart(2,'0')+':00,'+String(ev.endH).padStart(2,'0')+':00,'+ev.duration+','+ev.type+','+ev.lostKwh.toFixed(1)+','+ev.lostR.toFixed(2)
+            );
+            const csv = [header, ...rows].join('\n');
+            const blob = new Blob([csv], {type:'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Nautica_Downtime_'+dtRange+'_'+new Date().toISOString().split('T')[0]+'.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
 
         // ══════════════════════════════════════════════════
         // WARRANTY TAB
