@@ -677,7 +677,7 @@
         .dt-leg-box { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
         .dt-heatmap { overflow-x: auto; }
         .dt-heatmap-grid { display: grid; gap: 1px; }
-        .dt-hm-cell { border-radius: 2px; min-width: 4px; min-height: 18px; cursor: pointer; transition: opacity 0.15s; }
+        .dt-hm-cell { border-radius: 2px; min-width: 4px; min-height: 18px; cursor: pointer; transition: opacity 0.15s; border: 1px solid rgba(0,0,0,0.4); }
         .dt-hm-cell:hover { opacity: 0.7; }
         .dt-hm-label { color: #64748b; font-size: 0.65em; text-align: center; white-space: nowrap; overflow: hidden; }
         .dt-hm-hlabel { color: #64748b; font-size: 0.6em; text-align: right; padding-right: 4px; white-space: nowrap; }
@@ -4847,6 +4847,7 @@
             const factor = degradationFactor(yr);
             const events = [];
             const hourStatus = []; // per-hour: 'ok','night','pv_down','grid_loss','no_data'
+            const scraperCutoff = 20; // Last scraper run hour — no reliable data after this
 
             for (let h = 0; h <= (maxHour !== undefined ? maxHour : 23); h++) {
                 const expPV = getExpectedPvHour(yr, mo, day, h);
@@ -4854,10 +4855,16 @@
                 const actLoad = loadArr?.[h] || 0;
                 const actGrid = gridArr?.[h] || 0;
 
+                // After scraper cutoff: no reliable data, treat as night
+                if (h >= scraperCutoff && expPV < 2) {
+                    hourStatus.push('night');
+                    continue;
+                }
+
                 // Nighttime: PVSyst expects < 2 kW
                 if (expPV < 2) {
-                    // But check for grid loss even at night
-                    if (actLoad < 1 && actGrid < 1 && h >= 0) {
+                    // Check for grid loss at night (only before scraper cutoff)
+                    if (actLoad < 1 && actGrid < 1 && h < scraperCutoff) {
                         hourStatus.push('grid_loss');
                     } else {
                         hourStatus.push('night');
@@ -5024,7 +5031,7 @@
 
             const colorMap = {
                 'ok': '#22c55e', 'night': '#1e293b', 'pv_down': '#ef4444',
-                'grid_loss': '#7c3aed', 'no_data': '#0f172a'
+                'grid_loss': '#7c3aed', 'no_data': '#111827'
             };
             const tipMap = {
                 'ok': 'Normal', 'night': 'Night', 'pv_down': 'PV Downtime',
@@ -5089,7 +5096,7 @@
                 if (numDays === 0) { container.innerHTML = '<div style="color:#64748b;text-align:center;padding:20px;">No data</div>'; return; }
 
                 const colW = Math.max(16, Math.min(32, Math.floor(700 / numDays)));
-                let hHtml = '<div style="display:grid;grid-template-columns:40px repeat('+numDays+','+colW+'px);gap:1px;">';
+                let hHtml = '<div style="display:grid;grid-template-columns:40px repeat('+numDays+','+colW+'px);gap:2px;">';
 
                 // Hour labels column + header row
                 hHtml += '<div></div>';
