@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautica Shopping Centre: Solar Generation</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
     <script>
         // Fix blurry text on high-DPI screens
         Chart.defaults.devicePixelRatio = Math.max(window.devicePixelRatio || 2, 2);
@@ -1607,6 +1608,12 @@
             <!-- REPORT TAB -->
             <div id="tab-report" class="tab-content">
                 <div class="overview-title">Report Generator</div>
+                <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+                    <button class="report-gen-btn" onclick="generateMonthlyDocx()" id="rptDocxBtn" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);font-size:1em;padding:14px 28px;">📄 Generate Monthly Report (DOCX)</button>
+                    <select id="rptDocxMonth" style="background:#0d1117;border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:10px 14px;font-size:var(--font-xs);"></select>
+                    <span class="daily-status" id="rptDocxStatus" style="margin:0;"></span>
+                </div>
+                <div style="border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:20px;padding-bottom:8px;color:#64748b;font-size:0.8em;">Data Export (CSV)</div>
                 <div class="report-controls">
                     <!-- Date Range -->
                     <div class="report-row">
@@ -1973,6 +1980,7 @@
             }
             if (tab === 'report' && dashData) {
                 initReportTab();
+                initReportDocx();
             }
             if (tab === 'warranty') {
                 renderWarrantyTab();
@@ -5365,6 +5373,458 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = 'Nautica_Downtime_'+dtRange+'_'+new Date().toISOString().split('T')[0]+'.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+
+        // ══════════════════════════════════════════════════
+        // MONTHLY DOCX REPORT GENERATOR
+        // ══════════════════════════════════════════════════
+        function initReportDocx() {
+            const sel = document.getElementById('rptDocxMonth');
+            if (!sel || sel.options.length > 1) return;
+            sel.innerHTML = '';
+            const months = Object.keys(dashData.monthly || {}).sort().reverse();
+            const mNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            months.forEach((ym, i) => {
+                const [y,m] = ym.split('-');
+                const opt = document.createElement('option');
+                opt.value = ym;
+                opt.textContent = mNames[parseInt(m)] + ' ' + y;
+                if (i === 0) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        async function generateMonthlyDocx() {
+            const statusEl = document.getElementById('rptDocxStatus');
+            const btn = document.getElementById('rptDocxBtn');
+            statusEl.textContent = 'Generating report...';
+            btn.disabled = true;
+
+            try {
+                await _buildDocxReport();
+                statusEl.textContent = '✓ Report downloaded';
+            } catch(e) {
+                console.error('Report generation failed:', e);
+                statusEl.textContent = '✕ Error: ' + e.message;
+            }
+            btn.disabled = false;
+            setTimeout(() => { statusEl.textContent = ''; }, 5000);
+        }
+
+        async function _buildDocxReport() {
+            const D = docx;
+            const ym = document.getElementById('rptDocxMonth').value;
+            if (!ym || !dashData?.monthly?.[ym]) throw new Error('No data for selected month');
+
+            const [yr, mo] = ym.split('-').map(Number);
+            const mm = String(mo).padStart(2,'0');
+            const mNames = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+            const mNamesShort = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const monthName = mNames[mo];
+            const now = new Date();
+            const isCurrentMonth = yr === now.getFullYear() && mo === (now.getMonth()+1);
+            const daysInMonth = new Date(yr, mo, 0).getDate();
+            const numDays = isCurrentMonth ? now.getDate() : daysInMonth;
+            const curH = isCurrentMonth ? (dashData.hourly?.current_hour ?? now.getHours()) : 23;
+            const md = dashData.monthly[ym];
+            const factor = degradationFactor(yr);
+            const fN = v => v == null || isNaN(v) ? '--' : Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+            // ── Calc expected values ──
+            const expPV = calcMonthExpFor(yr, mo, numDays, curH);
+            const actPV = md['PV Yield (kWh)'] || 0;
+            const actLoad = md['Consumption (kWh)'] || 0;
+            const actGrid = md['Import (kWh)'] || 0;
+            const actSC = md['Self-consumption (kWh)'] || 0;
+            const actExp = md['Export (kWh)'] || 0;
+            const perf = expPV > 0 ? (actPV / expPV * 100) : 0;
+            const coverage = actLoad > 0 ? (actSC / actLoad * 100) : 0;
+
+            // ── TOU Savings ──
+            const sav = calcMonthTOUSavings(yr, mo, actSC, actExp, numDays, actGrid);
+            const totalSavings = sav ? sav.total : 0;
+
+            // ── Daily data ──
+            const dailyRows = [];
+            for (let d = 1; d <= numDays; d++) {
+                const ds = yr+'-'+mm+'-'+String(d).padStart(2,'0');
+                const dh = dailyHist?.[ds];
+                const mmdd = mm+'-'+String(d).padStart(2,'0');
+                const dayPvs = getPvsystDay(mmdd);
+                let dayExp = dayPvs.reduce((a,b)=>a+b,0) * factor;
+                if (isCurrentMonth && d === numDays) { dayExp = 0; for(let h=0;h<=curH;h++) dayExp += (dayPvs[h]||0); dayExp *= factor; }
+                const dayAct = dh ? dh.pv : 0;
+                const dayPerf = dayExp > 0 ? (dayAct / dayExp * 100) : 0;
+                dailyRows.push({ day: d, date: ds, actual: dayAct, expected: dayExp, perf: dayPerf });
+            }
+
+            // ── Last 12 months data ──
+            const allMonths = Object.keys(dashData.monthly).sort();
+            const ymIdx = allMonths.indexOf(ym);
+            const last12 = allMonths.slice(Math.max(0, ymIdx - 11), ymIdx + 1);
+            const monthlyRows = last12.map(m => {
+                const mmd = dashData.monthly[m];
+                const [my, mm2] = m.split('-').map(Number);
+                const mf = degradationFactor(my);
+                const isCur = my === now.getFullYear() && mm2 === (now.getMonth()+1);
+                const nd = isCur ? now.getDate() : new Date(my, mm2, 0).getDate();
+                const ch = isCur ? curH : 23;
+                const mExp = calcMonthExpFor(my, mm2, nd, ch);
+                const mAct = mmd['PV Yield (kWh)'] || 0;
+                return { ym: m, label: mNamesShort[mm2]+' '+my, actual: mAct, expected: mExp, perf: mExp > 0 ? mAct/mExp*100 : 0 };
+            });
+
+            // ── Yearly data ──
+            const yearMap = {};
+            allMonths.forEach(m => {
+                const [yy] = m.split('-').map(Number);
+                if (!yearMap[yy]) yearMap[yy] = { actual: 0, expected: 0 };
+                const mmd = dashData.monthly[m];
+                yearMap[yy].actual += mmd['PV Yield (kWh)'] || 0;
+            });
+            // Add expected per year
+            Object.keys(yearMap).forEach(yy => {
+                const y = parseInt(yy);
+                const f = degradationFactor(y);
+                if (y === now.getFullYear()) {
+                    // Partial year
+                    let exp = 0;
+                    for (let mm3 = 1; mm3 <= now.getMonth()+1; mm3++) {
+                        const mKey = y+'-'+String(mm3).padStart(2,'0');
+                        if (dashData.monthly[mKey]) {
+                            const isCurM = mm3 === now.getMonth()+1;
+                            const nd2 = isCurM ? now.getDate() : new Date(y,mm3,0).getDate();
+                            exp += calcMonthExpFor(y, mm3, nd2, isCurM ? curH : 23);
+                        }
+                    }
+                    yearMap[yy].expected = exp;
+                } else {
+                    yearMap[yy].expected = (pvsyst?.annual_total_kwh || 0) * f;
+                }
+            });
+
+            // ── Environmental ──
+            const lifePV = dashData.all_time_totals?.['PV Yield (kWh)'] || 0;
+            const env = calcEnv(lifePV);
+
+            // ══ STYLING ══
+            const GREEN = '2F5233';
+            const GOLD = 'C5961A';
+            const LIGHT_GREEN = 'E8F5E9';
+            const LIGHT_GRAY = 'F5F5F5';
+            const border = { style: D.BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
+            const borders = { top: border, bottom: border, left: border, right: border };
+            const cellMg = { top: 60, bottom: 60, left: 100, right: 100 };
+            const TW = 9360; // Table width (A4 with 1" margins)
+
+            function hdrCell(text, width) {
+                return new D.TableCell({
+                    width: { size: width, type: D.WidthType.DXA }, borders,
+                    shading: { fill: GREEN, type: D.ShadingType.CLEAR },
+                    margins: cellMg, verticalAlign: D.VerticalAlign.CENTER,
+                    children: [new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [new D.TextRun({ text, bold: true, color: 'FFFFFF', font: 'Arial', size: 18 })] })]
+                });
+            }
+            function dataCell(text, width, opts = {}) {
+                return new D.TableCell({
+                    width: { size: width, type: D.WidthType.DXA }, borders,
+                    shading: opts.fill ? { fill: opts.fill, type: D.ShadingType.CLEAR } : undefined,
+                    margins: cellMg, verticalAlign: D.VerticalAlign.CENTER,
+                    children: [new D.Paragraph({
+                        alignment: opts.align || D.AlignmentType.CENTER,
+                        children: [new D.TextRun({ text: String(text), font: 'Arial', size: 18, bold: !!opts.bold, color: opts.color || '333333' })]
+                    })]
+                });
+            }
+
+            // ══ BUILD SECTIONS ══
+            const children = [];
+
+            // ── TITLE PAGE ──
+            children.push(new D.Paragraph({ spacing: { before: 3000 } }));
+            children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, spacing: { after: 400 },
+                children: [new D.TextRun({ text: 'Nautica Shopping Centre', font: 'Arial', size: 56, bold: true, color: GREEN })] }));
+            children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, spacing: { after: 200 },
+                children: [new D.TextRun({ text: 'Solar PV System', font: 'Arial', size: 36, color: '666666' })] }));
+            children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, spacing: { after: 600 }, border: { bottom: { style: D.BorderStyle.SINGLE, size: 6, color: GOLD, space: 1 } },
+                children: [new D.TextRun({ text: monthName + ' ' + yr + ' Performance Report', font: 'Arial', size: 32, bold: true, color: GOLD })] }));
+            children.push(new D.Paragraph({ spacing: { before: 2000 } }));
+            children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [new D.TextRun({ text: 'Prepared by Genergy (Pty) Ltd', font: 'Arial', size: 22, color: '888888' })] }));
+            children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [new D.TextRun({ text: 'Report Date: ' + now.toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'}), font: 'Arial', size: 20, color: '888888' })] }));
+            children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+
+            // ── TABLE OF CONTENTS ──
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('Table of Contents')] }));
+            children.push(new D.TableOfContents("Table of Contents", { hyperlink: true, headingStyleRange: "1-3" }));
+            children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+
+            // ── 1. INTRODUCTION ──
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('1. Introduction')] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'The following report contains a summary of the plant\'s performance for ' + monthName + ' ' + yr + '. The plant is monitored through a Fusion Solar monitoring device with various data acquisition capabilities. The data is captured and uploaded to a user-friendly online portal.', font: 'Arial', size: 22 })] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'All target generation values used in this report are based on a PVSyst simulation performed to determine the expected production and target yields, adjusted using the solar panel manufacturer\'s warrantied degradation rates.', font: 'Arial', size: 22 })] }));
+
+            // ── 2. OVERVIEW ──
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('2. Monthly Overview')] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'The table below gives a summary of ' + monthName + ' ' + yr + ' performance.', font: 'Arial', size: 22 })] }));
+
+            const ovCols = [1872, 1872, 1872, 1872, 1872];
+            children.push(new D.Table({
+                width: { size: TW, type: D.WidthType.DXA }, columnWidths: ovCols,
+                rows: [
+                    new D.TableRow({ children: [hdrCell('Metric', ovCols[0]), hdrCell('Actual', ovCols[1]), hdrCell('Expected', ovCols[2]), hdrCell('Variance', ovCols[3]), hdrCell('Performance', ovCols[4])] }),
+                    new D.TableRow({ children: [
+                        dataCell('PV Generation (kWh)', ovCols[0], {align: D.AlignmentType.LEFT, bold: true}),
+                        dataCell(fN(actPV), ovCols[1]),
+                        dataCell(fN(expPV), ovCols[2]),
+                        dataCell((actPV-expPV >= 0 ? '+' : '') + fN(actPV-expPV), ovCols[3], {color: actPV>=expPV ? '2E7D32' : 'C62828'}),
+                        dataCell(perf.toFixed(1) + '%', ovCols[4], {color: perf>=95 ? '2E7D32' : perf>=80 ? 'F57F17' : 'C62828', bold: true})
+                    ]}),
+                    new D.TableRow({ children: [
+                        dataCell('Self-Consumption (kWh)', ovCols[0], {align: D.AlignmentType.LEFT, bold: true, fill: LIGHT_GRAY}),
+                        dataCell(fN(actSC), ovCols[1], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[2], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[3], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[4], {fill: LIGHT_GRAY})
+                    ]}),
+                    new D.TableRow({ children: [
+                        dataCell('Export to Grid (kWh)', ovCols[0], {align: D.AlignmentType.LEFT, bold: true}),
+                        dataCell(fN(actExp), ovCols[1]),
+                        dataCell('--', ovCols[2]),
+                        dataCell('--', ovCols[3]),
+                        dataCell('--', ovCols[4])
+                    ]}),
+                    new D.TableRow({ children: [
+                        dataCell('Grid Import (kWh)', ovCols[0], {align: D.AlignmentType.LEFT, bold: true, fill: LIGHT_GRAY}),
+                        dataCell(fN(actGrid), ovCols[1], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[2], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[3], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[4], {fill: LIGHT_GRAY})
+                    ]}),
+                    new D.TableRow({ children: [
+                        dataCell('Load / Consumption (kWh)', ovCols[0], {align: D.AlignmentType.LEFT, bold: true}),
+                        dataCell(fN(actLoad), ovCols[1]),
+                        dataCell('--', ovCols[2]),
+                        dataCell('--', ovCols[3]),
+                        dataCell('--', ovCols[4])
+                    ]}),
+                    new D.TableRow({ children: [
+                        dataCell('PV Coverage', ovCols[0], {align: D.AlignmentType.LEFT, bold: true, fill: LIGHT_GRAY}),
+                        dataCell(coverage.toFixed(1) + '%', ovCols[1], {fill: LIGHT_GRAY, bold: true, color: coverage>=50 ? '2E7D32' : 'F57F17'}),
+                        dataCell('--', ovCols[2], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[3], {fill: LIGHT_GRAY}),
+                        dataCell('--', ovCols[4], {fill: LIGHT_GRAY})
+                    ]}),
+                    new D.TableRow({ children: [
+                        dataCell('Total Savings', ovCols[0], {align: D.AlignmentType.LEFT, bold: true}),
+                        dataCell('R ' + fN(totalSavings), ovCols[1], {bold: true, color: '2E7D32'}),
+                        dataCell('--', ovCols[2]),
+                        dataCell('--', ovCols[3]),
+                        dataCell('--', ovCols[4])
+                    ]})
+                ]
+            }));
+
+            // ── 3. PERFORMANCE FIGURES ──
+            children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('3. Performance Figures')] }));
+
+            // 3.1 Daily Performance
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_2, children: [new D.TextRun('3.1 Daily Performance')] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'The daily generation figures for ' + monthName + ' ' + yr + ' are shown below.', font: 'Arial', size: 22 })] }));
+
+            const dCols = [1100, 2100, 2100, 2100, 1960];
+            const dHdrRow = new D.TableRow({ children: [hdrCell('Day', dCols[0]), hdrCell('Date', dCols[1]), hdrCell('Actual (kWh)', dCols[2]), hdrCell('Expected (kWh)', dCols[3]), hdrCell('Performance', dCols[4])] });
+            const dRows = [dHdrRow];
+            dailyRows.forEach((dr, i) => {
+                const fill = i % 2 === 0 ? undefined : LIGHT_GRAY;
+                const pColor = dr.perf >= 95 ? '2E7D32' : dr.perf >= 80 ? 'F57F17' : 'C62828';
+                dRows.push(new D.TableRow({ children: [
+                    dataCell(String(dr.day), dCols[0], {fill}),
+                    dataCell(dr.date, dCols[1], {fill}),
+                    dataCell(fN(dr.actual), dCols[2], {fill}),
+                    dataCell(fN(dr.expected), dCols[3], {fill}),
+                    dataCell(dr.perf.toFixed(1) + '%', dCols[4], {fill, color: pColor, bold: true})
+                ]}));
+            });
+            // Totals row
+            const totalAct = dailyRows.reduce((a,r) => a + r.actual, 0);
+            const totalExpD = dailyRows.reduce((a,r) => a + r.expected, 0);
+            const totalPerf = totalExpD > 0 ? totalAct/totalExpD*100 : 0;
+            dRows.push(new D.TableRow({ children: [
+                dataCell('', dCols[0], {fill: GREEN}),
+                dataCell('TOTAL', dCols[1], {fill: GREEN, bold: true, color: 'FFFFFF'}),
+                dataCell(fN(totalAct), dCols[2], {fill: GREEN, bold: true, color: 'FFFFFF'}),
+                dataCell(fN(totalExpD), dCols[3], {fill: GREEN, bold: true, color: 'FFFFFF'}),
+                dataCell(totalPerf.toFixed(1) + '%', dCols[4], {fill: GREEN, bold: true, color: 'FFD700'})
+            ]}));
+            children.push(new D.Table({ width: { size: TW, type: D.WidthType.DXA }, columnWidths: dCols, rows: dRows }));
+
+            // Commentary
+            children.push(new D.Paragraph({ spacing: { before: 300, after: 200 }, children: [new D.TextRun({ text: 'Commentary: ', font: 'Arial', size: 22, bold: true }), new D.TextRun({ text: perf >= 95 ? 'The system performed well during ' + monthName + ' ' + yr + ', with generation meeting or exceeding targets on most days. Overall performance of ' + perf.toFixed(1) + '% indicates the system is operating as designed.' : perf >= 80 ? 'The system performed reasonably during ' + monthName + ' ' + yr + ' at ' + perf.toFixed(1) + '% of target. Days with lower production correspond with periods of adverse weather conditions or intermittent cloud cover.' : 'System performance was below target at ' + perf.toFixed(1) + '% during ' + monthName + ' ' + yr + '. This may be attributed to extended periods of adverse weather, equipment issues, or maintenance activities. Further investigation is recommended.', font: 'Arial', size: 22 })] }));
+
+            // 3.2 Monthly Performance (last 12 months)
+            children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_2, children: [new D.TextRun('3.2 Monthly Performance (Last 12 Months)')] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'The monthly generation figures are shown below, comparing actual output against PVSyst predictions adjusted for degradation.', font: 'Arial', size: 22 })] }));
+
+            const mCols = [2340, 2340, 2340, 2340];
+            const mHdr = new D.TableRow({ children: [hdrCell('Month', mCols[0]), hdrCell('Actual (kWh)', mCols[1]), hdrCell('Expected (kWh)', mCols[2]), hdrCell('Performance', mCols[3])] });
+            const mRows = [mHdr];
+            monthlyRows.forEach((mr, i) => {
+                const fill = i % 2 === 0 ? undefined : LIGHT_GRAY;
+                const isCurrent = mr.ym === ym;
+                const pColor = mr.perf >= 95 ? '2E7D32' : mr.perf >= 80 ? 'F57F17' : 'C62828';
+                mRows.push(new D.TableRow({ children: [
+                    dataCell(mr.label + (isCurrent ? ' ●' : ''), mCols[0], {fill, bold: isCurrent, align: D.AlignmentType.LEFT}),
+                    dataCell(fN(mr.actual), mCols[1], {fill}),
+                    dataCell(fN(mr.expected), mCols[2], {fill}),
+                    dataCell(mr.perf.toFixed(1) + '%', mCols[3], {fill, color: pColor, bold: true})
+                ]}));
+            });
+            children.push(new D.Table({ width: { size: TW, type: D.WidthType.DXA }, columnWidths: mCols, rows: mRows }));
+
+            // ── 4. YEARLY PERFORMANCE ──
+            children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('4. Yearly Performance')] }));
+            const yCols = [2340, 2340, 2340, 2340];
+            const yHdr = new D.TableRow({ children: [hdrCell('Year', yCols[0]), hdrCell('Actual (kWh)', yCols[1]), hdrCell('Expected (kWh)', yCols[2]), hdrCell('Performance', yCols[3])] });
+            const yRows = [yHdr];
+            let ltActual = 0, ltExpected = 0;
+            Object.keys(yearMap).sort().forEach((yy, i) => {
+                const fill = i % 2 === 0 ? undefined : LIGHT_GRAY;
+                const yd = yearMap[yy];
+                const yPerf = yd.expected > 0 ? yd.actual / yd.expected * 100 : 0;
+                ltActual += yd.actual; ltExpected += yd.expected;
+                yRows.push(new D.TableRow({ children: [
+                    dataCell(yy, yCols[0], {fill, bold: true}),
+                    dataCell(fN(yd.actual), yCols[1], {fill}),
+                    dataCell(fN(yd.expected), yCols[2], {fill}),
+                    dataCell(yPerf.toFixed(1) + '%', yCols[3], {fill, color: yPerf>=95?'2E7D32':yPerf>=80?'F57F17':'C62828', bold:true})
+                ]}));
+            });
+            const ltPerf = ltExpected > 0 ? ltActual/ltExpected*100 : 0;
+            yRows.push(new D.TableRow({ children: [
+                dataCell('LIFETIME', yCols[0], {fill: GREEN, bold: true, color: 'FFFFFF'}),
+                dataCell(fN(ltActual), yCols[1], {fill: GREEN, bold: true, color: 'FFFFFF'}),
+                dataCell(fN(ltExpected), yCols[2], {fill: GREEN, bold: true, color: 'FFFFFF'}),
+                dataCell(ltPerf.toFixed(1) + '%', yCols[3], {fill: GREEN, bold: true, color: 'FFD700'})
+            ]}));
+            children.push(new D.Table({ width: { size: TW, type: D.WidthType.DXA }, columnWidths: yCols, rows: yRows }));
+
+            // ── 5. TOU SAVINGS BREAKDOWN ──
+            if (sav) {
+                children.push(new D.Paragraph({ spacing: { before: 400 }, heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('5. Savings Breakdown — ' + monthName + ' ' + yr)] }));
+                const sCols = [1560, 1560, 1560, 1560, 1560, 1560];
+                const sHdr = new D.TableRow({ children: [hdrCell('TOU Period', sCols[0]), hdrCell('Generation', sCols[1]), hdrCell('Utility Cost', sCols[2]), hdrCell('PV Savings', sCols[3]), hdrCell('Export Savings', sCols[4]), hdrCell('Total Savings', sCols[5])] });
+                const sRows = [sHdr];
+                ['peak','standard','off_peak'].forEach((p, i) => {
+                    const fill = i % 2 === 0 ? undefined : LIGHT_GRAY;
+                    const pLabels = {peak:'Peak',standard:'Standard',off_peak:'Off-Peak'};
+                    sRows.push(new D.TableRow({ children: [
+                        dataCell(pLabels[p], sCols[0], {fill, bold: true, align: D.AlignmentType.LEFT}),
+                        dataCell(fN(sav.generation?.[p]) + ' kWh', sCols[1], {fill}),
+                        dataCell('R ' + fN(sav.utility_cost?.[p]), sCols[2], {fill}),
+                        dataCell('R ' + fN(sav.pv_savings?.[p]), sCols[3], {fill}),
+                        dataCell('R ' + fN(sav.export_savings?.[p]), sCols[4], {fill}),
+                        dataCell('R ' + fN((sav.pv_savings?.[p]||0) + (sav.export_savings?.[p]||0)), sCols[5], {fill, bold: true, color: '2E7D32'})
+                    ]}));
+                });
+                sRows.push(new D.TableRow({ children: [
+                    dataCell('TOTAL', sCols[0], {fill: GREEN, bold: true, color: 'FFFFFF'}),
+                    dataCell(fN(sav.generation?.total) + ' kWh', sCols[1], {fill: GREEN, color: 'FFFFFF', bold: true}),
+                    dataCell('R ' + fN(sav.utility_cost?.total), sCols[2], {fill: GREEN, color: 'FFFFFF', bold: true}),
+                    dataCell('R ' + fN(sav.pv_savings?.total), sCols[3], {fill: GREEN, color: 'FFFFFF', bold: true}),
+                    dataCell('R ' + fN(sav.export_savings?.total), sCols[4], {fill: GREEN, color: 'FFFFFF', bold: true}),
+                    dataCell('R ' + fN(sav.total), sCols[5], {fill: GREEN, color: 'FFD700', bold: true})
+                ]}));
+                children.push(new D.Table({ width: { size: TW, type: D.WidthType.DXA }, columnWidths: sCols, rows: sRows }));
+            }
+
+            // ── 6. ENVIRONMENTAL IMPACT ──
+            children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('6. Lifetime Environmental Impact')] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'To date, the system has had the following environmental benefits by reducing electricity generated using less environmentally friendly means. Total lifetime PV generation: ' + fN(lifePV) + ' kWh.', font: 'Arial', size: 22 })] }));
+
+            const eCols = [4680, 4680];
+            children.push(new D.Table({
+                width: { size: TW, type: D.WidthType.DXA }, columnWidths: eCols,
+                rows: [
+                    new D.TableRow({ children: [hdrCell('Metric', eCols[0]), hdrCell('Value', eCols[1])] }),
+                    new D.TableRow({ children: [dataCell('🌳 Trees Equivalent', eCols[0], {align: D.AlignmentType.LEFT}), dataCell(fN(env.trees) + ' trees', eCols[1], {bold: true, color: '2E7D32'})] }),
+                    new D.TableRow({ children: [dataCell('🏠 Households Powered', eCols[0], {align: D.AlignmentType.LEFT, fill: LIGHT_GRAY}), dataCell(fN(env.homes) + ' homes', eCols[1], {fill: LIGHT_GRAY, bold: true, color: '2E7D32'})] }),
+                    new D.TableRow({ children: [dataCell('⛏️ Coal Saved', eCols[0], {align: D.AlignmentType.LEFT}), dataCell(fN(env.coal) + ' kg', eCols[1], {bold: true, color: '2E7D32'})] }),
+                    new D.TableRow({ children: [dataCell('💧 Water Saved', eCols[0], {align: D.AlignmentType.LEFT, fill: LIGHT_GRAY}), dataCell(fN(env.water) + ' litres', eCols[1], {fill: LIGHT_GRAY, bold: true, color: '2E7D32'})] })
+                ]
+            }));
+
+            // ── 7. WARRANTIES ──
+            children.push(new D.Paragraph({ spacing: { before: 400 }, heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('7. Major Component Warranties')] }));
+            const wCols = [2600, 1690, 1690, 1690, 1690];
+            const wRows = [new D.TableRow({ children: [hdrCell('Component', wCols[0]), hdrCell('Start Date', wCols[1]), hdrCell('Duration', wCols[2]), hdrCell('Expiry', wCols[3]), hdrCell('Remaining', wCols[4])] })];
+            const wNow = new Date();
+            WARRANTY_DATA.forEach((w, i) => {
+                const start = new Date(w.start + 'T00:00:00');
+                const expiry = new Date(start); expiry.setFullYear(expiry.getFullYear() + w.years);
+                const remainYrs = Math.max(0, (expiry - wNow) / (365.25*24*60*60*1000));
+                const isExpired = wNow >= expiry;
+                const fill = i % 2 === 0 ? undefined : LIGHT_GRAY;
+                wRows.push(new D.TableRow({ children: [
+                    dataCell(w.item, wCols[0], {align: D.AlignmentType.LEFT, fill, bold: true}),
+                    dataCell('19 Dec 2023', wCols[1], {fill}),
+                    dataCell(w.years + ' years', wCols[2], {fill}),
+                    dataCell(expiry.getDate()+' '+mNamesShort[expiry.getMonth()+1]+' '+expiry.getFullYear(), wCols[3], {fill}),
+                    dataCell(isExpired ? 'Expired' : remainYrs.toFixed(1) + ' years', wCols[4], {fill, color: isExpired ? 'C62828' : '2E7D32', bold: true})
+                ]}));
+            });
+            children.push(new D.Table({ width: { size: TW, type: D.WidthType.DXA }, columnWidths: wCols, rows: wRows }));
+
+            // ── 8. CONCLUSION ──
+            children.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+            children.push(new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('8. Conclusion')] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: perf >= 90 ? 'The report indicates that the system is performing as designed and continues to operate as expected.' : 'The report indicates that system performance was below optimal levels during this period. Continued monitoring and any necessary corrective actions will be implemented to improve performance.', font: 'Arial', size: 22 })] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'The system will continue to be monitored on weekdays, with all performance data logged to the online portal. Should any error alarms occur or performance drop, a technician may conduct an unscheduled site visit. Please note that such visits will be chargeable at the call-out rates specified in the maintenance agreement.', font: 'Arial', size: 22 })] }));
+            children.push(new D.Paragraph({ spacing: { after: 200 }, children: [new D.TextRun({ text: 'If you have any questions regarding this report or require further assistance, please do not hesitate to contact us at ', font: 'Arial', size: 22 }), new D.TextRun({ text: 'maintenance@genergy.co.za', font: 'Arial', size: 22, bold: true, color: '2563EB' }), new D.TextRun({ text: '.', font: 'Arial', size: 22 })] }));
+
+            // ══ CREATE DOCUMENT ══
+            const doc = new D.Document({
+                styles: {
+                    default: { document: { run: { font: 'Arial', size: 22 } } },
+                    paragraphStyles: [
+                        { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 32, bold: true, font: 'Arial', color: GREEN }, paragraph: { spacing: { before: 360, after: 200 }, outlineLevel: 0 } },
+                        { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 26, bold: true, font: 'Arial', color: '444444' }, paragraph: { spacing: { before: 240, after: 160 }, outlineLevel: 1 } }
+                    ]
+                },
+                features: { updateFields: true },
+                sections: [{
+                    properties: {
+                        page: {
+                            size: { width: 11906, height: 16838 },
+                            margin: { top: 1134, right: 1134, bottom: 1134, left: 1134 }
+                        }
+                    },
+                    headers: { default: new D.Header({ children: [
+                        new D.Paragraph({ alignment: D.AlignmentType.RIGHT, children: [new D.TextRun({ text: 'Nautica Shopping Centre — Solar Performance Report', font: 'Arial', size: 16, color: '999999', italics: true })] })
+                    ]})},
+                    footers: { default: new D.Footer({ children: [
+                        new D.Paragraph({ alignment: D.AlignmentType.CENTER, border: { top: { style: D.BorderStyle.SINGLE, size: 1, color: 'CCCCCC', space: 4 } }, children: [
+                            new D.TextRun({ text: 'Genergy (Pty) Ltd  |  ', font: 'Arial', size: 16, color: '999999' }),
+                            new D.TextRun({ text: 'Page ', font: 'Arial', size: 16, color: '999999' }),
+                            new D.TextRun({ children: [D.PageNumber.CURRENT], font: 'Arial', size: 16, color: '999999' })
+                        ]})
+                    ]})},
+                    children
+                }]
+            });
+
+            // ── GENERATE & DOWNLOAD ──
+            const buffer = await D.Packer.toBlob(doc);
+            const url = URL.createObjectURL(buffer);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Nautica_' + monthName + '_' + yr + '_Report.docx';
             a.click();
             URL.revokeObjectURL(url);
         }
