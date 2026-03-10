@@ -666,6 +666,26 @@
         }
 
 
+
+        /* DOWNTIME COMMENTS */
+        .dt-comment-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:10001; background:rgba(0,0,0,0.7); justify-content:center; align-items:center; }
+        .dt-comment-modal.open { display:flex; }
+        .dt-comment-box { background:#1a1a2e; border:1px solid rgba(255,215,0,0.3); border-radius:14px; width:90%; max-width:420px; padding:0; box-shadow:0 16px 48px rgba(0,0,0,0.5); }
+        .dt-comment-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .dt-comment-header h4 { margin:0; color:var(--gold); font-size:0.95em; }
+        .dt-comment-info { padding:10px 20px; color:#94a3b8; font-size:0.8em; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .dt-comment-textarea { width:100%; background:#0d1117; border:none; border-bottom:1px solid rgba(255,255,255,0.08); color:#fff; padding:14px 20px; font-size:0.88em; font-family:inherit; resize:vertical; min-height:60px; }
+        .dt-comment-textarea:focus { outline:none; background:#111827; }
+        .dt-comment-actions { display:flex; gap:10px; padding:14px 20px; }
+        .dt-hm-cell.has-note { box-shadow: inset 0 0 0 2px #FFD700; }
+        .dt-hm-cell.has-note::after { content:''; position:absolute; top:1px; right:1px; width:6px; height:6px; background:#FFD700; border-radius:50%; }
+        .dt-hm-cell { position: relative; }
+        .dt-note-icon { cursor:pointer; display:inline-block; margin-left:4px; }
+        .dt-note-icon:hover { opacity:0.7; }
+        .dt-note-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.25); border-radius:6px; color:#FFD700; font-size:0.78em; cursor:pointer; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .dt-note-badge:hover { background:rgba(255,215,0,0.2); }
+        .dt-add-note { cursor:pointer; color:#64748b; font-size:0.78em; }
+        .dt-add-note:hover { color:#FFD700; }
         /* DOWNTIME TAB */
         .dt-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
         .dt-card { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px; text-align: center; }
@@ -1686,6 +1706,7 @@
                     <span style="color:#94a3b8;margin-left:10px;">|</span>
                     <select id="dtMonthSelect" onchange="setDtRange('custom',document.querySelector('#tab-downtime .lt-range-btn.active'))" style="background:#0d1117;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:6px 10px;font-size:var(--font-xs);"></select>
                     <button class="btn-this-month" onclick="exportDowntime()" style="margin-left:auto;">⬇ Export CSV</button>
+                    <button class="btn-this-month" onclick="showGhSetup()" style="background:rgba(96,165,250,0.12);border-color:rgba(96,165,250,0.3);color:#60a5fa;" title="GitHub Settings">⚙</button>
                 </div>
 
                 <!-- Summary cards -->
@@ -1738,6 +1759,7 @@
                                     <th>Type</th>
                                     <th>Lost PV (kWh)</th>
                                     <th>Lost Savings (R)</th>
+                                    <th>Notes</th>
                                 </tr>
                             </thead>
                             <tbody id="dtEventsBody"></tbody>
@@ -1776,12 +1798,14 @@
         const IRRAD_URL = 'data/irradiation_data.json';
         const DAILY_HIST_URL = 'data/daily_history.json';
         const FIN_CONFIG_URL = 'config/Financial%20config.json';
+        const DT_COMMENTS_URL = 'data/downtime_comments.json';
         function cacheBust(url) { return url + '?t=' + Date.now(); }
         let dashData = null;
         let pvsyst = null;
         let irradData = null;
         let dailyHist = null;
         let finConfig = null;
+        let dtCommentsRemote = {}; // loaded from repo
         let hourlyChart = null;
         let dailyChart = null;
         let credentials = null;
@@ -1963,12 +1987,13 @@
         // ══════════════════════════════════════════════════
         async function loadData() {
             try {
-                const [dataRes, pvsystRes, irradRes, histRes, finRes] = await Promise.all([
+                const [dataRes, pvsystRes, irradRes, histRes, finRes, commRes] = await Promise.all([
                     fetch(cacheBust(DATA_URL)),
                     fetch(cacheBust(PVSYST_URL)),
                     fetch(cacheBust(IRRAD_URL)),
                     fetch(cacheBust(DAILY_HIST_URL)),
-                    fetch(cacheBust(FIN_CONFIG_URL))
+                    fetch(cacheBust(FIN_CONFIG_URL)),
+                    fetch(cacheBust(DT_COMMENTS_URL)).catch(() => null)
                 ]);
                 if (!dataRes.ok) throw new Error(dataRes.status);
                 dashData = await dataRes.json();
@@ -1976,6 +2001,7 @@
                 if (irradRes.ok) irradData = await irradRes.json();
                 if (histRes.ok) dailyHist = await histRes.json();
                 if (finRes.ok) finConfig = await finRes.json();
+                if (commRes && commRes.ok) { try { dtCommentsRemote = await commRes.json(); dtComments = Object.assign({}, dtCommentsRemote); } catch(e) {} }
                 document.getElementById('loadingState').style.display = 'none';
                 renderPublicView();
                 if (isLoggedIn) renderClientOverview();
@@ -4790,6 +4816,201 @@
 
 
 
+
+        // ══════════════════════════════════════════════════
+        // DOWNTIME COMMENTS (persisted to GitHub repo)
+        // ══════════════════════════════════════════════════
+        const DT_GH_KEY = 'nautica-gh-config'; // {owner, repo, token}
+        let dtComments = {};
+        let dtCommentKey = '';
+        let dtCommentSaving = false;
+
+        function getDtGhConfig() {
+            try { return JSON.parse(localStorage.getItem(DT_GH_KEY)) || {}; } catch(e) { return {}; }
+        }
+
+        function getDtCommentKey(dateStr, hour) { return dateStr + '-' + String(hour).padStart(2,'0'); }
+
+        function getDtComment(dateStr, hour) {
+            return dtComments[getDtCommentKey(dateStr, hour)] || '';
+        }
+
+        function getEventComment(ev) {
+            const comments = [];
+            for (let h = ev.startH; h < ev.endH; h++) {
+                const c = getDtComment(ev.date, h);
+                if (c) comments.push(c);
+            }
+            return [...new Set(comments)].join('; ');
+        }
+
+        function openDtComment(dateStr, hour, statusText) {
+            if (!isLoggedIn) return; // Only logged-in users can comment
+            dtCommentKey = getDtCommentKey(dateStr, hour);
+            const existing = dtComments[dtCommentKey] || '';
+            document.getElementById('dtCommentTitle').textContent = existing ? 'Edit Note' : 'Add Note';
+            document.getElementById('dtCommentInfo').textContent = dateStr + ' at ' + String(hour).padStart(2,'0') + ':00 — ' + statusText;
+            document.getElementById('dtCommentText').value = existing;
+            document.getElementById('dtCommentSaveBtn').textContent = 'Save';
+            document.getElementById('dtCommentSaveBtn').disabled = false;
+            document.getElementById('dtCommentModal').classList.add('open');
+            setTimeout(() => document.getElementById('dtCommentText').focus(), 100);
+        }
+
+        function openDtCommentForEvent(evIdx) {
+            const ev = dtEvents[evIdx];
+            if (!ev) return;
+            openDtComment(ev.date, ev.startH, ev.type);
+        }
+
+        async function saveDtComment() {
+            if (dtCommentSaving) return;
+            const text = document.getElementById('dtCommentText').value.trim();
+            if (text) {
+                dtComments[dtCommentKey] = text;
+            } else {
+                delete dtComments[dtCommentKey];
+            }
+
+            // Try to save to GitHub
+            const saved = await pushCommentsToGitHub();
+            if (!saved) {
+                // Prompt for GitHub setup if not configured
+                const ghCfg = getDtGhConfig();
+                if (!ghCfg.token) {
+                    if (confirm('GitHub not configured. Set up now to save notes permanently?')) {
+                        closeDtComment();
+                        showGhSetup();
+                        return;
+                    }
+                }
+            }
+            closeDtComment();
+            renderDowntimeTab();
+        }
+
+        async function deleteDtComment() {
+            delete dtComments[dtCommentKey];
+            await pushCommentsToGitHub();
+            closeDtComment();
+            renderDowntimeTab();
+        }
+
+        function closeDtComment() {
+            document.getElementById('dtCommentModal').classList.remove('open');
+        }
+
+        async function pushCommentsToGitHub() {
+            const cfg = getDtGhConfig();
+            if (!cfg.owner || !cfg.repo || !cfg.token) return false;
+
+            const btn = document.getElementById('dtCommentSaveBtn');
+            if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
+            dtCommentSaving = true;
+
+            try {
+                const path = 'data/downtime_comments.json';
+                const apiUrl = 'https://api.github.com/repos/' + cfg.owner + '/' + cfg.repo + '/contents/' + path;
+
+                // Get current file SHA (needed for update)
+                let sha = '';
+                try {
+                    const getRes = await fetch(apiUrl, {
+                        headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github.v3+json' }
+                    });
+                    if (getRes.ok) {
+                        const fileData = await getRes.json();
+                        sha = fileData.sha;
+                    }
+                } catch(e) {}
+
+                // Encode content
+                const content = btoa(unescape(encodeURIComponent(JSON.stringify(dtComments, null, 2))));
+
+                const body = {
+                    message: 'Update downtime comments',
+                    content: content
+                };
+                if (sha) body.sha = sha;
+
+                const putRes = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Bearer ' + cfg.token,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                dtCommentSaving = false;
+                if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
+
+                if (putRes.ok) {
+                    return true;
+                } else {
+                    const err = await putRes.json().catch(() => ({}));
+                    console.error('GitHub save failed:', err.message || putRes.status);
+                    alert('Failed to save: ' + (err.message || 'HTTP ' + putRes.status));
+                    return false;
+                }
+            } catch(e) {
+                dtCommentSaving = false;
+                if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
+                console.error('GitHub push error:', e);
+                alert('Failed to save note. Check console for details.');
+                return false;
+            }
+        }
+
+        // GitHub setup UI
+        function showGhSetup() {
+            const cfg = getDtGhConfig();
+            document.getElementById('ghSetupOwner').value = cfg.owner || '';
+            document.getElementById('ghSetupRepo').value = cfg.repo || '';
+            document.getElementById('ghSetupToken').value = cfg.token || '';
+            document.getElementById('ghSetupModal').classList.add('open');
+        }
+
+        function closeGhSetup() {
+            document.getElementById('ghSetupModal').classList.remove('open');
+        }
+
+        async function saveGhSetup() {
+            const owner = document.getElementById('ghSetupOwner').value.trim();
+            const repo = document.getElementById('ghSetupRepo').value.trim();
+            const token = document.getElementById('ghSetupToken').value.trim();
+            if (!owner || !repo || !token) { alert('All fields are required.'); return; }
+
+            // Test the token
+            const testBtn = document.getElementById('ghSetupSaveBtn');
+            testBtn.textContent = 'Testing...';
+            try {
+                const testRes = await fetch('https://api.github.com/repos/' + owner + '/' + repo, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!testRes.ok) {
+                    alert('Failed to access repo. Check owner/repo/token.');
+                    testBtn.textContent = 'Save & Test';
+                    return;
+                }
+            } catch(e) {
+                alert('Connection failed. Check your token.');
+                testBtn.textContent = 'Save & Test';
+                return;
+            }
+
+            localStorage.setItem(DT_GH_KEY, JSON.stringify({ owner, repo, token }));
+            testBtn.textContent = 'Save & Test';
+            closeGhSetup();
+
+            // If we had a pending comment, try saving it now
+            if (dtCommentKey && dtComments[dtCommentKey]) {
+                await pushCommentsToGitHub();
+                renderDowntimeTab();
+            }
+        }
+
         // ══════════════════════════════════════════════════
         // DOWNTIME ANALYSIS TAB
         // ══════════════════════════════════════════════════
@@ -5006,11 +5227,12 @@
             // Render events table
             const tbody = document.getElementById('dtEventsBody');
             if (dtEvents.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#4ade80;padding:20px;">✓ No downtime detected</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#4ade80;padding:20px;">✓ No downtime detected</td></tr>';
             } else {
                 let thtml = '';
-                dtEvents.forEach(ev => {
+                dtEvents.forEach((ev, idx) => {
                     const typeClass = ev.type === 'Grid Loss' ? 'style="color:#7c3aed;font-weight:600;"' : 'style="color:#ef4444;font-weight:600;"';
+                    const evComment = getEventComment(ev);
                     thtml += '<tr>';
                     thtml += '<td>' + ev.date + '</td>';
                     thtml += '<td>' + String(ev.startH).padStart(2,'0') + ':00</td>';
@@ -5019,6 +5241,11 @@
                     thtml += '<td ' + typeClass + '>' + ev.type + '</td>';
                     thtml += '<td>' + ev.lostKwh.toFixed(1) + '</td>';
                     thtml += '<td>R' + fmt(Math.round(ev.lostR)) + '</td>';
+                    if (evComment) {
+                        thtml += '<td><span class="dt-note-badge" onclick="openDtCommentForEvent('+idx+')">📝 '+evComment.replace(/"/g,'&quot;')+'</span></td>';
+                    } else {
+                        thtml += '<td><span class="dt-add-note" onclick="openDtCommentForEvent('+idx+')">+ Add note</span></td>';
+                    }
                     thtml += '</tr>';
                 });
                 tbody.innerHTML = thtml;
@@ -5045,7 +5272,10 @@
                 for (let h = 0; h < 24; h++) {
                     const s = r.hourStatus[h] || 'no_data';
                     const tip = String(h).padStart(2,'0')+':00 — '+tipMap[s];
-                    hHtml += '<div class="dt-hm-cell" style="background:'+colorMap[s]+';height:40px;" title="'+tip+'"></div>';
+                    const noteKey = getDtCommentKey(r.dateStr, h);
+                    const hasNote = dtComments[noteKey] ? ' has-note' : '';
+                    const noteTip = dtComments[noteKey] ? ' — 📝 '+dtComments[noteKey] : '';
+                    hHtml += '<div class="dt-hm-cell'+hasNote+'" style="background:'+colorMap[s]+';height:40px;" title="'+tip+noteTip+'" onclick="openDtComment(\''+r.dateStr+'\','+h+',\''+tipMap[s]+'\')"></div>';
                 }
                 hHtml += '</div><div style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:2px;">';
                 for (let h = 0; h < 24; h++) {
@@ -5111,7 +5341,10 @@
                     allResults.forEach(r => {
                         const s = r.hourStatus[h] || 'no_data';
                         const tip = r.dateStr+' '+String(h).padStart(2,'0')+':00 — '+tipMap[s];
-                        hHtml += '<div class="dt-hm-cell" style="background:'+colorMap[s]+';width:'+colW+'px;height:18px;" title="'+tip+'"></div>';
+                        const nk = getDtCommentKey(r.dateStr, h);
+                        const hn = dtComments[nk] ? ' has-note' : '';
+                        const nt = dtComments[nk] ? ' — 📝 '+dtComments[nk] : '';
+                        hHtml += '<div class="dt-hm-cell'+hn+'" style="background:'+colorMap[s]+';width:'+colW+'px;height:18px;" title="'+tip+nt+'" onclick="openDtComment(\''+r.dateStr+'\','+h+',\''+tipMap[s]+'\')"></div>';
                     });
                 }
                 hHtml += '</div>';
@@ -5121,10 +5354,11 @@
 
         function exportDowntime() {
             if (dtEvents.length === 0) { alert('No downtime events to export.'); return; }
-            const header = 'Date,Start,End,Duration (h),Type,Lost PV (kWh),Lost Savings (R)';
-            const rows = dtEvents.map(ev =>
-                ev.date+','+String(ev.startH).padStart(2,'0')+':00,'+String(ev.endH).padStart(2,'0')+':00,'+ev.duration+','+ev.type+','+ev.lostKwh.toFixed(1)+','+ev.lostR.toFixed(2)
-            );
+            const header = 'Date,Start,End,Duration (h),Type,Lost PV (kWh),Lost Savings (R),Notes';
+            const rows = dtEvents.map(ev => {
+                const note = getEventComment(ev).replace(/,/g,';').replace(/"/g,"'");
+                return ev.date+','+String(ev.startH).padStart(2,'0')+':00,'+String(ev.endH).padStart(2,'0')+':00,'+ev.duration+','+ev.type+','+ev.lostKwh.toFixed(1)+','+ev.lostR.toFixed(2)+',"'+note+'"';
+            });
             const csv = [header, ...rows].join('\n');
             const blob = new Blob([csv], {type:'text/csv'});
             const url = URL.createObjectURL(blob);
@@ -5633,6 +5867,51 @@
             <div class="calc-panel-footer">
                 <button onclick="applyCalcConfig()" class="calc-btn calc-btn-apply">Apply & Refresh</button>
                 <button onclick="resetCalcConfig()" class="calc-btn calc-btn-reset">Reset to Defaults</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOWNTIME COMMENT MODAL -->
+    <div id="dtCommentModal" class="dt-comment-modal">
+        <div class="dt-comment-box">
+            <div class="dt-comment-header">
+                <h4 id="dtCommentTitle">Add Note</h4>
+                <button onclick="closeDtComment()" class="calc-close">✕</button>
+            </div>
+            <div class="dt-comment-info" id="dtCommentInfo"></div>
+            <textarea id="dtCommentText" class="dt-comment-textarea" placeholder="e.g. Scheduled maintenance, inverter reset, loadshedding..." rows="3"></textarea>
+            <div class="dt-comment-actions">
+                <button id="dtCommentSaveBtn" onclick="saveDtComment()" class="calc-btn calc-btn-apply" style="flex:1;">Save</button>
+                <button onclick="deleteDtComment()" class="calc-btn calc-btn-reset">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GITHUB SETUP MODAL -->
+    <div id="ghSetupModal" class="dt-comment-modal">
+        <div class="dt-comment-box" style="max-width:480px;">
+            <div class="dt-comment-header">
+                <h4>GitHub Configuration</h4>
+                <button onclick="closeGhSetup()" class="calc-close">✕</button>
+            </div>
+            <div class="dt-comment-info">Enter your GitHub details to save downtime notes to the repo. Uses a fine-grained personal access token with Contents write access.</div>
+            <div style="padding:14px 20px;display:flex;flex-direction:column;gap:12px;">
+                <div>
+                    <label style="color:#94a3b8;font-size:0.78em;display:block;margin-bottom:4px;">Repository Owner</label>
+                    <input type="text" id="ghSetupOwner" class="calc-input" style="width:100%;text-align:left;" placeholder="e.g. Milprops">
+                </div>
+                <div>
+                    <label style="color:#94a3b8;font-size:0.78em;display:block;margin-bottom:4px;">Repository Name</label>
+                    <input type="text" id="ghSetupRepo" class="calc-input" style="width:100%;text-align:left;" placeholder="e.g. Nautica-Mall">
+                </div>
+                <div>
+                    <label style="color:#94a3b8;font-size:0.78em;display:block;margin-bottom:4px;">Personal Access Token</label>
+                    <input type="password" id="ghSetupToken" class="calc-input" style="width:100%;text-align:left;" placeholder="github_pat_...">
+                </div>
+            </div>
+            <div class="dt-comment-actions">
+                <button id="ghSetupSaveBtn" onclick="saveGhSetup()" class="calc-btn calc-btn-apply" style="flex:1;">Save & Test</button>
+                <button onclick="closeGhSetup()" class="calc-btn calc-btn-reset">Cancel</button>
             </div>
         </div>
     </div>
