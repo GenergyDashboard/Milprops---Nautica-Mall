@@ -5571,341 +5571,292 @@
         // IMAGE RENDERERS
         // ════════════════════════════════════════════════
 
-        // Canvas helper: convert to PNG blob
         function canvasToBlob(canvas) {
-            return new Promise(r => canvas.toBlob(b => {
-                b.arrayBuffer().then(ab => r(new Uint8Array(ab)));
-            }, 'image/png'));
+            return new Promise(r => canvas.toBlob(b => b.arrayBuffer().then(ab => r(new Uint8Array(ab))), 'image/png'));
         }
 
-        // Chart.js helper: render offscreen and return PNG
         async function renderChartToPng(w, h, dpr, config) {
             const c = document.createElement('canvas');
-            c.width = w * dpr; c.height = h * dpr;
-            c.style.width = w+'px'; c.style.height = h+'px';
-            const ctx = c.getContext('2d');
-            ctx.scale(dpr, dpr);
-            c.style.position = 'fixed'; c.style.left = '-9999px';
+            c.width = w*dpr; c.height = h*dpr;
+            c.style.cssText = 'position:fixed;left:-9999px;width:'+w+'px;height:'+h+'px';
             document.body.appendChild(c);
-            config.options = config.options || {};
+            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+            config.options = config.options||{};
             config.options.responsive = false;
             config.options.animation = false;
             config.options.devicePixelRatio = dpr;
             const chart = new Chart(ctx, config);
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 150));
             const blob = await canvasToBlob(c);
-            chart.destroy();
-            document.body.removeChild(c);
+            chart.destroy(); document.body.removeChild(c);
             return blob;
         }
 
-        // image3: Overview summary bar
+        // ── image3: Overview summary bar (915×67) ──
         async function renderOverviewBar(ym, yr, mo, numDays, curH, fN, w, h, dpr) {
             const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
             const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
-            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
-            const md = dashData.monthly[ym]||{};
-            const actPV = md['PV Yield (kWh)']||0;
-            const expPV = calcMonthExpFor(yr,mo,numDays,curH);
-            const perf = expPV>0?actPV/expPV*100:0;
-            const mNamesS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            const allM = Object.keys(dashData.monthly).sort();
-            const ymIdx = allM.indexOf(ym);
-            const first12 = allM[Math.max(0,ymIdx-11)];
-            const now = new Date();
-            let ltAct=0, ltExp=0, yrAct=0, yrExp=0;
-            allM.forEach(m => {
-                const mmd=dashData.monthly[m]; const [my,mm2]=m.split('-').map(Number);
-                const isCur=my===now.getFullYear()&&mm2===(now.getMonth()+1);
-                const nd=isCur?now.getDate():new Date(my,mm2,0).getDate();
-                const ch=isCur?curH:23;
-                const mE=calcMonthExpFor(my,mm2,nd,ch); const mA=mmd['PV Yield (kWh)']||0;
-                ltAct+=mA; ltExp+=mE;
-                if (m>=first12&&m<=ym) { yrAct+=mA; yrExp+=mE; }
-            });
-            const rows = [
-                { label: mNamesS[mo]+' '+String(yr).slice(2), gen: actPV, exp: expPV, perf: perf },
-                { label: mNamesS[parseInt(first12.split('-')[1])]+' '+first12.split('-')[0].slice(2)+' - '+mNamesS[mo]+' '+String(yr).slice(2), gen: yrAct, exp: yrExp, perf: yrExp>0?yrAct/yrExp*100:0 },
-                { label: 'Lifetime', gen: ltAct, exp: ltExp, perf: ltExp>0?ltAct/ltExp*100:0 }
+            ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+            const md=dashData.monthly[ym]||{};
+            const actPV=md['PV Yield (kWh)']||0;
+            const expPV=calcMonthExpFor(yr,mo,numDays,curH);
+            const mS=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const allM=Object.keys(dashData.monthly).sort();
+            const ymI=allM.indexOf(ym);
+            const f12=allM[Math.max(0,ymI-11)];
+            const now=new Date();
+            let ltA=0,ltE=0,yrA=0,yrE=0;
+            allM.forEach(m=>{const d=dashData.monthly[m];const[my,mm]=m.split('-').map(Number);
+                const ic=my===now.getFullYear()&&mm===(now.getMonth()+1);
+                const nd=ic?now.getDate():new Date(my,mm,0).getDate();
+                const mE=calcMonthExpFor(my,mm,nd,ic?curH:23);const mA=d['PV Yield (kWh)']||0;
+                ltA+=mA;ltE+=mE; if(m>=f12&&m<=ym){yrA+=mA;yrE+=mE;}});
+            const rows=[
+                {l:mS[mo]+' '+String(yr).slice(2), g:actPV, e:expPV, p:expPV>0?actPV/expPV*100:0},
+                {l:mS[parseInt(f12.split('-')[1])]+' '+f12.split('-')[0].slice(2)+' - '+mS[mo]+' '+String(yr).slice(2), g:yrA, e:yrE, p:yrE>0?yrA/yrE*100:0},
+                {l:'Lifetime', g:ltA, e:ltE, p:ltE>0?ltA/ltE*100:0}
             ];
-            const rh = h/3;
-            ctx.textBaseline = 'middle';
-            rows.forEach((r,i) => {
-                const y = i*rh + rh/2;
-                ctx.fillStyle = '#555'; ctx.textAlign = 'right';
-                ctx.font = '700 10px Arial'; ctx.fillText(r.label, 110, y);
-                ctx.textAlign = 'left'; ctx.font = '600 10px Arial'; ctx.fillStyle = '#8BC34A';
-                ctx.fillText(fN(r.gen)+' kWh Generated', 125, y);
-                ctx.fillText(fN(r.exp)+' kWh Predicted', 355, y);
-                ctx.fillText(r.perf.toFixed(2)+'% Performance', 575, y);
-                const barW = Math.min(150, r.perf * 1.5);
-                ctx.fillStyle = '#8BC34A'; ctx.fillRect(w-160, y-8, barW, 16);
+            const rh=h/3;
+            ctx.textBaseline='middle';
+            rows.forEach((r,i)=>{
+                const y=i*rh+rh/2;
+                ctx.fillStyle='#444'; ctx.textAlign='right'; ctx.font='bold 11px Arial';
+                ctx.fillText(r.l, 90, y);
+                ctx.textAlign='left'; ctx.font='600 11px Arial'; ctx.fillStyle='#8BC34A';
+                ctx.fillText(fN(r.g)+' kWh Generated', 105, y);
+                ctx.fillText(fN(r.e)+' kWh Predicted', 320, y);
+                ctx.fillText(r.p.toFixed(2)+'% Performance', 530, y);
+                const bW=Math.min(180,r.p*1.8);
+                ctx.fillStyle='#8BC34A'; ctx.fillRect(w-185, y-7, bW, 14);
             });
             return canvasToBlob(c);
         }
 
-        // image4: Daily performance chart — irradiation BEHIND yield (overlapping bars)
+        // ── image4: Daily chart (1497×455) — irradiation as FILLED AREA behind bars ──
         async function renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, w, h, dpr) {
-            const labels=[], actArr=[], expArr=[], irradArr=[];
-            const factor = degradationFactor(yr);
-            for (let d=1;d<=numDays;d++) {
+            const labels=[], actArr=[], irradArr=[], targetArr=[];
+            const factor=degradationFactor(yr);
+            let totalExp=0;
+            for (let d=1;d<=numDays;d++){
                 labels.push(String(d));
-                const ds = yr+'-'+mm+'-'+String(d).padStart(2,'0');
-                const dh = dailyHist?.[ds];
-                const mmdd = mm+'-'+String(d).padStart(2,'0');
-                const dayPvs = getPvsystDay(mmdd);
-                let dayExp = dayPvs.reduce((a,b)=>a+b,0)*factor;
-                if (isCurrentMonth&&d===numDays) { dayExp=0; for(let hh=0;hh<=curH;hh++) dayExp+=(dayPvs[hh]||0); dayExp*=factor; }
-                const dayAct = dh ? dh.pv : 0;
-                const irradDay = irradData?.daily_records?.[ds];
-                const irradTotal = irradDay ? (irradDay.hourly_wm2||[]).reduce((a,b)=>a+b,0)/200 : dayPvs.reduce((a,b)=>a+b,0)*factor*1.15;
+                const ds=yr+'-'+mm+'-'+String(d).padStart(2,'0');
+                const dh=dailyHist?.[ds];
+                const mmdd=mm+'-'+String(d).padStart(2,'0');
+                const dayPvs=getPvsystDay(mmdd);
+                let dayExp=dayPvs.reduce((a,b)=>a+b,0)*factor;
+                if(isCurrentMonth&&d===numDays){dayExp=0;for(let hh=0;hh<=curH;hh++)dayExp+=(dayPvs[hh]||0);dayExp*=factor;}
+                totalExp+=dayExp;
+                const dayAct=dh?dh.pv:0;
+                const irDay=irradData?.daily_records?.[ds];
+                const irradV=irDay?(irDay.hourly_wm2||[]).reduce((a,b)=>a+b,0)/200:dayPvs.reduce((a,b)=>a+b,0)*factor*1.15;
                 actArr.push(Math.round(dayAct));
-                expArr.push(Math.round(dayExp));
-                irradArr.push(Math.round(irradTotal));
+                irradArr.push(Math.round(irradV));
             }
-            const avgExp = expArr.reduce((a,b)=>a+b,0)/expArr.length;
-            const targetLine = expArr.map(()=>Math.round(avgExp));
+            const avgTarget=totalExp/numDays;
+            for(let d=0;d<numDays;d++) targetArr.push(Math.round(avgTarget));
+
             return renderChartToPng(w, h, dpr, {
-                type:'bar',
                 data:{labels, datasets:[
-                    {label:'Irradiation',data:irradArr,backgroundColor:'rgba(255,235,59,0.45)',borderWidth:0,order:2,barPercentage:0.95,categoryPercentage:0.9},
-                    {label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:1,barPercentage:0.55,categoryPercentage:0.9},
-                    {type:'line',label:'Target',data:targetLine,borderColor:'#333',borderWidth:2.5,pointRadius:0,tension:0,fill:false,order:0}
+                    {type:'line',label:'Irradiation',data:irradArr,backgroundColor:'rgba(255,235,59,0.45)',borderColor:'rgba(255,235,59,0.6)',borderWidth:1,pointRadius:0,tension:0.4,fill:'origin',order:3},
+                    {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,barPercentage:0.65,categoryPercentage:0.9,order:2},
+                    {type:'line',label:'Target',data:targetArr,borderColor:'#333',borderWidth:3.5,pointRadius:0,tension:0,fill:false,order:0}
                 ]},
                 options:{
-                    plugins:{title:{display:true,text:'Daily Performance - '+monthName+' '+yr,font:{size:14,weight:'bold'},color:'#333',padding:{top:8,bottom:6}},
-                        legend:{display:true,position:'top',labels:{font:{size:10},color:'#555',boxWidth:18,padding:12}}},
-                    scales:{x:{grid:{display:false},grouped:false,ticks:{color:'#555',font:{size:9}}},
-                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:10}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:9}}}},
-                    layout:{padding:{left:10,right:20,top:5,bottom:5}}
+                    plugins:{title:{display:true,text:'Daily Performance - '+monthName+' '+yr,font:{size:18,weight:'bold'},color:'#333',padding:{top:10,bottom:8}},
+                        legend:{display:true,position:'top',labels:{font:{size:13},color:'#555',boxWidth:22,padding:16}}},
+                    scales:{x:{grid:{display:false},ticks:{color:'#555',font:{size:12}}},
+                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:13}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:12}}}},
+                    layout:{padding:{left:10,right:25,top:5,bottom:5}}
                 }
             });
         }
 
-        // image6: Monthly performance chart with yield markers
+        // ── image6: Monthly chart (958×368) ──
         async function renderMonthlyChart(ym, yr, mo, numDays, curH, mNamesS, fN, w, h, dpr) {
-            const allM = Object.keys(dashData.monthly).sort();
-            const ymIdx = allM.indexOf(ym);
-            const last12 = allM.slice(Math.max(0,ymIdx-11), ymIdx+1);
-            const labels=[], actArr=[], expArr=[];
-            const now = new Date();
-            last12.forEach(m => {
-                const mmd=dashData.monthly[m]; const [my,mm2]=m.split('-').map(Number);
-                const isCur=my===now.getFullYear()&&mm2===(now.getMonth()+1);
-                const nd=isCur?now.getDate():new Date(my,mm2,0).getDate();
-                const ch=isCur?curH:23;
-                labels.push(mNamesS[mm2]+' '+String(my).slice(2));
-                actArr.push(Math.round(mmd['PV Yield (kWh)']||0));
-                expArr.push(Math.round(calcMonthExpFor(my,mm2,nd,ch)));
+            const allM=Object.keys(dashData.monthly).sort();
+            const ymI=allM.indexOf(ym);
+            const last12=allM.slice(Math.max(0,ymI-11),ymI+1);
+            const labels=[],actArr=[],expArr=[];
+            const now=new Date();
+            last12.forEach(m=>{
+                const d=dashData.monthly[m];const[my,mm]=m.split('-').map(Number);
+                const ic=my===now.getFullYear()&&mm===(now.getMonth()+1);
+                const nd=ic?now.getDate():new Date(my,mm,0).getDate();
+                labels.push(mNamesS[mm]+' '+String(my).slice(2));
+                actArr.push(Math.round(d['PV Yield (kWh)']||0));
+                expArr.push(Math.round(calcMonthExpFor(my,mm,nd,ic?curH:23)));
             });
-            const first = last12[0].split('-'); const last = last12[last12.length-1].split('-');
+            const f=last12[0].split('-'),l=last12[last12.length-1].split('-');
             return renderChartToPng(w, h, dpr, {
                 data:{labels, datasets:[
-                    {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:2,barPercentage:0.75},
-                    {type:'scatter',label:'Yield Markers',data:actArr.map((v,i)=>({x:i,y:v})),pointStyle:'crossRot',pointRadius:6,pointBorderColor:'#00BCD4',pointBorderWidth:2,backgroundColor:'transparent',order:1,showLine:false},
-                    {type:'line',label:'Target',data:expArr,borderColor:'#333',borderWidth:2.5,pointRadius:0,tension:0.4,fill:false,order:0}
+                    {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:2,barPercentage:0.7},
+                    {type:'scatter',label:'Yield Markers',data:actArr.map((v,i)=>({x:i,y:v})),pointStyle:'crossRot',pointRadius:7,pointBorderColor:'#00BCD4',pointBorderWidth:2.5,backgroundColor:'transparent',order:1,showLine:false},
+                    {type:'line',label:'Target',data:expArr,borderColor:'#333',borderWidth:3,pointRadius:0,tension:0.4,fill:false,order:0}
                 ]},
                 options:{
-                    plugins:{title:{display:true,text:'Monthly Performance - '+mNamesS[parseInt(first[1])]+' '+first[0].slice(2)+' to '+mNamesS[parseInt(last[1])]+' '+last[0].slice(2),font:{size:13,weight:'bold'},color:'#333',padding:{top:8,bottom:6}},
-                        legend:{display:true,position:'top',labels:{font:{size:10},color:'#555',boxWidth:18,padding:12,
-                            filter:item=>item.text!=='Yield Markers'||true}}},
-                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#555',font:{size:9}}},
-                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:10}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:9}}}},
+                    plugins:{title:{display:true,text:'Monthly Performance - '+mNamesS[parseInt(f[1])]+' '+f[0].slice(2)+' to '+mNamesS[parseInt(l[1])]+' '+l[0].slice(2),font:{size:16,weight:'bold'},color:'#333',padding:{top:10,bottom:8}},
+                        legend:{display:true,position:'top',labels:{font:{size:12},color:'#555',boxWidth:20,padding:14}}},
+                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#555',font:{size:12}}},
+                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:12}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:11}}}},
                     layout:{padding:{left:10,right:20,top:5,bottom:5}}
                 }
             });
         }
 
-        // image7: Yearly summary table — fixed 2023 expected (Dec only)
+        // ── image7: Yearly summary table (904×73) ──
         async function renderYearlySummary(yr, mo, numDays, curH, fN, w, h, dpr) {
-            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
-            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
-            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
-            const now = new Date();
-            const allM = Object.keys(dashData.monthly).sort();
-            const yearMap = {};
-            allM.forEach(m => { const [yy]=m.split('-').map(Number); if(!yearMap[yy]) yearMap[yy]={a:0,e:0}; yearMap[yy].a+=dashData.monthly[m]['PV Yield (kWh)']||0; });
-            Object.keys(yearMap).forEach(yy => {
-                const y = parseInt(yy);
-                const f = degradationFactor(y);
-                if (y === CC.system_start_year) {
-                    // Only count from start month
-                    const mt = pvsyst?.monthly_totals_kwh || {};
-                    let e = 0;
-                    for (let m = CC.system_start_month; m <= 12; m++) e += (mt[String(m)]||0) * f;
-                    yearMap[yy].e = e;
-                } else if (y === now.getFullYear()) {
-                    let e=0; for(let m3=1;m3<=now.getMonth()+1;m3++){const k=y+'-'+String(m3).padStart(2,'0'); if(dashData.monthly[k]){const ic=m3===now.getMonth()+1; e+=calcMonthExpFor(y,m3,ic?now.getDate():new Date(y,m3,0).getDate(),ic?curH:23);}} yearMap[yy].e=e;
-                } else { yearMap[yy].e = (pvsyst?.annual_total_kwh||0) * f; }
+            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
+            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+            const now=new Date();
+            const allM=Object.keys(dashData.monthly).sort();
+            const yMap={};
+            allM.forEach(m=>{const[yy]=m.split('-').map(Number);if(!yMap[yy])yMap[yy]={a:0,e:0};yMap[yy].a+=dashData.monthly[m]['PV Yield (kWh)']||0;});
+            Object.keys(yMap).forEach(yy=>{
+                const y=parseInt(yy),f=degradationFactor(y);
+                if(y===CC.system_start_year){const mt=pvsyst?.monthly_totals_kwh||{};let e=0;for(let m=CC.system_start_month;m<=12;m++)e+=(mt[String(m)]||0)*f;yMap[yy].e=e;}
+                else if(y===now.getFullYear()){let e=0;for(let m=1;m<=now.getMonth()+1;m++){const k=y+'-'+String(m).padStart(2,'0');if(dashData.monthly[k]){const ic=m===now.getMonth()+1;e+=calcMonthExpFor(y,m,ic?now.getDate():new Date(y,m,0).getDate(),ic?curH:23);}}yMap[yy].e=e;}
+                else{yMap[yy].e=(pvsyst?.annual_total_kwh||0)*f;}
             });
-            const years = Object.keys(yearMap).sort();
+            const yrs=Object.keys(yMap).sort();
+            const rh=(h-16)/yrs.length;
             // Header
-            const cols = [45, 205, 430, 610, 780];
-            ctx.font = '600 9px Arial'; ctx.fillStyle = '#777'; ctx.textBaseline = 'top'; ctx.textAlign = 'center';
-            ['Year','Yield','Target','Difference','Performance'].forEach((t,i) => ctx.fillText(t, cols[i]+60, 2));
-            const rh = Math.min(18, (h-14)/years.length);
-            years.forEach((yy,i) => {
-                const d=yearMap[yy]; const p=d.e>0?d.a/d.e*100:0; const diff=d.a-d.e;
-                const y = 14 + i*rh + rh/2;
-                const barW = Math.min(40, p/100*40);
-                ctx.fillStyle = '#8BC34A'; ctx.fillRect(2, y-5, barW, 10);
-                ctx.fillStyle = '#555'; ctx.font = '600 9px Arial'; ctx.textAlign = 'center';
-                ctx.fillText(yy, cols[0]+60, y-4);
-                ctx.fillText(fN(Math.round(d.a))+' kWh', cols[1]+60, y-4);
-                ctx.fillText(fN(Math.round(d.e))+' kWh', cols[2]+60, y-4);
-                ctx.fillStyle = diff>=0?'#555':'#C62828';
-                ctx.fillText((diff<0?'- ':'')+fN(Math.abs(Math.round(diff)))+' kWh', cols[3]+60, y-4);
-                ctx.fillStyle = '#555'; ctx.fillText(p.toFixed(2)+'%', cols[4]+60, y-4);
+            ctx.font='bold 11px Arial';ctx.fillStyle='#666';ctx.textBaseline='top';
+            const cx=[45,200,390,570,730,870];
+            ctx.textAlign='center';
+            ['Year','Yield','Target','Difference','Performance'].forEach((t,i)=>ctx.fillText(t,cx[i+1],1));
+            // Rows
+            yrs.forEach((yy,i)=>{
+                const d=yMap[yy],p=d.e>0?d.a/d.e*100:0,diff=d.a-d.e;
+                const y=16+i*rh+rh/2;
+                const bW=Math.min(42,p/100*42);
+                ctx.fillStyle='#8BC34A';ctx.fillRect(2,y-6,bW,12);
+                ctx.font='bold 11px Arial';ctx.fillStyle='#444';ctx.textAlign='center';
+                ctx.fillText(yy,cx[1],y-5);
+                ctx.font='11px Arial';
+                ctx.fillText(fN(Math.round(d.a))+' kWh',cx[2],y-5);
+                ctx.fillText(fN(Math.round(d.e))+' kWh',cx[3],y-5);
+                ctx.fillStyle=diff>=0?'#444':'#C62828';
+                ctx.fillText((diff<0?'- ':'')+fN(Math.abs(Math.round(diff)))+' kWh',cx[4],y-5);
+                ctx.fillStyle='#444';ctx.fillText(p.toFixed(2)+'%',cx[5],y-5);
             });
             return canvasToBlob(c);
         }
 
-        // image8: Yearly chart with yield markers — fixed 2023 expected
+        // ── image8: Yearly chart (958×368) ──
         async function renderYearlyChart(yr, mo, numDays, curH, fN, w, h, dpr) {
-            const now = new Date();
-            const allM = Object.keys(dashData.monthly).sort();
-            const yearMap = {};
-            allM.forEach(m => { const [yy]=m.split('-').map(Number); if(!yearMap[yy]) yearMap[yy]={a:0,e:0}; yearMap[yy].a+=dashData.monthly[m]['PV Yield (kWh)']||0; });
-            Object.keys(yearMap).forEach(yy => {
-                const y = parseInt(yy); const f = degradationFactor(y);
-                if (y === CC.system_start_year) {
-                    const mt = pvsyst?.monthly_totals_kwh||{}; let e=0;
-                    for (let m=CC.system_start_month;m<=12;m++) e+=(mt[String(m)]||0)*f;
-                    yearMap[yy].e = e;
-                } else if (y===now.getFullYear()) {
-                    let e=0; for(let m3=1;m3<=now.getMonth()+1;m3++){const k=y+'-'+String(m3).padStart(2,'0'); if(dashData.monthly[k]){const ic=m3===now.getMonth()+1; e+=calcMonthExpFor(y,m3,ic?now.getDate():new Date(y,m3,0).getDate(),ic?curH:23);}} yearMap[yy].e=e;
-                } else { yearMap[yy].e=(pvsyst?.annual_total_kwh||0)*f; }
+            const now=new Date();
+            const allM=Object.keys(dashData.monthly).sort();
+            const yMap={};
+            allM.forEach(m=>{const[yy]=m.split('-').map(Number);if(!yMap[yy])yMap[yy]={a:0,e:0};yMap[yy].a+=dashData.monthly[m]['PV Yield (kWh)']||0;});
+            Object.keys(yMap).forEach(yy=>{
+                const y=parseInt(yy),f=degradationFactor(y);
+                if(y===CC.system_start_year){const mt=pvsyst?.monthly_totals_kwh||{};let e=0;for(let m=CC.system_start_month;m<=12;m++)e+=(mt[String(m)]||0)*f;yMap[yy].e=e;}
+                else if(y===now.getFullYear()){let e=0;for(let m=1;m<=now.getMonth()+1;m++){const k=y+'-'+String(m).padStart(2,'0');if(dashData.monthly[k]){const ic=m===now.getMonth()+1;e+=calcMonthExpFor(y,m,ic?now.getDate():new Date(y,m,0).getDate(),ic?curH:23);}}yMap[yy].e=e;}
+                else{yMap[yy].e=(pvsyst?.annual_total_kwh||0)*f;}
             });
-            const years = Object.keys(yearMap).sort();
-            const labels=years; const actArr=years.map(y=>Math.round(yearMap[y].a)); const expArr=years.map(y=>Math.round(yearMap[y].e));
+            const yrs=Object.keys(yMap).sort();
             return renderChartToPng(w, h, dpr, {
-                data:{labels, datasets:[
-                    {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:2,barPercentage:0.6},
-                    {type:'scatter',label:'Yield Markers',data:actArr.map((v,i)=>({x:i,y:v})),pointStyle:'crossRot',pointRadius:7,pointBorderColor:'#00BCD4',pointBorderWidth:2,backgroundColor:'transparent',order:1,showLine:false},
-                    {type:'line',label:'Target',data:expArr,borderColor:'#333',borderWidth:2.5,pointRadius:0,tension:0.3,fill:false,order:0}
+                data:{labels:yrs, datasets:[
+                    {type:'bar',label:'Yield',data:yrs.map(y=>Math.round(yMap[y].a)),backgroundColor:'#8BC34A',borderWidth:0,order:2,barPercentage:0.55},
+                    {type:'scatter',label:'Yield Markers',data:yrs.map((y,i)=>({x:i,y:Math.round(yMap[y].a)})),pointStyle:'crossRot',pointRadius:8,pointBorderColor:'#00BCD4',pointBorderWidth:2.5,backgroundColor:'transparent',order:1,showLine:false},
+                    {type:'line',label:'Target',data:yrs.map(y=>Math.round(yMap[y].e)),borderColor:'#333',borderWidth:3,pointRadius:0,tension:0.3,fill:false,order:0}
                 ]},
                 options:{
-                    plugins:{title:{display:true,text:'Yearly Performance - '+years[0]+' to '+years[years.length-1],font:{size:13,weight:'bold'},color:'#333',padding:{top:8,bottom:6}},
-                        legend:{display:true,position:'top',labels:{font:{size:10},color:'#555',boxWidth:18,padding:12}}},
-                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#555',font:{size:11}}},
-                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:10}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:9}}}},
+                    plugins:{title:{display:true,text:'Yearly Performance - '+yrs[0]+' to '+yrs[yrs.length-1],font:{size:16,weight:'bold'},color:'#333',padding:{top:10,bottom:8}},
+                        legend:{display:true,position:'top',labels:{font:{size:12},color:'#555',boxWidth:20,padding:14}}},
+                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#555',font:{size:13}}},
+                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:12}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:11}}}},
                     layout:{padding:{left:10,right:20,top:5,bottom:5}}
                 }
             });
         }
 
-        // image9: Environmental impact with icons
+        // ── image9: Environmental impact (725×261) ──
         async function renderEnvImpact(fN, w, h, dpr) {
-            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
-            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
-            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
-            const lifePV = dashData.all_time_totals?.['PV Yield (kWh)']||0;
-            const co2Tons = Math.round(lifePV * 0.001);
-            const trees = Math.round(lifePV * CC.env_trees);
-            const coalKg = Math.round(lifePV * CC.env_coal);
-            const waterL = Math.round(lifePV * CC.env_water);
-            const kmDriven = Math.round(co2Tons * 1000 / 0.21 * 1.6); // ~4.2 km per kg CO2
-            const boeingKm = Math.round(co2Tons * 1000 / 0.115); // ~8.7 km per kg CO2
-
-            const items = [
-                {icon:'☁️', val:fN(co2Tons), desc:'metric tons of CO₂ emissions were mitigated by producing power using a clean and renewable energy source.'},
-                {icon:'🌲', val:fN(trees), desc:'trees removing CO₂. The reduction in CO₂ emissions is equal to the effect of '+fN(trees)+' trees removing CO2 from the air.'},
-                {icon:'🚗', val:fN(kmDriven), desc:'km driven by a standard car is offset by the CO₂ emissions that are mitigated by the site.'},
-                {icon:'✈️', val:fN(boeingKm), desc:'km flown by a Boeing 737 is offset by the CO₂ emissions that are mitigated by the site.'},
-                {icon:'🏭', val:fN(coalKg), desc:'tons of coal would be needed by a coal-fired power station to generate the same amount of electricity.'},
-                {icon:'💧', val:fN(waterL), desc:'litres of water would be needed by a Hydropower station to produce the same amount of electricity.'}
+            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
+            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+            const lifePV=dashData.all_time_totals?.['PV Yield (kWh)']||0;
+            const co2=Math.round(lifePV*0.001);
+            const trees=Math.round(lifePV*CC.env_trees);
+            const coal=Math.round(lifePV*CC.env_coal);
+            const water=Math.round(lifePV*CC.env_water);
+            const km=Math.round(co2*1000/0.21*1.6);
+            const bkm=Math.round(co2*1000/0.115);
+            const items=[
+                {ico:'☁️',v:fN(co2),d:'metric tons of CO₂ emissions were mitigated by producing power using a clean and renewable energy source.'},
+                {ico:'🌲',v:fN(trees),d:'trees removing CO₂ from the air. The reduction in CO₂ emissions is equal to the effect of '+fN(trees)+' trees.'},
+                {ico:'🚗',v:fN(km),d:'km driven by a standard car is offset by the CO₂ emissions that are mitigated by the site.'},
+                {ico:'✈️',v:fN(bkm),d:'km flown by a Boeing 737 is offset by the CO₂ emissions that are mitigated by the site.'},
+                {ico:'🏭',v:fN(coal),d:'tons of coal would be needed by a coal-fired power station to generate the same amount of electricity.'},
+                {ico:'💧',v:fN(water),d:'litres of water would be needed by a Hydropower station to produce the same amount of electricity.'}
             ];
-            const rh = h/3; const colW = w/2;
-            ctx.textBaseline = 'top';
-            items.forEach((item, i) => {
-                const row = Math.floor(i/2); const col = i%2;
-                const x = col * colW + 12; const y = row * rh + 10;
-                // Icon
-                ctx.font = '28px serif'; ctx.fillText(item.icon, x, y+4);
-                // Value
-                ctx.font = 'bold 13px Arial'; ctx.fillStyle = '#8B0000'; ctx.fillText(item.val, x+42, y+2);
-                // Description
-                ctx.font = '9px Arial'; ctx.fillStyle = '#555';
-                const maxW = colW - 60;
-                const words = item.desc.split(' ');
-                let line = '', lineY = y + 18;
-                words.forEach(word => {
-                    const test = line + word + ' ';
-                    if (ctx.measureText(test).width > maxW && line) {
-                        ctx.fillText(line.trim(), x+42, lineY); lineY += 12; line = word + ' ';
-                    } else { line = test; }
+            const rh=h/3,colW=w/2;
+            ctx.textBaseline='top';
+            items.forEach((it,i)=>{
+                const row=Math.floor(i/2),col=i%2;
+                const x=col*colW+10,y=row*rh+8;
+                ctx.font='32px serif';ctx.fillText(it.ico,x,y);
+                ctx.font='bold 15px Arial';ctx.fillStyle='#8B0000';ctx.fillText(it.v,x+44,y+4);
+                ctx.font='11px Arial';ctx.fillStyle='#555';
+                const maxW=colW-60;
+                let line='',ly=y+24;
+                it.d.split(' ').forEach(word=>{
+                    const t=line+word+' ';
+                    if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line.trim(),x+44,ly);ly+=14;line=word+' ';}
+                    else{line=t;}
                 });
-                if (line) ctx.fillText(line.trim(), x+42, lineY);
+                if(line)ctx.fillText(line.trim(),x+44,ly);
             });
             return canvasToBlob(c);
         }
 
-        // image10/11: Warranty donut rows — matching original style
+        // ── image10/11: Warranty donut rows ──
         async function renderWarrantyRow(indices, w, h, dpr) {
-            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
-            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
-            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
-            const now = new Date();
-            const colW = w / indices.length;
-            indices.forEach((idx, col) => {
-                const wd = WARRANTY_DATA[idx]; if (!wd) return;
-                const start = new Date(wd.start+'T00:00:00');
-                const expiry = new Date(start); expiry.setFullYear(expiry.getFullYear()+wd.years);
-                const totalMs = expiry-start; const remainMs = Math.max(0,expiry-now); const elapsedMs = now-start;
-                const pctRemain = Math.max(0, remainMs/totalMs*100);
-                const remainYr = (remainMs/(365.25*24*60*60*1000)).toFixed(2);
-                const elapsedYr = (elapsedMs/(365.25*24*60*60*1000)).toFixed(2);
-                const cx2 = col * colW + colW/2;
-                const cy2 = h * 0.58;
-                const radius = Math.min(colW*0.38, h*0.32);
-                const innerR = radius * 0.58;
-                const GREEN = '#8BC34A'; const PURPLE = '#5C4D7A';
+            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
+            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+            const now=new Date(),n=indices.length,colW=w/n;
+            indices.forEach((idx,col)=>{
+                const wd=WARRANTY_DATA[idx];if(!wd)return;
+                const start=new Date(wd.start+'T00:00:00');
+                const exp2=new Date(start);exp2.setFullYear(exp2.getFullYear()+wd.years);
+                const tot=exp2-start,rem=Math.max(0,exp2-now),elap=now-start;
+                const pR=Math.max(0,rem/tot*100);
+                const rY=(rem/(365.25*24*60*60*1000)).toFixed(2);
+                const eY=(elap/(365.25*24*60*60*1000)).toFixed(2);
+                const cx2=col*colW+colW/2, cy2=h*0.57;
+                const rad=Math.min(colW*0.36,h*0.30), iR=rad*0.58;
+                const G='#8BC34A',P='#5C4D7A';
 
-                // Title
-                ctx.fillStyle = '#333'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-                const titleParts = wd.item.replace("Manufacturer's", "Manufacturer&#x27;s").split(/(?<=Panel)\s/);
-                if (wd.item.length > 22) {
-                    const mid = Math.ceil(wd.item.length/2);
-                    const sp = wd.item.indexOf(' ', mid-5);
-                    ctx.fillText(wd.item.substring(0, sp), cx2, 8);
-                    ctx.fillText(wd.item.substring(sp+1), cx2, 22);
-                } else { ctx.fillText(wd.item, cx2, 12); }
+                // Title (word-wrap for long names)
+                ctx.fillStyle='#333';ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.textBaseline='top';
+                if(wd.item.length>20){
+                    const words=wd.item.split(' ');
+                    let l1='',l2='';
+                    words.forEach(w2=>{if(ctx.measureText(l1+w2).width<colW-20)l1+=w2+' ';else l2+=w2+' ';});
+                    ctx.fillText(l1.trim(),cx2,6);ctx.fillText(l2.trim(),cx2,22);
+                } else ctx.fillText(wd.item,cx2,12);
 
                 // Legend
-                ctx.font = '8px Arial'; ctx.textAlign = 'left';
-                const lgY = 42; const lgX = cx2 - 55;
-                ctx.fillStyle = GREEN; ctx.fillRect(lgX, lgY, 8, 8);
-                ctx.fillStyle = '#555'; ctx.fillText('Remaining', lgX+11, lgY+1);
-                ctx.fillStyle = PURPLE; ctx.fillRect(lgX+68, lgY, 8, 8);
-                ctx.fillStyle = '#555'; ctx.fillText('Elapsed', lgX+79, lgY+1);
+                ctx.font='9px Arial';ctx.textAlign='left';
+                const lgY=40,lgX=cx2-52;
+                ctx.fillStyle=G;ctx.fillRect(lgX,lgY,10,10);
+                ctx.fillStyle='#555';ctx.fillText('Remaining',lgX+13,lgY+1);
+                ctx.fillStyle=P;ctx.fillRect(lgX+75,lgY,10,10);
+                ctx.fillStyle='#555';ctx.fillText('Elapsed',lgX+88,lgY+1);
 
-                // Donut arcs
-                const startAngle = -Math.PI/2;
-                const remainAngle = (pctRemain/100) * Math.PI * 2;
-                // Remaining
-                ctx.beginPath();
-                ctx.arc(cx2, cy2, radius, startAngle, startAngle+remainAngle);
-                ctx.arc(cx2, cy2, innerR, startAngle+remainAngle, startAngle, true);
-                ctx.closePath(); ctx.fillStyle = GREEN; ctx.fill();
-                // Elapsed
-                ctx.beginPath();
-                ctx.arc(cx2, cy2, radius, startAngle+remainAngle, startAngle+Math.PI*2);
-                ctx.arc(cx2, cy2, innerR, startAngle+Math.PI*2, startAngle+remainAngle, true);
-                ctx.closePath(); ctx.fillStyle = PURPLE; ctx.fill();
+                // Donut
+                const sa=-Math.PI/2, ra=(pR/100)*Math.PI*2;
+                ctx.beginPath();ctx.arc(cx2,cy2,rad,sa,sa+ra);ctx.arc(cx2,cy2,iR,sa+ra,sa,true);ctx.closePath();ctx.fillStyle=G;ctx.fill();
+                ctx.beginPath();ctx.arc(cx2,cy2,rad,sa+ra,sa+Math.PI*2);ctx.arc(cx2,cy2,iR,sa+Math.PI*2,sa+ra,true);ctx.closePath();ctx.fillStyle=P;ctx.fill();
 
-                // Labels on arcs
-                ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                const midR = (radius+innerR)/2;
-                if (pctRemain > 8) {
-                    const a1 = startAngle + remainAngle/2;
-                    ctx.fillText(remainYr+';', cx2+Math.cos(a1)*midR, cy2+Math.sin(a1)*midR-6);
-                    ctx.fillText(Math.round(pctRemain)+'%', cx2+Math.cos(a1)*midR, cy2+Math.sin(a1)*midR+6);
-                }
-                if ((100-pctRemain) > 8) {
-                    const a2 = startAngle + remainAngle + (Math.PI*2-remainAngle)/2;
-                    ctx.fillText(elapsedYr+';', cx2+Math.cos(a2)*midR, cy2+Math.sin(a2)*midR-6);
-                    ctx.fillText(Math.round(100-pctRemain)+'%', cx2+Math.cos(a2)*midR, cy2+Math.sin(a2)*midR+6);
-                }
+                // Labels
+                const mR=(rad+iR)/2;
+                ctx.fillStyle='#fff';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+                if(pR>8){const a=sa+ra/2;ctx.fillText(rY+';',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR-7);ctx.fillText(Math.round(pR)+'%',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR+7);}
+                if((100-pR)>8){const a=sa+ra+(Math.PI*2-ra)/2;ctx.fillText(eY+';',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR-7);ctx.fillText(Math.round(100-pR)+'%',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR+7);}
             });
             return canvasToBlob(c);
         }
