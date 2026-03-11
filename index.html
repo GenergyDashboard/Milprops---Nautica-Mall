@@ -5546,6 +5546,13 @@
             zip.file('word/media/image3.png', await renderOverviewBar(ym, yr, mo, numDays, curH, fN, 915, 67, DPR));
             // image4: Daily performance chart (1497x455)
             zip.file('word/media/image4.png', await renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, 1497, 455, DPR));
+            // image5: Monthly data TABLE (1100x310) — replace EMF with PNG
+            zip.file('word/media/image5.png', await renderMonthlyTable(ym, yr, mo, numDays, curH, fN, 1100, 310, DPR));
+            // Update relationship from .emf to .png
+            let relsXml = await zip.file('word/_rels/document.xml.rels').async('string');
+            relsXml = relsXml.replace('media/image5.emf', 'media/image5.png');
+            zip.file('word/_rels/document.xml.rels', relsXml);
+            zip.remove('word/media/image5.emf');
             // image6: Monthly performance chart (958x368)
             zip.file('word/media/image6.png', await renderMonthlyChart(ym, yr, mo, numDays, curH, mNamesS, fN, 958, 368, DPR));
             // image7: Yearly summary table (904x73)
@@ -5629,6 +5636,86 @@
                 const bW=Math.min(180,r.p*1.8);
                 ctx.fillStyle='#8BC34A'; ctx.fillRect(w-185, y-7, bW, 14);
             });
+            return canvasToBlob(c);
+        }
+
+
+        // ── image5: Monthly data table with green bars ──
+        async function renderMonthlyTable(ym, yr, mo, numDays, curH, fN, w, h, dpr) {
+            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
+            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+
+            const mS=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const now=new Date();
+            const allM=Object.keys(dashData.monthly).sort();
+            const ymI=allM.indexOf(ym);
+            const last12=allM.slice(Math.max(0,ymI-11),ymI+1);
+
+            // Build rows
+            const rows=[];
+            let tot12A=0, tot12E=0;
+            last12.forEach(m=>{
+                const d=dashData.monthly[m];const[my,mm]=m.split('-').map(Number);
+                const ic=my===now.getFullYear()&&mm===(now.getMonth()+1);
+                const nd=ic?now.getDate():new Date(my,mm,0).getDate();
+                const ch=ic?curH:23;
+                const mA=d['PV Yield (kWh)']||0;
+                const mE=calcMonthExpFor(my,mm,nd,ch);
+                const diff=mA-mE;
+                const perf=mE>0?mA/mE*100:0;
+                tot12A+=mA; tot12E+=mE;
+                rows.push({label:mS[mm]+' '+String(my).slice(2), act:mA, exp:mE, diff:diff, perf:perf});
+            });
+            const totDiff=tot12A-tot12E;
+            const totPerf=tot12E>0?tot12A/tot12E*100:0;
+
+            // Layout
+            const barW=110; // left bar area
+            const colX=[barW+10, barW+80, barW+210, barW+360, barW+500, barW+620];
+            const rh=(h-20)/(rows.length+2); // +2 for header + total
+            const startY=4;
+            const fD2=v=>{const s=Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,' ');return(v<0?'- ':'')+s+' kWh';};
+            const fD0=v=>Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' kWh';
+
+            // Header
+            ctx.font='bold 11px Arial';ctx.fillStyle='#444';ctx.textBaseline='top';
+            ctx.textAlign='center';
+            ctx.fillText('Month',colX[1],startY);
+            ctx.fillText('Yield',colX[2],startY);
+            ctx.fillText('Target',colX[3],startY);
+            ctx.fillText('Difference',colX[4],startY);
+            ctx.fillText('Performance',colX[5],startY);
+
+            // Data rows
+            ctx.font='10px Arial';
+            const maxPerf=Math.max(...rows.map(r=>r.perf),100);
+            rows.forEach((r,i)=>{
+                const y=startY+(i+1)*rh+rh/2;
+                // Green bar (proportional to perf)
+                const bW=Math.min(barW-5,(r.perf/maxPerf)*(barW-5));
+                ctx.fillStyle='#8BC34A';ctx.fillRect(2,y-5,bW,10);
+                // Text
+                ctx.fillStyle='#444';ctx.textAlign='center';
+                ctx.fillText(r.label,colX[1],y-4);
+                ctx.fillText(fD0(r.act),colX[2],y-4);
+                ctx.fillText(fD0(r.exp),colX[3],y-4);
+                ctx.fillStyle=r.diff>=0?'#444':'#444';
+                ctx.fillText(fD2(r.diff),colX[4],y-4);
+                ctx.fillStyle='#444';
+                ctx.fillText(r.perf.toFixed(2)+'%',colX[5],y-4);
+            });
+
+            // Total row
+            const totY=startY+(rows.length+1)*rh+rh/2;
+            ctx.font='bold 11px Arial';ctx.fillStyle='#444';ctx.textAlign='center';
+            ctx.fillText('12 Month Total',colX[1],totY-4);
+            ctx.fillText(fD0(tot12A),colX[2],totY-4);
+            ctx.fillText(fD0(tot12E),colX[3],totY-4);
+            ctx.fillText(fD2(totDiff),colX[4],totY-4);
+            ctx.font='bold 11px Arial';
+            ctx.fillText(totPerf.toFixed(2)+'%',colX[5],totY-4);
+
             return canvasToBlob(c);
         }
 
