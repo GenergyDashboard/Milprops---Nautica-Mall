@@ -5571,6 +5571,79 @@
         // IMAGE RENDERERS
         // ════════════════════════════════════════════════
 
+        // Canvas helper: convert to PNG blob
+        function canvasToBlob(canvas) {
+            return new Promise(r => canvas.toBlob(b => {
+                b.arrayBuffer().then(ab => r(new Uint8Array(ab)));
+            }, 'image/png'));
+        }
+
+        // Chart.js helper: render offscreen and return PNG
+        async function renderChartToPng(w, h, dpr, config) {
+            const c = document.createElement('canvas');
+            c.width = w * dpr; c.height = h * dpr;
+            c.style.width = w+'px'; c.style.height = h+'px';
+            const ctx = c.getContext('2d');
+            ctx.scale(dpr, dpr);
+            c.style.position = 'fixed'; c.style.left = '-9999px';
+            document.body.appendChild(c);
+            config.options = config.options || {};
+            config.options.responsive = false;
+            config.options.animation = false;
+            config.options.devicePixelRatio = dpr;
+            const chart = new Chart(ctx, config);
+            await new Promise(r => setTimeout(r, 100));
+            const blob = await canvasToBlob(c);
+            chart.destroy();
+            document.body.removeChild(c);
+            return blob;
+        }
+
+        // image3: Overview summary bar
+        async function renderOverviewBar(ym, yr, mo, numDays, curH, fN, w, h, dpr) {
+            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
+            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+            const md = dashData.monthly[ym]||{};
+            const actPV = md['PV Yield (kWh)']||0;
+            const expPV = calcMonthExpFor(yr,mo,numDays,curH);
+            const perf = expPV>0?actPV/expPV*100:0;
+            const mNamesS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const allM = Object.keys(dashData.monthly).sort();
+            const ymIdx = allM.indexOf(ym);
+            const first12 = allM[Math.max(0,ymIdx-11)];
+            const now = new Date();
+            let ltAct=0, ltExp=0, yrAct=0, yrExp=0;
+            allM.forEach(m => {
+                const mmd=dashData.monthly[m]; const [my,mm2]=m.split('-').map(Number);
+                const isCur=my===now.getFullYear()&&mm2===(now.getMonth()+1);
+                const nd=isCur?now.getDate():new Date(my,mm2,0).getDate();
+                const ch=isCur?curH:23;
+                const mE=calcMonthExpFor(my,mm2,nd,ch); const mA=mmd['PV Yield (kWh)']||0;
+                ltAct+=mA; ltExp+=mE;
+                if (m>=first12&&m<=ym) { yrAct+=mA; yrExp+=mE; }
+            });
+            const rows = [
+                { label: mNamesS[mo]+' '+String(yr).slice(2), gen: actPV, exp: expPV, perf: perf },
+                { label: mNamesS[parseInt(first12.split('-')[1])]+' '+first12.split('-')[0].slice(2)+' - '+mNamesS[mo]+' '+String(yr).slice(2), gen: yrAct, exp: yrExp, perf: yrExp>0?yrAct/yrExp*100:0 },
+                { label: 'Lifetime', gen: ltAct, exp: ltExp, perf: ltExp>0?ltAct/ltExp*100:0 }
+            ];
+            const rh = h/3;
+            ctx.textBaseline = 'middle';
+            rows.forEach((r,i) => {
+                const y = i*rh + rh/2;
+                ctx.fillStyle = '#555'; ctx.textAlign = 'right';
+                ctx.font = '700 10px Arial'; ctx.fillText(r.label, 110, y);
+                ctx.textAlign = 'left'; ctx.font = '600 10px Arial'; ctx.fillStyle = '#8BC34A';
+                ctx.fillText(fN(r.gen)+' kWh Generated', 125, y);
+                ctx.fillText(fN(r.exp)+' kWh Predicted', 355, y);
+                ctx.fillText(r.perf.toFixed(2)+'% Performance', 575, y);
+                const barW = Math.min(150, r.perf * 1.5);
+                ctx.fillStyle = '#8BC34A'; ctx.fillRect(w-160, y-8, barW, 16);
+            });
+            return canvasToBlob(c);
+        }
+
         // image4: Daily performance chart — irradiation BEHIND yield (overlapping bars)
         async function renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, w, h, dpr) {
             const labels=[], actArr=[], expArr=[], irradArr=[];
