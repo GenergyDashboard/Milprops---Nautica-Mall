@@ -5482,10 +5482,10 @@
         async function _buildDocxReport() {
             const ym = document.getElementById('rptDocxMonth').value;
             if (!ym || !dashData?.monthly?.[ym]) throw new Error('No data for selected month');
-
             const [yr, mo] = ym.split('-').map(Number);
             const mm = String(mo).padStart(2,'0');
             const mNames = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+            const mNamesS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const mUpper = mNames[mo].toUpperCase();
             const monthName = mNames[mo];
             const now = new Date();
@@ -5494,277 +5494,411 @@
             const numDays = isCurrentMonth ? now.getDate() : daysInMonth;
             const curH = isCurrentMonth ? (dashData.hourly?.current_hour ?? now.getHours()) : 23;
             const md = dashData.monthly[ym];
-            const fN = v => v == null || isNaN(v) ? '--' : Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-            const fD = (v,d) => v == null || isNaN(v) ? '--' : v.toFixed(d||1);
-            const dateStr = String(now.getDate()).padStart(2,'0') + '/' + String(now.getMonth()+1).padStart(2,'0') + '/' + now.getFullYear();
+            const factor = degradationFactor(yr);
+            const fN = v => v==null||isNaN(v)?'--':Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+            const dateStr = String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
 
-            // ── Calculations ──
-            const actPV = md['PV Yield (kWh)'] || 0;
-            const actLoad = md['Consumption (kWh)'] || 0;
-            const actGrid = md['Import (kWh)'] || 0;
-            const actSC = md['Self-consumption (kWh)'] || 0;
-            const actExp = md['Export (kWh)'] || 0;
+            // Key calcs
+            const actPV = md['PV Yield (kWh)']||0;
+            const actSC = md['Self-consumption (kWh)']||0;
+            const actExp = md['Export (kWh)']||0;
+            const actGrid = md['Import (kWh)']||0;
+            const actLoad = md['Consumption (kWh)']||0;
             const expPV = calcMonthExpFor(yr, mo, numDays, curH);
-            const perf = expPV > 0 ? (actPV / expPV * 100) : 0;
-            const coverage = actLoad > 0 ? (actSC / actLoad * 100) : 0;
-            const sav = calcMonthTOUSavings(yr, mo, actSC, actExp, numDays, actGrid);
-            const totalSavings = sav ? sav.total : 0;
+            const perf = expPV > 0 ? actPV/expPV*100 : 0;
 
-            // ── Fetch & decrypt template ──
+            // Fetch & decrypt template
             const templateBuffer = await getReportTemplate();
             const zip = await JSZip.loadAsync(templateBuffer);
 
-            // ── Get document.xml ──
+            // ── TEXT REPLACEMENTS in document.xml ──
             let docXml = await zip.file('word/document.xml').async('string');
-
-            // ── COVER PAGE REPLACEMENTS ──
             docXml = docXml.replace(/FEBRUARY 2026/g, mUpper + ' ' + yr);
             docXml = docXml.replace(/February 2026/g, monthName + ' ' + yr);
             docXml = docXml.replace(/05\/03\/2026/g, dateStr);
 
-            // ── REPLACE BODY CONTENT ──
-            // Find the first GenergyHeading1 paragraph (INTRODUCTION) and replace everything to sectPr
-            const bodyStartRe = /<w:p [^>]*>\s*<w:pPr>\s*<w:pStyle w:val="GenergyHeading1"\/>/;
-            const bodyStartMatch = docXml.match(bodyStartRe);
-            if (!bodyStartMatch) throw new Error('Could not find body start marker');
-            const bodyStartIdx = docXml.indexOf(bodyStartMatch[0]);
-            const sectPrIdx = docXml.indexOf('<w:sectPr', bodyStartIdx);
-            if (sectPrIdx < 0) throw new Error('Could not find sectPr marker');
+            // Replace commentary text
+            const oldComm = 'The system performed consistently throughout';
+            const commIdx = docXml.indexOf(oldComm);
+            if (commIdx > 0) {
+                const commEnd = docXml.indexOf('</w:t>', commIdx);
+                let newComm;
+                if (perf >= 95) newComm = 'The system performed well during ' + monthName + ' ' + yr + ', with daily yields generally aligning with the expected generation levels. Overall performance of ' + perf.toFixed(1) + '% indicates the system is operating as designed.';
+                else if (perf >= 80) newComm = 'The system performed consistently throughout ' + monthName + ' ' + yr + ', with daily yields generally aligning with the expected generation levels. The days that show lower production correspond with periods of adverse weather conditions.';
+                else newComm = 'System performance was below target at ' + perf.toFixed(1) + '% during ' + monthName + ' ' + yr + '. This may be attributed to extended periods of adverse weather or equipment issues.';
+                docXml = docXml.substring(0, commIdx) + newComm + docXml.substring(commEnd);
+            }
 
-            // Build new body XML
-            const newBody = buildReportBodyXml(ym, yr, mo, monthName, numDays, curH, isCurrentMonth, actPV, expPV, actSC, actExp, actGrid, actLoad, perf, coverage, sav, totalSavings, fN, fD);
+            // Replace conclusion text
+            const oldConc = 'The report has indicated that the system is performing as designed and is continuing to operate as expected.';
+            if (perf >= 90) {
+                docXml = docXml.replace(oldConc, 'The report has indicated that the system is performing as designed and is continuing to operate as expected.');
+            } else {
+                docXml = docXml.replace(oldConc, 'The report indicates that system performance requires attention during this period. Continued monitoring and corrective actions are being implemented.');
+            }
 
-            docXml = docXml.substring(0, bodyStartIdx) + newBody + docXml.substring(sectPrIdx);
-
-            // ── Save back ──
             zip.file('word/document.xml', docXml);
 
-            const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            // ── RENDER & REPLACE IMAGES ──
+            const DPR = 2; // render at 2x for crisp output
+
+            // image3: Overview summary bar (915x67)
+            zip.file('word/media/image3.png', await renderOverviewBar(ym, yr, mo, numDays, curH, fN, 915, 67, DPR));
+            // image4: Daily performance chart (1497x455)
+            zip.file('word/media/image4.png', await renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, 1497, 455, DPR));
+            // image6: Monthly performance chart (958x368)
+            zip.file('word/media/image6.png', await renderMonthlyChart(ym, yr, mo, numDays, curH, mNamesS, fN, 958, 368, DPR));
+            // image7: Yearly summary table (904x73)
+            zip.file('word/media/image7.png', await renderYearlySummary(yr, mo, numDays, curH, fN, 904, 73, DPR));
+            // image8: Yearly chart (958x368)
+            zip.file('word/media/image8.png', await renderYearlyChart(yr, mo, numDays, curH, fN, 958, 368, DPR));
+            // image9: Environmental impact (725x261)
+            zip.file('word/media/image9.png', await renderEnvImpact(fN, 725, 261, DPR));
+            // image10: Warranty donuts top row (809x326)
+            zip.file('word/media/image10.png', await renderWarrantyRow([0,1,2], 809, 326, DPR));
+            // image11: Warranty donuts bottom row (702x326)
+            zip.file('word/media/image11.png', await renderWarrantyRow([3,4,5], 702, 326, DPR));
+
+            // Generate & download
+            const blob = await zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = 'Nautica_' + monthName + '_' + yr + '_Report.docx';
-            a.click();
+            a.href = url; a.download = 'Nautica_'+monthName+'_'+yr+'_Report.docx'; a.click();
             URL.revokeObjectURL(url);
         }
 
-        function buildReportBodyXml(ym, yr, mo, monthName, numDays, curH, isCurrentMonth, actPV, expPV, actSC, actExp, actGrid, actLoad, perf, coverage, sav, totalSavings, fN, fD) {
-            const mm = String(mo).padStart(2,'0');
-            const mNamesShort = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            const now = new Date();
+        // ── Canvas helper: convert to PNG blob ──
+        function canvasToBlob(canvas) {
+            return new Promise(r => canvas.toBlob(b => {
+                b.arrayBuffer().then(ab => r(new Uint8Array(ab)));
+            }, 'image/png'));
+        }
 
-            // Helper: Generate XML for a GenergyHeading1 paragraph
-            function h1(text) {
-                return '<w:p><w:pPr><w:pStyle w:val="GenergyHeading1"/><w:jc w:val="both"/><w:rPr><w:lang w:val="en-GB"/></w:rPr></w:pPr><w:r><w:rPr><w:lang w:val="en-GB"/></w:rPr><w:t>' + text + '</w:t></w:r></w:p>';
-            }
-            function h2(text) {
-                return '<w:p><w:pPr><w:pStyle w:val="GenergyHeading2"/><w:jc w:val="both"/><w:rPr><w:lang w:val="en-GB"/></w:rPr></w:pPr><w:r><w:rPr><w:lang w:val="en-GB"/></w:rPr><w:t>' + text + '</w:t></w:r></w:p>';
-            }
-            function para(text) {
-                return '<w:p><w:pPr><w:jc w:val="both"/><w:rPr><w:lang w:val="en-GB"/></w:rPr></w:pPr><w:r><w:rPr><w:lang w:val="en-GB"/></w:rPr><w:t xml:space="preserve">' + text + '</w:t></w:r></w:p>';
-            }
-            function paraBold(label, text) {
-                return '<w:p><w:pPr><w:jc w:val="both"/><w:rPr><w:lang w:val="en-GB"/></w:rPr></w:pPr><w:r><w:rPr><w:b/><w:lang w:val="en-GB"/></w:rPr><w:t xml:space="preserve">' + label + '</w:t></w:r><w:r><w:rPr><w:lang w:val="en-GB"/></w:rPr><w:t xml:space="preserve">' + text + '</w:t></w:r></w:p>';
-            }
-            function pageBreak() {
-                return '<w:p><w:pPr><w:rPr><w:lang w:val="en-GB"/></w:rPr></w:pPr><w:r><w:rPr><w:lang w:val="en-GB"/></w:rPr><w:br w:type="page"/></w:r></w:p>';
-            }
-            function emptyPara() { return '<w:p><w:pPr><w:jc w:val="both"/></w:pPr></w:p>'; }
+        // ── Chart.js helper: render offscreen and return PNG ──
+        async function renderChartToPng(w, h, dpr, config) {
+            const c = document.createElement('canvas');
+            c.width = w * dpr; c.height = h * dpr;
+            c.style.width = w+'px'; c.style.height = h+'px';
+            const ctx = c.getContext('2d');
+            ctx.scale(dpr, dpr);
+            // Chart.js needs the canvas in DOM briefly
+            c.style.position = 'fixed'; c.style.left = '-9999px';
+            document.body.appendChild(c);
+            config.options = config.options || {};
+            config.options.responsive = false;
+            config.options.animation = false;
+            config.options.devicePixelRatio = dpr;
+            const chart = new Chart(ctx, config);
+            // Wait a tick for render
+            await new Promise(r => setTimeout(r, 100));
+            const blob = await canvasToBlob(c);
+            chart.destroy();
+            document.body.removeChild(c);
+            return blob;
+        }
 
-            // Table helpers
-            const TC = '2F5233'; // Green header
-            function tableStart(cols) {
-                const gridXml = cols.map(w => '<w:gridCol w:w="' + w + '"/>').join('');
-                return '<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="' + cols.reduce((a,b)=>a+b,0) + '" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/></w:tblBorders><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>' + gridXml + '</w:tblGrid>';
-            }
-            function tableEnd() { return '</w:tbl>'; }
-            function cell(text, width, opts) {
-                opts = opts || {};
-                let shading = opts.fill ? '<w:shd w:val="clear" w:color="auto" w:fill="' + opts.fill + '"/>' : '';
-                let jc = opts.align === 'left' ? 'left' : 'center';
-                let rpr = '<w:rPr>';
-                if (opts.bold) rpr += '<w:b/>';
-                if (opts.color) rpr += '<w:color w:val="' + opts.color + '"/>';
-                if (opts.sz) rpr += '<w:sz w:val="' + opts.sz + '"/><w:szCs w:val="' + opts.sz + '"/>';
-                rpr += '<w:lang w:val="en-GB"/></w:rPr>';
-                return '<w:tc><w:tcPr><w:tcW w:w="' + width + '" w:type="dxa"/>' + shading + '</w:tcPr><w:p><w:pPr><w:jc w:val="' + jc + '"/></w:pPr><w:r>' + rpr + '<w:t xml:space="preserve">' + text + '</w:t></w:r></w:p></w:tc>';
-            }
-            function hdrCell(text, width) { return cell(text, width, { fill: TC, bold: true, color: 'FFFFFF', sz: '18' }); }
-            function row(cells) { return '<w:tr>' + cells + '</w:tr>'; }
+        // ════════════════════════════════════════════════
+        // IMAGE RENDERERS
+        // ════════════════════════════════════════════════
 
-            let xml = '';
+        // image3: Overview summary bar
+        async function renderOverviewBar(ym, yr, mo, numDays, curH, fN, w, h, dpr) {
+            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
+            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+            const md = dashData.monthly[ym]||{};
+            const actPV = md['PV Yield (kWh)']||0;
+            const expPV = calcMonthExpFor(yr,mo,numDays,curH);
+            const perf = expPV>0?actPV/expPV*100:0;
+            const mNamesS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-            // ═══ 1. INTRODUCTION ═══
-            xml += h1('INTRODUCTION');
-            xml += para('The following report contains a summary of the plant&#x2019;s performance for ' + monthName + ' ' + yr + '. The plant is monitored through a Fusion Solar monitoring device with various data acquisition capabilities. The data is captured and uploaded to a user-friendly online portal.');
-            xml += emptyPara();
+            // Last 12 months
+            const allM = Object.keys(dashData.monthly).sort();
+            const ymIdx = allM.indexOf(ym);
+            const first12 = allM[Math.max(0,ymIdx-11)];
+            let ltAct=0, ltExp=0, yrAct=0, yrExp=0;
+            allM.forEach(m => {
+                const mmd=dashData.monthly[m]; const [my,mm2]=m.split('-').map(Number);
+                const isCur=my===new Date().getFullYear()&&mm2===(new Date().getMonth()+1);
+                const nd=isCur?new Date().getDate():new Date(my,mm2,0).getDate();
+                const ch=isCur?curH:23;
+                const mE=calcMonthExpFor(my,mm2,nd,ch); const mA=mmd['PV Yield (kWh)']||0;
+                ltAct+=mA; ltExp+=mE;
+                if (m>=first12&&m<=ym) { yrAct+=mA; yrExp+=mE; }
+            });
 
-            // ═══ 2. OVERVIEW ═══
-            xml += h1('OVERVIEW');
-            xml += para('The table below gives a brief overview of the monthly generated values in comparison to generation values predicted by Genergy&#x2019;s engineers using PVSyst and other solar software. We will go further into detail in the sections below.');
-            xml += emptyPara();
+            const rows = [
+                { label: mNamesS[mo]+' '+String(yr).slice(2), gen: actPV, exp: expPV, perf: perf },
+                { label: mNamesS[parseInt(first12.split('-')[1])]+' '+first12.split('-')[0].slice(2)+' - '+mNamesS[mo]+' '+String(yr).slice(2), gen: yrAct, exp: yrExp, perf: yrExp>0?yrAct/yrExp*100:0 },
+                { label: 'Lifetime', gen: ltAct, exp: ltExp, perf: ltExp>0?ltAct/ltExp*100:0 }
+            ];
+            const rh = h/3;
+            ctx.font = '600 10px Arial'; ctx.textBaseline = 'middle';
+            rows.forEach((r,i) => {
+                const y = i*rh + rh/2;
+                ctx.fillStyle = '#555'; ctx.textAlign = 'left';
+                ctx.font = '700 10px Arial'; ctx.fillText(r.label, 8, y);
+                ctx.font = '600 10px Arial'; ctx.fillStyle = '#8BC34A';
+                ctx.fillText(fN(r.gen)+' kWh Generated', 120, y);
+                ctx.fillText(fN(r.exp)+' kWh Predicted', 340, y);
+                ctx.fillText(r.perf.toFixed(2)+'% Performance', 560, y);
+                // Green bar
+                const barW = Math.min(150, r.perf * 1.5);
+                ctx.fillStyle = '#8BC34A'; ctx.fillRect(w-160, y-8, barW, 16);
+            });
+            return canvasToBlob(c);
+        }
 
-            // Overview table
-            const oCols = [2600, 1700, 1700, 1700, 1660];
-            xml += tableStart(oCols);
-            xml += row(hdrCell('Metric', oCols[0]) + hdrCell('Actual', oCols[1]) + hdrCell('Expected', oCols[2]) + hdrCell('Variance', oCols[3]) + hdrCell('Performance', oCols[4]));
-            const variance = actPV - expPV;
-            const varSign = variance >= 0 ? '+' : '';
-            const perfColor = perf >= 95 ? '2E7D32' : perf >= 80 ? 'BF8C00' : 'C62828';
-            xml += row(cell('PV Generation (kWh)', oCols[0], {align:'left',bold:true}) + cell(fN(actPV), oCols[1]) + cell(fN(expPV), oCols[2]) + cell(varSign + fN(variance), oCols[3], {color: variance>=0?'2E7D32':'C62828'}) + cell(fD(perf)+'%', oCols[4], {bold:true, color:perfColor}));
-            xml += row(cell('Self-Consumption (kWh)', oCols[0], {align:'left',bold:true,fill:'F0F0F0'}) + cell(fN(actSC), oCols[1], {fill:'F0F0F0'}) + cell('--', oCols[2], {fill:'F0F0F0'}) + cell('--', oCols[3], {fill:'F0F0F0'}) + cell('--', oCols[4], {fill:'F0F0F0'}));
-            xml += row(cell('Export to Grid (kWh)', oCols[0], {align:'left',bold:true}) + cell(fN(actExp), oCols[1]) + cell('--', oCols[2]) + cell('--', oCols[3]) + cell('--', oCols[4]));
-            xml += row(cell('Grid Import (kWh)', oCols[0], {align:'left',bold:true,fill:'F0F0F0'}) + cell(fN(actGrid), oCols[1], {fill:'F0F0F0'}) + cell('--', oCols[2], {fill:'F0F0F0'}) + cell('--', oCols[3], {fill:'F0F0F0'}) + cell('--', oCols[4], {fill:'F0F0F0'}));
-            xml += row(cell('Consumption (kWh)', oCols[0], {align:'left',bold:true}) + cell(fN(actLoad), oCols[1]) + cell('--', oCols[2]) + cell('--', oCols[3]) + cell('--', oCols[4]));
-            xml += row(cell('PV Coverage', oCols[0], {align:'left',bold:true,fill:'F0F0F0'}) + cell(fD(coverage)+'%', oCols[1], {bold:true,fill:'F0F0F0',color:coverage>=50?'2E7D32':'BF8C00'}) + cell('--', oCols[2], {fill:'F0F0F0'}) + cell('--', oCols[3], {fill:'F0F0F0'}) + cell('--', oCols[4], {fill:'F0F0F0'}));
-            xml += row(cell('Total Savings', oCols[0], {align:'left',bold:true,fill:TC,color:'FFFFFF'}) + cell('R ' + fN(totalSavings), oCols[1], {bold:true,fill:TC,color:'FFFFFF'}) + cell('', oCols[2], {fill:TC}) + cell('', oCols[3], {fill:TC}) + cell('', oCols[4], {fill:TC}));
-            xml += tableEnd();
-            xml += emptyPara();
-
-            // ═══ 3. PERFORMANCE FIGURES ═══
-            xml += pageBreak();
-            xml += h1('PERFORMANCE FIGURES');
-            xml += para('The daily generation and performance figures for ' + monthName + ' ' + yr + ' are shown below. Please note that all target generation values used in this report are based on a simulation that was performed to determine the expected production and target yields that the site should be performing at, these values have been adjusted using the solar panel manufacturers warrantied degradation rates.');
-            xml += emptyPara();
-
-            // 3.1 Daily Performance
-            xml += h2('Daily Performance');
-            const dCols = [900, 2300, 2100, 2100, 1960];
-            xml += tableStart(dCols);
-            xml += row(hdrCell('Day', dCols[0]) + hdrCell('Date', dCols[1]) + hdrCell('Actual (kWh)', dCols[2]) + hdrCell('Expected (kWh)', dCols[3]) + hdrCell('Performance', dCols[4]));
-            let totalActD = 0, totalExpD = 0;
-            for (let d = 1; d <= numDays; d++) {
+        // image4: Daily performance chart
+        async function renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, w, h, dpr) {
+            const labels=[], actArr=[], expArr=[], irradArr=[];
+            const factor = degradationFactor(yr);
+            for (let d=1;d<=numDays;d++) {
+                labels.push(String(d));
                 const ds = yr+'-'+mm+'-'+String(d).padStart(2,'0');
                 const dh = dailyHist?.[ds];
                 const mmdd = mm+'-'+String(d).padStart(2,'0');
                 const dayPvs = getPvsystDay(mmdd);
-                let dayExp = dayPvs.reduce((a,b)=>a+b,0) * degradationFactor(yr);
-                if (isCurrentMonth && d === numDays) { dayExp = 0; for(let h=0;h<=curH;h++) dayExp += (dayPvs[h]||0); dayExp *= degradationFactor(yr); }
+                let dayExp = dayPvs.reduce((a,b)=>a+b,0)*factor;
+                if (isCurrentMonth&&d===numDays) { dayExp=0; for(let hh=0;hh<=curH;hh++) dayExp+=(dayPvs[hh]||0); dayExp*=factor; }
                 const dayAct = dh ? dh.pv : 0;
-                const dayPerf = dayExp > 0 ? (dayAct / dayExp * 100) : 0;
-                totalActD += dayAct; totalExpD += dayExp;
-                const fill = d % 2 === 0 ? 'F0F0F0' : undefined;
-                const pColor = dayPerf >= 95 ? '2E7D32' : dayPerf >= 80 ? 'BF8C00' : 'C62828';
-                xml += row(cell(String(d), dCols[0], {fill}) + cell(ds, dCols[1], {fill}) + cell(fN(dayAct), dCols[2], {fill}) + cell(fN(dayExp), dCols[3], {fill}) + cell(fD(dayPerf)+'%', dCols[4], {fill, bold:true, color:pColor}));
+                // Irradiation from irradData or PVSyst as proxy
+                const irradDay = irradData?.daily_records?.[ds];
+                const irradTotal = irradDay ? (irradDay.hourly_wm2||[]).reduce((a,b)=>a+b,0)/200 : dayPvs.reduce((a,b)=>a+b,0)*factor*1.1;
+                actArr.push(Math.round(dayAct));
+                expArr.push(Math.round(dayExp));
+                irradArr.push(Math.round(irradTotal));
             }
-            const totalPerfD = totalExpD > 0 ? totalActD/totalExpD*100 : 0;
-            xml += row(cell('', dCols[0], {fill:TC}) + cell('TOTAL', dCols[1], {fill:TC,bold:true,color:'FFFFFF'}) + cell(fN(totalActD), dCols[2], {fill:TC,bold:true,color:'FFFFFF'}) + cell(fN(totalExpD), dCols[3], {fill:TC,bold:true,color:'FFFFFF'}) + cell(fD(totalPerfD)+'%', dCols[4], {fill:TC,bold:true,color:'FFD700'}));
-            xml += tableEnd();
-            xml += emptyPara();
-
-            // Commentary
-            let commentary;
-            if (perf >= 95) commentary = 'The system performed well during ' + monthName + ' ' + yr + ', with daily yields generally aligning with the expected generation levels. Overall performance of ' + fD(perf) + '% indicates the system is operating as designed.';
-            else if (perf >= 80) commentary = 'The system performed consistently throughout ' + monthName + ' ' + yr + ', with daily yields generally aligning with the expected generation levels. The days that show lower production correspond with periods of adverse weather conditions.';
-            else commentary = 'System performance was below target at ' + fD(perf) + '% during ' + monthName + ' ' + yr + '. This may be attributed to extended periods of adverse weather or equipment issues. Further investigation is recommended.';
-            xml += paraBold('Comment on Daily Performance: ', commentary);
-            xml += emptyPara();
-
-            // 3.2 Monthly Performance
-            xml += pageBreak();
-            xml += h2('Monthly Performance');
-            xml += para('The monthly generation and performance figures for the last 12 months are shown below. Please note that all target generation values used in this report were generated using PVSyst and other solar software.');
-            xml += emptyPara();
-
-            const allMonths = Object.keys(dashData.monthly).sort();
-            const ymIdx = allMonths.indexOf(ym);
-            const last12 = allMonths.slice(Math.max(0, ymIdx - 11), ymIdx + 1);
-            const mCols = [2340, 2340, 2340, 2340];
-            xml += tableStart(mCols);
-            xml += row(hdrCell('Month', mCols[0]) + hdrCell('Actual (kWh)', mCols[1]) + hdrCell('Expected (kWh)', mCols[2]) + hdrCell('Performance', mCols[3]));
-            last12.forEach((m, i) => {
-                const mmd = dashData.monthly[m];
-                const [my, mm2] = m.split('-').map(Number);
-                const isCur = my === now.getFullYear() && mm2 === (now.getMonth()+1);
-                const nd = isCur ? now.getDate() : new Date(my, mm2, 0).getDate();
-                const ch = isCur ? curH : 23;
-                const mExp = calcMonthExpFor(my, mm2, nd, ch);
-                const mAct = mmd['PV Yield (kWh)'] || 0;
-                const mPerf = mExp > 0 ? mAct/mExp*100 : 0;
-                const fill = i % 2 === 0 ? undefined : 'F0F0F0';
-                const pColor = mPerf >= 95 ? '2E7D32' : mPerf >= 80 ? 'BF8C00' : 'C62828';
-                const label = mNamesShort[mm2] + ' ' + my;
-                xml += row(cell(label, mCols[0], {align:'left', fill, bold: m===ym}) + cell(fN(mAct), mCols[1], {fill}) + cell(fN(mExp), mCols[2], {fill}) + cell(fD(mPerf)+'%', mCols[3], {fill, bold:true, color:pColor}));
+            const avgExp = expArr.reduce((a,b)=>a+b,0)/expArr.length;
+            const targetLine = expArr.map(()=>Math.round(avgExp));
+            return renderChartToPng(w, h, dpr, {
+                type:'bar',
+                data:{labels, datasets:[
+                    {type:'bar',label:'Irradiation',data:irradArr,backgroundColor:'rgba(255,235,59,0.5)',borderWidth:0,order:2,barPercentage:0.9,categoryPercentage:0.85},
+                    {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:1,barPercentage:0.7,categoryPercentage:0.85},
+                    {type:'line',label:'Target',data:targetLine,borderColor:'#333',borderWidth:3,pointRadius:0,tension:0,fill:false,order:0}
+                ]},
+                options:{
+                    plugins:{title:{display:true,text:'Daily Performance - '+monthName+' '+yr,font:{size:14,weight:'bold'},color:'#333',padding:12},
+                        legend:{display:true,position:'top',labels:{font:{size:10},color:'#555',usePointStyle:false,boxWidth:20}}},
+                    scales:{x:{grid:{display:false},ticks:{color:'#555',font:{size:9}}},y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:10}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:9}}}},
+                    layout:{padding:{left:10,right:20,top:5,bottom:5}}
+                }
             });
-            xml += tableEnd();
-            xml += emptyPara();
+        }
 
-            // ═══ 4. YEARLY PERFORMANCE ═══
-            xml += pageBreak();
-            xml += h1('YEARLY PERFORMANCE');
+        // image6: Monthly performance chart (last 12 months)
+        async function renderMonthlyChart(ym, yr, mo, numDays, curH, mNamesS, fN, w, h, dpr) {
+            const allM = Object.keys(dashData.monthly).sort();
+            const ymIdx = allM.indexOf(ym);
+            const last12 = allM.slice(Math.max(0,ymIdx-11), ymIdx+1);
+            const labels=[], actArr=[], expArr=[];
+            const now = new Date();
+            last12.forEach(m => {
+                const mmd=dashData.monthly[m]; const [my,mm2]=m.split('-').map(Number);
+                const isCur=my===now.getFullYear()&&mm2===(now.getMonth()+1);
+                const nd=isCur?now.getDate():new Date(my,mm2,0).getDate();
+                const ch=isCur?curH:23;
+                labels.push(mNamesS[mm2]+' '+String(my).slice(2));
+                actArr.push(Math.round(mmd['PV Yield (kWh)']||0));
+                expArr.push(Math.round(calcMonthExpFor(my,mm2,nd,ch)));
+            });
+            const first = last12[0].split('-'); const last = last12[last12.length-1].split('-');
+            return renderChartToPng(w, h, dpr, {
+                data:{labels, datasets:[
+                    {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:1,barPercentage:0.8},
+                    {type:'line',label:'Target',data:expArr,borderColor:'#333',borderWidth:3,pointRadius:0,tension:0.4,fill:false,order:0}
+                ]},
+                options:{
+                    plugins:{title:{display:true,text:'Monthly Performance - '+mNamesS[parseInt(first[1])]+' '+first[0].slice(2)+' to '+mNamesS[parseInt(last[1])]+' '+last[0].slice(2),font:{size:13,weight:'bold'},color:'#333'},
+                        legend:{display:true,position:'top',labels:{font:{size:10},color:'#555',boxWidth:20}}},
+                    scales:{x:{grid:{display:false},ticks:{color:'#555',font:{size:9}}},y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:10}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:9}}}},
+                    layout:{padding:{left:10,right:20,top:5,bottom:5}}
+                }
+            });
+        }
+
+        // image7: Yearly summary table
+        async function renderYearlySummary(yr, mo, numDays, curH, fN, w, h, dpr) {
+            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
+            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+            const now=new Date();
+            const allM = Object.keys(dashData.monthly).sort();
             const yearMap = {};
-            allMonths.forEach(m => { const [yy] = m.split('-').map(Number); if(!yearMap[yy]) yearMap[yy]={actual:0,expected:0}; yearMap[yy].actual += dashData.monthly[m]['PV Yield (kWh)']||0; });
+            allM.forEach(m => { const [yy]=m.split('-').map(Number); if(!yearMap[yy]) yearMap[yy]={a:0,e:0}; yearMap[yy].a+=dashData.monthly[m]['PV Yield (kWh)']||0; });
             Object.keys(yearMap).forEach(yy => {
-                const y = parseInt(yy);
-                if (y === now.getFullYear()) {
-                    let exp = 0;
-                    for (let m3=1;m3<=now.getMonth()+1;m3++) {
-                        const mKey = y+'-'+String(m3).padStart(2,'0');
-                        if (dashData.monthly[mKey]) { const isCM = m3===now.getMonth()+1; exp += calcMonthExpFor(y,m3,isCM?now.getDate():new Date(y,m3,0).getDate(),isCM?curH:23); }
-                    }
-                    yearMap[yy].expected = exp;
-                } else { yearMap[yy].expected = (pvsyst?.annual_total_kwh||0) * degradationFactor(y); }
+                const y=parseInt(yy);
+                if (y===now.getFullYear()) { let e=0; for(let m3=1;m3<=now.getMonth()+1;m3++){const k=y+'-'+String(m3).padStart(2,'0'); if(dashData.monthly[k]){const ic=m3===now.getMonth()+1; e+=calcMonthExpFor(y,m3,ic?now.getDate():new Date(y,m3,0).getDate(),ic?curH:23);}} yearMap[yy].e=e; }
+                else { yearMap[yy].e=(pvsyst?.annual_total_kwh||0)*degradationFactor(y); }
             });
-            const yCols = [2340, 2340, 2340, 2340];
-            xml += tableStart(yCols);
-            xml += row(hdrCell('Year', yCols[0]) + hdrCell('Actual (kWh)', yCols[1]) + hdrCell('Expected (kWh)', yCols[2]) + hdrCell('Performance', yCols[3]));
-            let ltA = 0, ltE = 0;
-            Object.keys(yearMap).sort().forEach((yy, i) => {
-                const yd = yearMap[yy]; const yP = yd.expected>0 ? yd.actual/yd.expected*100 : 0;
-                ltA += yd.actual; ltE += yd.expected;
-                const fill = i%2===0 ? undefined : 'F0F0F0';
-                xml += row(cell(yy, yCols[0], {fill,bold:true}) + cell(fN(yd.actual), yCols[1], {fill}) + cell(fN(yd.expected), yCols[2], {fill}) + cell(fD(yP)+'%', yCols[3], {fill, bold:true, color: yP>=95?'2E7D32':yP>=80?'BF8C00':'C62828'}));
+            const years = Object.keys(yearMap).sort();
+            // Draw header
+            ctx.font = '600 9px Arial'; ctx.fillStyle = '#777'; ctx.textBaseline = 'top';
+            const cols = [40, 180, 380, 560, 740, 860];
+            ctx.textAlign = 'center';
+            ['Year','Yield','Target','Difference','Performance'].forEach((t,i) => ctx.fillText(t, cols[i+1]-20, 2));
+            const rh = (h-15)/years.length;
+            years.forEach((yy,i) => {
+                const d=yearMap[yy]; const p=d.e>0?d.a/d.e*100:0; const diff=d.a-d.e;
+                const y = 15 + i*rh + rh/2;
+                // Green bar
+                const barW = Math.min(35, p/100*35);
+                ctx.fillStyle = '#8BC34A'; ctx.fillRect(2, y-6, barW, 12);
+                ctx.fillStyle = '#555'; ctx.font = '600 9px Arial'; ctx.textAlign = 'center';
+                ctx.fillText(yy, cols[1]-20, y-4);
+                ctx.fillText(fN(d.a)+' kWh', cols[2]-20, y-4);
+                ctx.fillText(fN(d.e)+' kWh', cols[3]-20, y-4);
+                ctx.fillStyle = diff>=0?'#333':'#C62828';
+                ctx.fillText((diff>=0?'':'- ')+fN(Math.abs(diff))+' kWh', cols[4]-20, y-4);
+                ctx.fillStyle = '#555'; ctx.fillText(p.toFixed(2)+'%', cols[5]-20, y-4);
             });
-            const ltP = ltE>0 ? ltA/ltE*100 : 0;
-            xml += row(cell('LIFETIME', yCols[0], {fill:TC,bold:true,color:'FFFFFF'}) + cell(fN(ltA), yCols[1], {fill:TC,bold:true,color:'FFFFFF'}) + cell(fN(ltE), yCols[2], {fill:TC,bold:true,color:'FFFFFF'}) + cell(fD(ltP)+'%', yCols[3], {fill:TC,bold:true,color:'FFD700'}));
-            xml += tableEnd();
-            xml += emptyPara();
+            return canvasToBlob(c);
+        }
 
-            // ═══ 5. ENVIRONMENTAL IMPACT ═══
-            xml += h1('Lifetime ENVIRONMENTAL IMPACT');
-            const lifePV = dashData.all_time_totals?.['PV Yield (kWh)'] || 0;
-            const env = calcEnv(lifePV);
-            xml += para('To date, the system has had approximately the following effects by means of reducing the amount of electricity that would otherwise have been generated using less environmentally friendly means. Total lifetime generation: ' + fN(lifePV) + ' kWh.');
-            xml += emptyPara();
-            const eCols = [4680, 4680];
-            xml += tableStart(eCols);
-            xml += row(hdrCell('Metric', eCols[0]) + hdrCell('Value', eCols[1]));
-            xml += row(cell('Trees Equivalent', eCols[0], {align:'left'}) + cell(fN(env.trees) + ' trees', eCols[1], {bold:true, color:'2E7D32'}));
-            xml += row(cell('Households Powered', eCols[0], {align:'left',fill:'F0F0F0'}) + cell(fN(env.homes) + ' homes', eCols[1], {bold:true,fill:'F0F0F0',color:'2E7D32'}));
-            xml += row(cell('Coal Saved', eCols[0], {align:'left'}) + cell(fN(env.coal) + ' kg', eCols[1], {bold:true,color:'2E7D32'}));
-            xml += row(cell('Water Saved', eCols[0], {align:'left',fill:'F0F0F0'}) + cell(fN(env.water) + ' litres', eCols[1], {bold:true,fill:'F0F0F0',color:'2E7D32'}));
-            xml += tableEnd();
-            xml += emptyPara();
+        // image8: Yearly chart
+        async function renderYearlyChart(yr, mo, numDays, curH, fN, w, h, dpr) {
+            const now=new Date();
+            const allM = Object.keys(dashData.monthly).sort();
+            const yearMap = {};
+            allM.forEach(m => { const [yy]=m.split('-').map(Number); if(!yearMap[yy]) yearMap[yy]={a:0,e:0}; yearMap[yy].a+=dashData.monthly[m]['PV Yield (kWh)']||0; });
+            Object.keys(yearMap).forEach(yy => {
+                const y=parseInt(yy);
+                if (y===now.getFullYear()) { let e=0; for(let m3=1;m3<=now.getMonth()+1;m3++){const k=y+'-'+String(m3).padStart(2,'0'); if(dashData.monthly[k]){const ic=m3===now.getMonth()+1; e+=calcMonthExpFor(y,m3,ic?now.getDate():new Date(y,m3,0).getDate(),ic?curH:23);}} yearMap[yy].e=e; }
+                else { yearMap[yy].e=(pvsyst?.annual_total_kwh||0)*degradationFactor(y); }
+            });
+            const years = Object.keys(yearMap).sort();
+            const labels = years; const actArr = years.map(y=>Math.round(yearMap[y].a)); const expArr = years.map(y=>Math.round(yearMap[y].e));
+            return renderChartToPng(w, h, dpr, {
+                data:{labels, datasets:[
+                    {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:1,barPercentage:0.7},
+                    {type:'line',label:'Target',data:expArr,borderColor:'#333',borderWidth:3,pointRadius:0,tension:0.3,fill:false,order:0}
+                ]},
+                options:{
+                    plugins:{title:{display:true,text:'Yearly Performance - '+years[0]+' to '+years[years.length-1],font:{size:13,weight:'bold'},color:'#333'},
+                        legend:{display:true,position:'top',labels:{font:{size:10},color:'#555',boxWidth:20}}},
+                    scales:{x:{grid:{display:false},ticks:{color:'#555',font:{size:11}}},y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#555',font:{size:10}},grid:{color:'#eee'},ticks:{color:'#555',font:{size:9}}}},
+                    layout:{padding:{left:10,right:20,top:5,bottom:5}}
+                }
+            });
+        }
 
-            // ═══ 6. WARRANTIES ═══
-            xml += h1('MAJOR COMPONENT WARRANTIES');
-            xml += para('The remaining warranty periods for the systems major components are given below.');
-            xml += emptyPara();
-            const wCols = [2600, 1690, 1690, 1690, 1690];
-            xml += tableStart(wCols);
-            xml += row(hdrCell('Component', wCols[0]) + hdrCell('Start Date', wCols[1]) + hdrCell('Duration', wCols[2]) + hdrCell('Expiry', wCols[3]) + hdrCell('Remaining', wCols[4]));
-            WARRANTY_DATA.forEach((w, i) => {
-                const start = new Date(w.start + 'T00:00:00');
-                const expiry = new Date(start); expiry.setFullYear(expiry.getFullYear() + w.years);
-                const remainYrs = Math.max(0, (expiry - now) / (365.25*24*60*60*1000));
+        // image9: Environmental impact
+        async function renderEnvImpact(fN, w, h, dpr) {
+            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
+            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+            const lifePV = dashData.all_time_totals?.['PV Yield (kWh)']||0;
+            const co2 = (lifePV * 0.001).toFixed(0); // tons
+            const trees = fN(Math.round(lifePV * CC.env_trees));
+            const coal = fN(Math.round(lifePV * CC.env_coal));
+            const water = fN(Math.round(lifePV * CC.env_water));
+            const km = fN(Math.round(lifePV * 3.98)); // km driven equiv
+            const boeingKm = fN(Math.round(lifePV * 81.4)); // Boeing 737 km
+
+            const items = [
+                {val:fN(co2), unit:'metric tons of CO₂', desc:'were mitigated by producing power using a clean and renewable energy source.', col:0},
+                {val:trees, unit:'trees removing CO2', desc:'The reduction in CO₂ emissions is equal to the effect of '+trees+' trees removing CO2 from the air.', col:1},
+                {val:fN(km), unit:'km driven by a car', desc:'is offset by the CO₂ emissions that are mitigated by the site.', col:0},
+                {val:boeingKm, unit:'km flown by a Boeing 737', desc:'is offset by the CO₂ emissions that are mitigated by the site.', col:1},
+                {val:coal, unit:'tons of coal', desc:'would be needed by a coal-fired power station to generate the same amount of electricity.', col:0},
+                {val:water, unit:'litres of water', desc:'would be needed by a Hydropower station to produce the same amount of electricity.', col:1}
+            ];
+            const rh = h/3;
+            ctx.textBaseline = 'top';
+            items.forEach((item, i) => {
+                const row = Math.floor(i/2);
+                const x = item.col * (w/2) + 20;
+                const y = row * rh + 8;
+                ctx.font = 'bold 12px Arial'; ctx.fillStyle = '#8B0000';
+                ctx.fillText(item.val, x+50, y);
+                ctx.font = '9px Arial'; ctx.fillStyle = '#555';
+                // Wrap text
+                const maxW = w/2 - 80;
+                const words = (item.unit + ' ' + item.desc).split(' ');
+                let line = '', lineY = y + 16;
+                words.forEach(word => {
+                    const test = line + word + ' ';
+                    if (ctx.measureText(test).width > maxW && line) {
+                        ctx.fillText(line.trim(), x+50, lineY); lineY += 12; line = word + ' ';
+                    } else { line = test; }
+                });
+                if (line) ctx.fillText(line.trim(), x+50, lineY);
+            });
+            return canvasToBlob(c);
+        }
+
+        // image10/11: Warranty donut rows
+        async function renderWarrantyRow(indices, w, h, dpr) {
+            const c = document.createElement('canvas'); c.width=w*dpr; c.height=h*dpr;
+            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+            const now = new Date();
+            const colW = w / indices.length;
+            indices.forEach((idx, col) => {
+                const wd = WARRANTY_DATA[idx];
+                if (!wd) return;
+                const start = new Date(wd.start+'T00:00:00');
+                const expiry = new Date(start); expiry.setFullYear(expiry.getFullYear()+wd.years);
+                const totalMs = expiry-start; const remainMs = Math.max(0,expiry-now); const elapsedMs = now-start;
+                const pctRemain = Math.max(0, remainMs/totalMs*100);
+                const pctElapsed = 100 - pctRemain;
+                const remainYr = (remainMs/(365.25*24*60*60*1000)).toFixed(2);
+                const elapsedYr = (elapsedMs/(365.25*24*60*60*1000)).toFixed(2);
                 const isExpired = now >= expiry;
-                const fill = i%2===0 ? undefined : 'F0F0F0';
-                xml += row(cell(w.item, wCols[0], {align:'left',fill,bold:true}) + cell('19 Dec 2023', wCols[1], {fill}) + cell(w.years+' years', wCols[2], {fill}) + cell(expiry.getDate()+' '+mNamesShort[expiry.getMonth()+1]+' '+expiry.getFullYear(), wCols[3], {fill}) + cell(isExpired?'Expired':fD(remainYrs)+' years', wCols[4], {fill,bold:true,color:isExpired?'C62828':'2E7D32'}));
+                const cx2 = col * colW + colW/2;
+                const cy2 = h/2 + 25;
+                const radius = Math.min(colW, h) * 0.3;
+                const innerR = radius * 0.6;
+
+                // Title
+                ctx.fillStyle = '#333'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                const titleLines = wd.item.split(/(?=Manufacturer)/);
+                titleLines.forEach((tl, ti) => ctx.fillText(tl.trim(), cx2, 8 + ti*14));
+
+                // Legend
+                ctx.font = '8px Arial'; ctx.textAlign = 'center';
+                ctx.fillStyle = '#8BC34A'; ctx.fillRect(cx2-55, 38, 10, 10);
+                ctx.fillStyle = '#555'; ctx.fillText('Remaining', cx2-30, 39);
+                ctx.fillStyle = '#5C4D7A'; ctx.fillRect(cx2+10, 38, 10, 10);
+                ctx.fillStyle = '#555'; ctx.fillText('Elapsed', cx2+38, 39);
+
+                // Donut
+                const startAngle = -Math.PI/2;
+                const remainAngle = (pctRemain/100) * Math.PI * 2;
+                // Remaining arc
+                ctx.beginPath();
+                ctx.arc(cx2, cy2, radius, startAngle, startAngle+remainAngle);
+                ctx.arc(cx2, cy2, innerR, startAngle+remainAngle, startAngle, true);
+                ctx.closePath();
+                ctx.fillStyle = '#8BC34A'; ctx.fill();
+                // Elapsed arc
+                ctx.beginPath();
+                ctx.arc(cx2, cy2, radius, startAngle+remainAngle, startAngle+Math.PI*2);
+                ctx.arc(cx2, cy2, innerR, startAngle+Math.PI*2, startAngle+remainAngle, true);
+                ctx.closePath();
+                ctx.fillStyle = '#5C4D7A'; ctx.fill();
+
+                // Labels on arcs
+                ctx.fillStyle = '#fff'; ctx.font = '9px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                // Remaining label (positioned in center of remaining arc)
+                if (pctRemain > 10) {
+                    const midAngle = startAngle + remainAngle/2;
+                    const lx = cx2 + Math.cos(midAngle) * (radius+innerR)/2;
+                    const ly = cy2 + Math.sin(midAngle) * (radius+innerR)/2;
+                    ctx.fillText(remainYr+';', lx, ly-6);
+                    ctx.fillText(Math.round(pctRemain)+'%', lx, ly+6);
+                }
+                // Elapsed label
+                if (pctElapsed > 10) {
+                    const midAngle2 = startAngle + remainAngle + (Math.PI*2-remainAngle)/2;
+                    const lx2 = cx2 + Math.cos(midAngle2) * (radius+innerR)/2;
+                    const ly2 = cy2 + Math.sin(midAngle2) * (radius+innerR)/2;
+                    ctx.fillText(elapsedYr+';', lx2, ly2-6);
+                    ctx.fillText(Math.round(pctElapsed)+'%', lx2, ly2+6);
+                }
             });
-            xml += tableEnd();
-            xml += emptyPara();
-
-            // ═══ 7. CONCLUSION ═══
-            xml += pageBreak();
-            xml += h1('Conclusion');
-            if (perf >= 90) xml += para('The report has indicated that the system is performing as designed and is continuing to operate as expected.');
-            else xml += para('The report indicates that system performance was below optimal levels during this period. Continued monitoring and corrective actions will be implemented.');
-            xml += emptyPara();
-            xml += para('The system will continue to be monitored on weekdays, with all performance data logged to the online portal. Should any error alarms occur or performance drop, a technician may conduct an unscheduled site visit. Please note that such visits will be chargeable at the call-out rates specified in the maintenance agreement.');
-            xml += emptyPara();
-            xml += para('If you have any questions regarding this report or require further assistance, please do not hesitate to contact us at maintenance@genergy.co.za.');
-
-            return xml;
+            return canvasToBlob(c);
         }
 
         // ══════════════════════════════════════════════════
