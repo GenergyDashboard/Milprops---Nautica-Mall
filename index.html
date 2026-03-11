@@ -5544,7 +5544,34 @@
 
             // image3: Overview summary bar (915x67)
             zip.file('word/media/image3.png', await renderOverviewBar(ym, yr, mo, numDays, curH, fN, 915, 67, DPR));
-            // image4: Daily performance chart — irradiation BEHIND yield (overlapping bars)
+            // image4: Daily performance chart (1497x455)
+            zip.file('word/media/image4.png', await renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, 1497, 455, DPR));
+            // image6: Monthly performance chart (958x368)
+            zip.file('word/media/image6.png', await renderMonthlyChart(ym, yr, mo, numDays, curH, mNamesS, fN, 958, 368, DPR));
+            // image7: Yearly summary table (904x73)
+            zip.file('word/media/image7.png', await renderYearlySummary(yr, mo, numDays, curH, fN, 904, 73, DPR));
+            // image8: Yearly chart (958x368)
+            zip.file('word/media/image8.png', await renderYearlyChart(yr, mo, numDays, curH, fN, 958, 368, DPR));
+            // image9: Environmental impact (725x261)
+            zip.file('word/media/image9.png', await renderEnvImpact(fN, 725, 261, DPR));
+            // image10: Warranty donuts top row (809x326)
+            zip.file('word/media/image10.png', await renderWarrantyRow([0,1,2], 809, 326, DPR));
+            // image11: Warranty donuts bottom row (702x326)
+            zip.file('word/media/image11.png', await renderWarrantyRow([3,4,5], 702, 326, DPR));
+
+            // Generate & download
+            const blob = await zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'Nautica_'+monthName+'_'+yr+'_Report.docx'; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ════════════════════════════════════════════════
+        // IMAGE RENDERERS
+        // ════════════════════════════════════════════════
+
+        // image4: Daily performance chart — irradiation BEHIND yield (overlapping bars)
         async function renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, w, h, dpr) {
             const labels=[], actArr=[], expArr=[], irradArr=[];
             const factor = degradationFactor(yr);
