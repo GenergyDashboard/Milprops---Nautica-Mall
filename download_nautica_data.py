@@ -303,6 +303,87 @@ def download_nautica_data():
             inspect_page(page, "PORTAL HOME")
 
             # =========================================================
+            # Step 5b: Dismiss any modal popups
+            # FusionSolar shows announcement/tour modals that block
+            # interaction with the page underneath
+            # =========================================================
+            print("🪟 Step 5b: Checking for modal popups...")
+            modal_dismissed = False
+
+            # Strategy 1: Click "Do Not Show Again" (announcement modal)
+            try:
+                do_not_show = page.get_by_role("button", name="Do Not Show Again")
+                if do_not_show.is_visible(timeout=3000):
+                    do_not_show.click()
+                    print("  ✅ Clicked 'Do Not Show Again'")
+                    modal_dismissed = True
+                    time.sleep(1)
+            except:
+                pass
+
+            # Strategy 2: Click the modal close button (X)
+            if not modal_dismissed:
+                for close_sel in [
+                    '.dpdesign-modal-close',
+                    '.dpdesign-modal-wrap .ant-modal-close',
+                    '.dpdesign-modal-wrap button[aria-label="Close"]',
+                    'button.ant-modal-close',
+                ]:
+                    try:
+                        close_btn = page.locator(close_sel).first
+                        if close_btn.is_visible(timeout=1500):
+                            close_btn.click()
+                            print(f"  ✅ Closed modal via: {close_sel}")
+                            modal_dismissed = True
+                            time.sleep(1)
+                            break
+                    except:
+                        continue
+
+            # Strategy 3: Click outside the modal to dismiss it
+            if not modal_dismissed:
+                try:
+                    modal_mask = page.locator('.dpdesign-modal-mask, .ant-modal-mask').first
+                    if modal_mask.is_visible(timeout=1500):
+                        # Click in top-left corner (outside modal content)
+                        page.mouse.click(10, 10)
+                        print("  ✅ Clicked outside modal to dismiss")
+                        modal_dismissed = True
+                        time.sleep(1)
+                except:
+                    pass
+
+            # Strategy 4: Press Escape
+            if not modal_dismissed:
+                try:
+                    modal_overlay = page.locator('.dpdesign-modal-wrap').first
+                    if modal_overlay.is_visible(timeout=1500):
+                        page.keyboard.press("Escape")
+                        print("  ✅ Pressed Escape to dismiss modal")
+                        modal_dismissed = True
+                        time.sleep(1)
+                except:
+                    pass
+
+            if not modal_dismissed:
+                print("  ℹ️  No modal detected, continuing...")
+
+            # Check if there's a second modal (sometimes there are chained popups)
+            try:
+                time.sleep(0.5)
+                for close_sel in ['.dpdesign-modal-close', '.dpdesign-modal-wrap button']:
+                    close_btn = page.locator(close_sel).first
+                    if close_btn.is_visible(timeout=1000):
+                        close_btn.click()
+                        print("  ✅ Dismissed second modal")
+                        time.sleep(1)
+                        break
+            except:
+                pass
+
+            human_delay(1, 2)
+
+            # =========================================================
             # Step 6: Search for Nautica
             # Try multiple selector strategies based on inspection
             # =========================================================
@@ -334,7 +415,12 @@ def download_nautica_data():
                 print("  ❌ Could not find any search/input field!")
                 raise Exception("No search field found on portal page - check inspection output above")
 
-            search_field.click()
+            # Use force click in case any overlay is still lingering
+            try:
+                search_field.click(timeout=5000)
+            except:
+                print("  ⚠️  Normal click blocked, using force click...")
+                search_field.click(force=True)
             human_delay(1, 2)
             type_human_like(search_field, "Nautica")
             human_delay(2, 3)
