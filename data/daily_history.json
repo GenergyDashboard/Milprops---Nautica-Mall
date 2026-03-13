@@ -5016,12 +5016,12 @@
     }
   },
   "2026-03-13": {
-    "current_hour": 13,
-    "pv": 2305.41,
-    "import": 1899.64,
-    "export": 162.8,
-    "self_consumption": 2142.61,
-    "consumption": 4042.25,
+    "current_hour": 15,
+    "pv": 2785.4,
+    "import": 1910.78,
+    "export": 194.8,
+    "self_consumption": 2590.6,
+    "consumption": 4501.38,
     "hourly": {
       "pv": [
         0.0,
@@ -5038,7 +5038,7 @@
         497.45,
         470.41,
         518.1,
-        0.0,
+        479.99,
         0.0,
         0.0,
         0.0,
@@ -5064,7 +5064,7 @@
         452.67,
         465.16,
         483.73,
-        0.0,
+        459.13,
         0.0,
         0.0,
         0.0,
@@ -5090,7 +5090,7 @@
         9.22,
         45.95,
         2.43,
-        0.0,
+        11.14,
         0.0,
         0.0,
         0.0,
@@ -5116,7 +5116,7 @@
         54.0,
         51.2,
         36.8,
-        0.0,
+        32.0,
         0.0,
         0.0,
         0.0,
@@ -5139,13 +5139,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 2178.96,
-        "import": 528.89,
-        "self_consumption": 2016.16,
-        "export": 162.8,
-        "utility_cost": 847.7,
-        "pv_savings": 3231.5,
-        "export_savings": 265.71
+        "generation": 2658.95,
+        "import": 540.03,
+        "self_consumption": 2464.15,
+        "export": 194.8,
+        "utility_cost": 865.56,
+        "pv_savings": 3949.54,
+        "export_savings": 317.93
       },
       "off_peak": {
         "generation": 0.0,
@@ -5159,17 +5159,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 304.58,
-        "standard": 3262.94,
+        "peak": 368.26,
+        "standard": 3945.17,
         "off_peak": 0.0,
-        "total": 3567.52
+        "total": 4313.44
       },
       "export_savings": {
-        "standard": 252.46,
+        "standard": 302.08,
         "off_peak": 0.0,
-        "total": 252.46
+        "total": 302.08
       },
-      "total": 3819.98
+      "total": 4615.52
     }
   }
 }
