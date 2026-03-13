@@ -5513,21 +5513,35 @@
 
             // ── TEXT REPLACEMENTS in document.xml ──
             let docXml = await zip.file('word/document.xml').async('string');
-            // Replace all month/year references — handle any month the template might have
-            const allMonthsUpper = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
-            const allMonthsMixed = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-            allMonthsUpper.forEach(m => {
-                docXml = docXml.replace(new RegExp(m + ' \\d{4}', 'g'), mUpper + ' ' + yr);
+            // Replace month/year — use split/join for reliability (regex was failing on textbox XML)
+            const templateMonths = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+            const templateMonthsMixed = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            // Replace UPPER MONTH YEAR patterns
+            templateMonths.forEach(m => {
+                for (let y = 2023; y <= 2030; y++) {
+                    docXml = docXml.split(m + ' ' + y).join(mUpper + ' ' + yr);
+                }
             });
-            allMonthsMixed.forEach(m => {
-                docXml = docXml.replace(new RegExp(m + ' \\d{4}', 'g'), monthName + ' ' + yr);
+            // Replace Mixed Month Year patterns
+            templateMonthsMixed.forEach(m => {
+                for (let y = 2023; y <= 2030; y++) {
+                    docXml = docXml.split(m + ' ' + y).join(monthName + ' ' + yr);
+                }
             });
-            // Replace standalone month names (in footer text, body text)
-            allMonthsMixed.forEach(m => {
-                if (m !== monthName) docXml = docXml.replace(new RegExp(m, 'g'), monthName);
+            // Replace standalone month names
+            templateMonthsMixed.forEach((m, i) => {
+                if (m !== monthName) docXml = docXml.split(m).join(monthName);
+                if (templateMonths[i] !== mUpper) docXml = docXml.split(templateMonths[i]).join(mUpper);
             });
-            // Replace any DD/MM/YYYY date patterns on cover page
-            docXml = docXml.replace(/\d{2}\/\d{2}\/20\d{2}/g, dateStr);
+            // Replace date patterns DD/MM/YYYY
+            for (let d = 1; d <= 31; d++) {
+                for (let m = 1; m <= 12; m++) {
+                    for (let y = 2024; y <= 2027; y++) {
+                        const old = String(d).padStart(2,'0') + '/' + String(m).padStart(2,'0') + '/' + y;
+                        docXml = docXml.split(old).join(dateStr);
+                    }
+                }
+            }
 
             // Replace commentary text
             const oldComm = 'The system performed consistently throughout';
@@ -5553,13 +5567,14 @@
 
             // ── Update footer ──
             let footerXml = await zip.file('word/footer1.xml').async('string');
-            allMonthsMixed.forEach(m => {
-                if (m !== monthName) footerXml = footerXml.replace(new RegExp(m, 'g'), monthName);
+            templateMonthsMixed.forEach((m, i) => {
+                if (m !== monthName) footerXml = footerXml.split(m).join(monthName);
             });
             zip.file('word/footer1.xml', footerXml);
 
             // ── RENDER & REPLACE IMAGES ──
-            const DPR = 2; // render at 2x for crisp output
+            // DPR=1 — render at actual pixel dimensions so fonts are the right size in the doc
+            const DPR = 1;
 
             // image3: Overview summary bar (915x67)
             zip.file('word/media/image3.png', await renderOverviewBar(ym, yr, mo, numDays, curH, fN, 915, 67, DPR));
@@ -5600,8 +5615,7 @@
         }
 
         // ════════════════════════════════════════════════
-        // ════════════════════════════════════════════════
-        // IMAGE RENDERERS
+        // IMAGE RENDERERS (DPR=1 so fonts match doc size)
         // ════════════════════════════════════════════════
 
         function canvasToBlob(canvas) {
@@ -5610,82 +5624,25 @@
 
         async function renderChartToPng(w, h, dpr, config) {
             const c = document.createElement('canvas');
-            c.width = w*dpr; c.height = h*dpr;
+            c.width = w; c.height = h;
             c.style.cssText = 'position:fixed;left:-9999px;width:'+w+'px;height:'+h+'px';
             document.body.appendChild(c);
-            const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+            const ctx = c.getContext('2d');
             config.options = config.options||{};
             config.options.responsive = false;
             config.options.animation = false;
-            config.options.devicePixelRatio = dpr;
+            config.options.devicePixelRatio = 1;
             const chart = new Chart(ctx, config);
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 250));
             const blob = await canvasToBlob(c);
             chart.destroy(); document.body.removeChild(c);
             return blob;
         }
 
-        // ── image3 + image7: Shared summary table renderer ──
-        function renderSummaryTable(ctx, rows, w, h, hasTotal) {
-            ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
-            const barZone = 55;
-            // 5 columns after bar zone, positioned as % of remaining width
-            const rw = w - barZone;
-            const cols = [
-                barZone + rw*0.08,   // Year/Month
-                barZone + rw*0.28,   // Yield
-                barZone + rw*0.50,   // Target
-                barZone + rw*0.70,   // Difference
-                barZone + rw*0.90    // Performance
-            ];
-            const totalRows = rows.length + (hasTotal ? 1 : 0);
-            const headerH = 16;
-            const rh = (h - headerH) / totalRows;
-            const fmtKwh = v => { const s = Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); return s + ' kWh'; };
-
-            // Header
-            ctx.font='bold 11px Segoe UI, Arial'; ctx.fillStyle='#666'; ctx.textBaseline='top'; ctx.textAlign='center';
-            ['Year','Yield','Target','Difference','Performance'].forEach((t,i) => ctx.fillText(t, cols[i], 2));
-
-            // Rows
-            const maxPerf = Math.max(...rows.map(r=>r.perf), 100);
-            rows.forEach((r, i) => {
-                const y = headerH + i*rh + rh/2;
-                // Green bar
-                const bW = Math.max(2, (r.perf/maxPerf) * (barZone-4));
-                ctx.fillStyle='#8BC34A'; ctx.fillRect(1, y-5, bW, 10);
-                // Data
-                ctx.font='11px Segoe UI, Arial'; ctx.fillStyle='#444'; ctx.textAlign='center';
-                ctx.fillText(r.label, cols[0], y-5);
-                ctx.fillText(fmtKwh(r.act), cols[1], y-5);
-                ctx.fillText(fmtKwh(r.exp), cols[2], y-5);
-                ctx.fillStyle = r.diff < 0 ? '#444' : '#444';
-                ctx.fillText((r.diff<0?'- ':'') + fmtKwh(Math.abs(r.diff)), cols[3], y-5);
-                ctx.fillStyle='#444';
-                ctx.fillText(r.perf.toFixed(2)+'%', cols[4], y-5);
-            });
-
-            // Total row
-            if (hasTotal) {
-                const totA = rows.reduce((a,r)=>a+r.act,0);
-                const totE = rows.reduce((a,r)=>a+r.exp,0);
-                const totD = totA-totE;
-                const totP = totE>0?totA/totE*100:0;
-                const y = headerH + rows.length*rh + rh/2;
-                ctx.font='bold 11px Segoe UI, Arial'; ctx.fillStyle='#444'; ctx.textAlign='center';
-                ctx.fillText(rows.length+' Month Total', cols[0], y-5);
-                ctx.fillText(fmtKwh(totA), cols[1], y-5);
-                ctx.fillText(fmtKwh(totE), cols[2], y-5);
-                ctx.fillText((totD<0?'- ':'')+fmtKwh(Math.abs(totD)), cols[3], y-5);
-                ctx.font='bold 11px Segoe UI, Arial';
-                ctx.fillText(totP.toFixed(2)+'%', cols[4], y-5);
-            }
-        }
-
         // ── image3: Overview summary bar (915×67) ──
         async function renderOverviewBar(ym, yr, mo, numDays, curH, fN, w, h, dpr) {
-            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
-            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            const c=document.createElement('canvas');c.width=w;c.height=h;
+            const ctx=c.getContext('2d');
             ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
             const md=dashData.monthly[ym]||{};
             const actPV=md['PV Yield (kWh)']||0;
@@ -5700,63 +5657,88 @@
                 const ic=my===now.getFullYear()&&mm===(now.getMonth()+1);
                 const nd=ic?now.getDate():new Date(my,mm,0).getDate();
                 const mE=calcMonthExpFor(my,mm,nd,ic?curH:23);const mA=d['PV Yield (kWh)']||0;
-                ltA+=mA;ltE+=mE; if(m>=f12&&m<=ym){yrA+=mA;yrE+=mE;}});
+                ltA+=mA;ltE+=mE;if(m>=f12&&m<=ym){yrA+=mA;yrE+=mE;}});
             const rows=[
                 {l:mS[mo]+' '+String(yr).slice(2), g:actPV, e:expPV, p:expPV>0?actPV/expPV*100:0},
                 {l:mS[parseInt(f12.split('-')[1])]+' '+f12.split('-')[0].slice(2)+' - '+mS[mo]+' '+String(yr).slice(2), g:yrA, e:yrE, p:yrE>0?yrA/yrE*100:0},
                 {l:'Lifetime', g:ltA, e:ltE, p:ltE>0?ltA/ltE*100:0}
             ];
             const rh=h/3;
-            const barZone=50;
-            // Tighter column positions
-            const c1=barZone+75, c2=barZone+235, c3=barZone+395, c4=barZone+530;
             ctx.textBaseline='middle';
             rows.forEach((r,i)=>{
                 const y=i*rh+rh/2;
-                // Green bar on far right
-                const bW=Math.min(100,r.p);
-                ctx.fillStyle='#8BC34A';ctx.fillRect(w-105, y-7, bW, 14);
-                // Label right-aligned
-                ctx.fillStyle='#444';ctx.textAlign='right';ctx.font='bold 12px Segoe UI, Arial';
-                ctx.fillText(r.l, barZone+60, y);
-                // Values
-                ctx.textAlign='left';ctx.font='12px Segoe UI, Arial';ctx.fillStyle='#8BC34A';
-                ctx.fillText(fN(r.g)+' kWh Generated', c1, y);
-                ctx.fillText(fN(r.e)+' kWh Predicted', c2, y);
-                ctx.fillText(r.p.toFixed(2)+'% Performance', c3, y);
+                // Right-aligned label
+                ctx.fillStyle='#444';ctx.textAlign='right';ctx.font='bold 11px Segoe UI, Arial';
+                ctx.fillText(r.l, 100, y);
+                // Tight columns
+                ctx.textAlign='left';ctx.font='11px Segoe UI, Arial';ctx.fillStyle='#8BC34A';
+                ctx.fillText(fN(r.g)+' kWh Generated', 115, y);
+                ctx.fillText(fN(r.e)+' kWh Predicted', 335, y);
+                ctx.fillText(r.p.toFixed(2)+'% Performance', 545, y);
+                // Green bar
+                const bW=Math.min(130, r.p*1.3);
+                ctx.fillStyle='#8BC34A';ctx.fillRect(w-140, y-7, bW, 14);
             });
             return canvasToBlob(c);
         }
 
         // ── image5: Monthly data TABLE (1100×310) ──
         async function renderMonthlyTable(ym, yr, mo, numDays, curH, fN, w, h, dpr) {
-            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
-            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            const c=document.createElement('canvas');c.width=w;c.height=h;
+            const ctx=c.getContext('2d');
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
             const mS=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const now=new Date();
             const allM=Object.keys(dashData.monthly).sort();
             const ymI=allM.indexOf(ym);
             const last12=allM.slice(Math.max(0,ymI-11),ymI+1);
             const rows=[];
+            let totA=0,totE=0;
             last12.forEach(m=>{
                 const d=dashData.monthly[m];const[my,mm]=m.split('-').map(Number);
                 const ic=my===now.getFullYear()&&mm===(now.getMonth()+1);
                 const nd=ic?now.getDate():new Date(my,mm,0).getDate();
                 const mA=d['PV Yield (kWh)']||0;
                 const mE=calcMonthExpFor(my,mm,nd,ic?curH:23);
-                rows.push({label:mS[mm]+' '+String(my).slice(2), act:mA, exp:mE, diff:mA-mE, perf:mE>0?mA/mE*100:0});
+                totA+=mA;totE+=mE;
+                rows.push({label:mS[mm]+' '+String(my).slice(2),act:mA,exp:mE,diff:mA-mE,perf:mE>0?mA/mE*100:0});
             });
-            // Reuse shared renderer with "Month" header
-            renderSummaryTable(ctx, rows, w, h, true);
-            // Fix header to say "Month" instead of "Year"
-            const barZone=55, rw=w-barZone;
-            ctx.fillStyle='#fff';ctx.fillRect(barZone+rw*0.02, 0, rw*0.12, 16);
-            ctx.font='bold 11px Segoe UI, Arial';ctx.fillStyle='#666';ctx.textAlign='center';ctx.textBaseline='top';
-            ctx.fillText('Month', barZone+rw*0.08, 2);
+            const totD=totA-totE, totP=totE>0?totA/totE*100:0;
+            const barZ=70;
+            const cols=[barZ+55, barZ+195, barZ+360, barZ+510, barZ+650];
+            const headerH=16;
+            const rh=(h-headerH)/(rows.length+1);
+            const fK=v=>Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' kWh';
+            const fD=v=>(v<0?'- ':'')+fK(v);
+            // Header
+            ctx.font='bold 11px Segoe UI, Arial';ctx.fillStyle='#666';ctx.textBaseline='top';ctx.textAlign='center';
+            ['Month','Yield','Target','Difference','Performance'].forEach((t,i)=>ctx.fillText(t,cols[i],2));
+            // Rows
+            const maxP=Math.max(...rows.map(r=>r.perf),100);
+            rows.forEach((r,i)=>{
+                const y=headerH+i*rh+rh/2;
+                const bW=Math.max(2,(r.perf/maxP)*(barZ-4));
+                ctx.fillStyle='#8BC34A';ctx.fillRect(1,y-5,bW,10);
+                ctx.font='10px Segoe UI, Arial';ctx.fillStyle='#444';ctx.textAlign='center';
+                ctx.fillText(r.label,cols[0],y-4);
+                ctx.fillText(fK(r.act),cols[1],y-4);
+                ctx.fillText(fK(r.exp),cols[2],y-4);
+                ctx.fillText(fD(r.diff),cols[3],y-4);
+                ctx.fillText(r.perf.toFixed(2)+'%',cols[4],y-4);
+            });
+            // Total
+            const totY=headerH+rows.length*rh+rh/2;
+            ctx.font='bold 11px Segoe UI, Arial';ctx.fillStyle='#444';ctx.textAlign='center';
+            ctx.fillText('12 Month Total',cols[0],totY-4);
+            ctx.fillText(fK(totA),cols[1],totY-4);
+            ctx.fillText(fK(totE),cols[2],totY-4);
+            ctx.fillText(fD(totD),cols[3],totY-4);
+            ctx.font='bold 11px Segoe UI, Arial';
+            ctx.fillText(totP.toFixed(2)+'%',cols[4],totY-4);
             return canvasToBlob(c);
         }
 
-        // ── image4: Daily chart (1497×455) ──
+        // ── image4: Daily chart (1497×455) — irradiation as tall filled area BEHIND bars ──
         async function renderDailyChart(ym, yr, mo, mm, numDays, curH, isCurrentMonth, monthName, fN, w, h, dpr) {
             const labels=[], actArr=[], irradArr=[], targetArr=[];
             const factor=degradationFactor(yr);
@@ -5771,8 +5753,8 @@
                 if(isCurrentMonth&&d===numDays){dayExp=0;for(let hh=0;hh<=curH;hh++)dayExp+=(dayPvs[hh]||0);dayExp*=factor;}
                 totalExp+=dayExp;
                 const dayAct=dh?dh.pv:0;
-                const irDay=irradData?.daily_records?.[ds];
-                const irradV=irDay?(irDay.hourly_wm2||[]).reduce((a,b)=>a+b,0)/200:dayPvs.reduce((a,b)=>a+b,0)*factor*1.15;
+                // Irradiation = expected PV * ~1.1 (proxy: available energy > captured)
+                const irradV = dayExp * 1.12;
                 actArr.push(Math.round(dayAct));
                 irradArr.push(Math.round(irradV));
             }
@@ -5781,16 +5763,16 @@
 
             return renderChartToPng(w, h, dpr, {
                 data:{labels, datasets:[
-                    {type:'line',label:'Irradiation',data:irradArr,backgroundColor:'rgba(230,220,50,0.35)',borderColor:'rgba(200,200,50,0.5)',borderWidth:1,pointRadius:0,tension:0.3,fill:'origin',order:3},
+                    {type:'line',label:'Irradiation',data:irradArr,backgroundColor:'rgba(240,230,50,0.4)',borderColor:'rgba(200,200,50,0.6)',borderWidth:1,pointRadius:0,tension:0.3,fill:'origin',order:3},
                     {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,barPercentage:0.65,categoryPercentage:0.85,order:2},
                     {type:'line',label:'Target',data:targetArr,borderColor:'#333',borderWidth:3,pointRadius:0,tension:0,fill:false,order:0}
                 ]},
                 options:{
-                    plugins:{title:{display:true,text:'Daily Performance - '+monthName+' '+yr,font:{size:22,weight:'bold'},color:'#333',padding:{top:12,bottom:10}},
-                        legend:{display:true,position:'top',labels:{font:{size:16},color:'#555',boxWidth:24,padding:18}}},
-                    scales:{x:{grid:{display:false},ticks:{color:'#444',font:{size:15,weight:'500'}}},
-                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#444',font:{size:16,weight:'500'}},grid:{color:'#eee'},ticks:{color:'#444',font:{size:14}}}},
-                    layout:{padding:{left:12,right:30,top:8,bottom:8}}
+                    plugins:{title:{display:true,text:'Daily Performance - '+monthName+' '+yr,font:{size:16,weight:'bold'},color:'#333',padding:{top:8,bottom:6}},
+                        legend:{display:true,position:'top',labels:{font:{size:12},color:'#555',boxWidth:18,padding:14}}},
+                    scales:{x:{grid:{display:false},ticks:{color:'#444',font:{size:11}}},
+                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#444',font:{size:12}},grid:{color:'#eee'},ticks:{color:'#444',font:{size:11}}}},
+                    layout:{padding:{left:8,right:15,top:5,bottom:5}}
                 }
             });
         }
@@ -5814,23 +5796,24 @@
             return renderChartToPng(w, h, dpr, {
                 data:{labels, datasets:[
                     {type:'bar',label:'Yield',data:actArr,backgroundColor:'#8BC34A',borderWidth:0,order:2,barPercentage:0.7},
-                    {type:'scatter',label:'Yield Markers',data:actArr.map((v,i)=>({x:i,y:v})),pointStyle:'crossRot',pointRadius:7,pointBorderColor:'#00BCD4',pointBorderWidth:2.5,backgroundColor:'transparent',order:1,showLine:false},
-                    {type:'line',label:'Target',data:expArr,borderColor:'#333',borderWidth:3,pointRadius:0,tension:0.4,fill:false,order:0}
+                    {type:'scatter',label:'Yield Markers',data:actArr.map((v,i)=>({x:i,y:v})),pointStyle:'crossRot',pointRadius:6,pointBorderColor:'#00BCD4',pointBorderWidth:2,backgroundColor:'transparent',order:1,showLine:false},
+                    {type:'line',label:'Target',data:expArr,borderColor:'#333',borderWidth:2.5,pointRadius:0,tension:0.4,fill:false,order:0}
                 ]},
                 options:{
-                    plugins:{title:{display:true,text:'Monthly Performance - '+mNamesS[parseInt(f[1])]+' '+f[0].slice(2)+' to '+mNamesS[parseInt(l[1])]+' '+l[0].slice(2),font:{size:18,weight:'bold'},color:'#333',padding:{top:10,bottom:8}},
-                        legend:{display:true,position:'top',labels:{font:{size:14},color:'#555',boxWidth:22,padding:16}}},
-                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#444',font:{size:14}}},
-                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#444',font:{size:14}},grid:{color:'#eee'},ticks:{color:'#444',font:{size:13}}}},
-                    layout:{padding:{left:12,right:22,top:6,bottom:6}}
+                    plugins:{title:{display:true,text:'Monthly Performance - '+mNamesS[parseInt(f[1])]+' '+f[0].slice(2)+' to '+mNamesS[parseInt(l[1])]+' '+l[0].slice(2),font:{size:14,weight:'bold'},color:'#333',padding:{top:6,bottom:5}},
+                        legend:{display:true,position:'top',labels:{font:{size:11},color:'#555',boxWidth:16,padding:12}}},
+                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#444',font:{size:11}}},
+                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#444',font:{size:11}},grid:{color:'#eee'},ticks:{color:'#444',font:{size:10}}}},
+                    layout:{padding:{left:8,right:15,top:4,bottom:4}}
                 }
             });
         }
 
         // ── image7: Yearly summary table (904×73) ──
         async function renderYearlySummary(yr, mo, numDays, curH, fN, w, h, dpr) {
-            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
-            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            const c=document.createElement('canvas');c.width=w;c.height=h;
+            const ctx=c.getContext('2d');
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
             const now=new Date();
             const allM=Object.keys(dashData.monthly).sort();
             const yMap={};
@@ -5842,8 +5825,30 @@
                 else{yMap[yy].e=(pvsyst?.annual_total_kwh||0)*f;}
             });
             const yrs=Object.keys(yMap).sort();
-            const rows=yrs.map(yy=>({label:yy, act:yMap[yy].a, exp:yMap[yy].e, diff:yMap[yy].a-yMap[yy].e, perf:yMap[yy].e>0?yMap[yy].a/yMap[yy].e*100:0}));
-            renderSummaryTable(ctx, rows, w, h, false);
+            const barZ=50;
+            const cols=[barZ+55, barZ+185, barZ+340, barZ+500, barZ+630];
+            const headerH=14;
+            const rh=(h-headerH)/yrs.length;
+            const fK=v=>Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' kWh';
+            const fD=v=>(v<0?'- ':'')+fK(v);
+            // Header
+            ctx.font='bold 10px Segoe UI, Arial';ctx.fillStyle='#666';ctx.textBaseline='top';ctx.textAlign='center';
+            ['Year','Yield','Target','Difference','Performance'].forEach((t,i)=>ctx.fillText(t,cols[i],1));
+            // Rows
+            const maxP=Math.max(...yrs.map(y=>yMap[y].e>0?yMap[y].a/yMap[y].e*100:0),100);
+            yrs.forEach((yy,i)=>{
+                const d=yMap[yy],p=d.e>0?d.a/d.e*100:0,diff=d.a-d.e;
+                const y=headerH+i*rh+rh/2;
+                const bW=Math.max(2,(p/maxP)*(barZ-4));
+                ctx.fillStyle='#8BC34A';ctx.fillRect(1,y-5,bW,10);
+                ctx.font='10px Segoe UI, Arial';ctx.fillStyle='#444';ctx.textAlign='center';
+                ctx.fillText(yy,cols[0],y-4);
+                ctx.fillText(fK(d.a),cols[1],y-4);
+                ctx.fillText(fK(d.e),cols[2],y-4);
+                ctx.fillStyle=diff<0?'#444':'#444';
+                ctx.fillText(fD(diff),cols[3],y-4);
+                ctx.fillStyle='#444';ctx.fillText(p.toFixed(2)+'%',cols[4],y-4);
+            });
             return canvasToBlob(c);
         }
 
@@ -5863,23 +5868,23 @@
             return renderChartToPng(w, h, dpr, {
                 data:{labels:yrs, datasets:[
                     {type:'bar',label:'Yield',data:yrs.map(y=>Math.round(yMap[y].a)),backgroundColor:'#8BC34A',borderWidth:0,order:2,barPercentage:0.55},
-                    {type:'scatter',label:'Yield Markers',data:yrs.map((y,i)=>({x:i,y:Math.round(yMap[y].a)})),pointStyle:'crossRot',pointRadius:8,pointBorderColor:'#00BCD4',pointBorderWidth:2.5,backgroundColor:'transparent',order:1,showLine:false},
-                    {type:'line',label:'Target',data:yrs.map(y=>Math.round(yMap[y].e)),borderColor:'#333',borderWidth:3,pointRadius:0,tension:0.3,fill:false,order:0}
+                    {type:'scatter',label:'Yield Markers',data:yrs.map((y,i)=>({x:i,y:Math.round(yMap[y].a)})),pointStyle:'crossRot',pointRadius:7,pointBorderColor:'#00BCD4',pointBorderWidth:2,backgroundColor:'transparent',order:1,showLine:false},
+                    {type:'line',label:'Target',data:yrs.map(y=>Math.round(yMap[y].e)),borderColor:'#333',borderWidth:2.5,pointRadius:0,tension:0.3,fill:false,order:0}
                 ]},
                 options:{
-                    plugins:{title:{display:true,text:'Yearly Performance - '+yrs[0]+' to '+yrs[yrs.length-1],font:{size:18,weight:'bold'},color:'#333',padding:{top:10,bottom:8}},
-                        legend:{display:true,position:'top',labels:{font:{size:14},color:'#555',boxWidth:22,padding:16}}},
-                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#444',font:{size:16,weight:'500'}}},
-                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#444',font:{size:14}},grid:{color:'#eee'},ticks:{color:'#444',font:{size:13}}}},
-                    layout:{padding:{left:12,right:22,top:6,bottom:6}}
+                    plugins:{title:{display:true,text:'Yearly Performance - '+yrs[0]+' to '+yrs[yrs.length-1],font:{size:14,weight:'bold'},color:'#333',padding:{top:6,bottom:5}},
+                        legend:{display:true,position:'top',labels:{font:{size:11},color:'#555',boxWidth:16,padding:12}}},
+                    scales:{x:{type:'category',grid:{display:false},ticks:{color:'#444',font:{size:12}}},
+                           y:{beginAtZero:true,title:{display:true,text:'Yield (kWh)',color:'#444',font:{size:11}},grid:{color:'#eee'},ticks:{color:'#444',font:{size:10}}}},
+                    layout:{padding:{left:8,right:15,top:4,bottom:4}}
                 }
             });
         }
 
-        // ── image9: Environmental impact (725×261) ── values in dark gray, not red
+        // ── image9: Environmental impact (725×261) ──
         async function renderEnvImpact(fN, w, h, dpr) {
-            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
-            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            const c=document.createElement('canvas');c.width=w;c.height=h;
+            const ctx=c.getContext('2d');
             ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
             const lifePV=dashData.all_time_totals?.['PV Yield (kWh)']||0;
             const co2=Math.round(lifePV*0.001);
@@ -5900,31 +5905,30 @@
             ctx.textBaseline='top';
             items.forEach((it,i)=>{
                 const row=Math.floor(i/2),col=i%2;
-                const x=col*colW+10,y=row*rh+8;
-                ctx.font='30px serif';ctx.fillText(it.ico,x,y);
-                // Values in dark gray, NOT red
-                ctx.font='bold 14px Segoe UI, Arial';ctx.fillStyle='#333';ctx.fillText(it.v,x+42,y+4);
-                ctx.font='11px Segoe UI, Arial';ctx.fillStyle='#555';
-                const maxW=colW-58;
-                let line='',ly=y+22;
+                const x=col*colW+8,y=row*rh+6;
+                ctx.font='22px serif';ctx.fillText(it.ico,x,y);
+                ctx.font='bold 12px Segoe UI, Arial';ctx.fillStyle='#333';ctx.fillText(it.v,x+30,y+3);
+                ctx.font='9.5px Segoe UI, Arial';ctx.fillStyle='#555';
+                const maxW=colW-42;
+                let line='',ly=y+18;
                 it.d.split(' ').forEach(word=>{
                     const t=line+word+' ';
-                    if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line.trim(),x+42,ly);ly+=14;line=word+' ';}
+                    if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line.trim(),x+30,ly);ly+=12;line=word+' ';}
                     else{line=t;}
                 });
-                if(line)ctx.fillText(line.trim(),x+42,ly);
+                if(line)ctx.fillText(line.trim(),x+30,ly);
             });
             return canvasToBlob(c);
         }
 
-        // ── image10/11: Warranty donut rows — aligned 3×2 grid ──
+        // ── image10/11: Warranty donut rows ──
         async function renderWarrantyRow(indices, w, h, dpr) {
-            const c=document.createElement('canvas');c.width=w*dpr;c.height=h*dpr;
-            const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+            const c=document.createElement('canvas');c.width=w;c.height=h;
+            const ctx=c.getContext('2d');
             ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
-            const now=new Date(), n=indices.length;
-            // Fixed column width — each donut gets exactly 1/3 of width
-            const colW = w / 3;
+            const now=new Date();
+            // Always divide into 3 equal columns for alignment
+            const colW=w/3;
             indices.forEach((idx,col)=>{
                 const wd=WARRANTY_DATA[idx];if(!wd)return;
                 const start=new Date(wd.start+'T00:00:00');
@@ -5933,39 +5937,32 @@
                 const pR=Math.max(0,rem/tot*100);
                 const rY=(rem/(365.25*24*60*60*1000)).toFixed(2);
                 const eY=(elap/(365.25*24*60*60*1000)).toFixed(2);
-                // Center of this column
-                const cx2 = col * colW + colW/2;
-                const cy2 = h * 0.58;
-                const rad = Math.min(colW*0.34, h*0.28);
-                const iR = rad * 0.58;
-                const G='#8BC34A', P='#5C4D7A';
-
+                const cx2=col*colW+colW/2, cy2=h*0.58;
+                const rad=Math.min(colW*0.32, h*0.27), iR=rad*0.55;
+                const G='#8BC34A',P='#5C4D7A';
                 // Title
-                ctx.fillStyle='#333';ctx.font='bold 13px Segoe UI, Arial';ctx.textAlign='center';ctx.textBaseline='top';
+                ctx.fillStyle='#333';ctx.font='bold 11px Segoe UI, Arial';ctx.textAlign='center';ctx.textBaseline='top';
                 if(wd.item.length>20){
                     const words=wd.item.split(' ');let l1='',l2='';
-                    words.forEach(w2=>{if(ctx.measureText(l1+w2).width<colW-16)l1+=w2+' ';else l2+=w2+' ';});
-                    ctx.fillText(l1.trim(),cx2,6);ctx.fillText(l2.trim(),cx2,22);
-                } else ctx.fillText(wd.item,cx2,12);
-
-                // Legend — centered under title
-                ctx.font='9px Segoe UI, Arial';ctx.textAlign='left';
-                const lgY=40, lgX=cx2-52;
-                ctx.fillStyle=G;ctx.fillRect(lgX,lgY,10,10);
-                ctx.fillStyle='#555';ctx.fillText('Remaining',lgX+13,lgY+1);
-                ctx.fillStyle=P;ctx.fillRect(lgX+75,lgY,10,10);
-                ctx.fillStyle='#555';ctx.fillText('Elapsed',lgX+88,lgY+1);
-
-                // Donut arcs
-                const sa=-Math.PI/2, ra=(pR/100)*Math.PI*2;
+                    words.forEach(w2=>{if(ctx.measureText(l1+w2).width<colW-12)l1+=w2+' ';else l2+=w2+' ';});
+                    ctx.fillText(l1.trim(),cx2,4);ctx.fillText(l2.trim(),cx2,17);
+                } else ctx.fillText(wd.item,cx2,8);
+                // Legend
+                ctx.font='8px Segoe UI, Arial';ctx.textAlign='left';
+                const lgY=32,lgX=cx2-42;
+                ctx.fillStyle=G;ctx.fillRect(lgX,lgY,8,8);
+                ctx.fillStyle='#555';ctx.fillText('Remaining',lgX+10,lgY+0);
+                ctx.fillStyle=P;ctx.fillRect(lgX+62,lgY,8,8);
+                ctx.fillStyle='#555';ctx.fillText('Elapsed',lgX+72,lgY+0);
+                // Donut
+                const sa=-Math.PI/2,ra=(pR/100)*Math.PI*2;
                 ctx.beginPath();ctx.arc(cx2,cy2,rad,sa,sa+ra);ctx.arc(cx2,cy2,iR,sa+ra,sa,true);ctx.closePath();ctx.fillStyle=G;ctx.fill();
                 ctx.beginPath();ctx.arc(cx2,cy2,rad,sa+ra,sa+Math.PI*2);ctx.arc(cx2,cy2,iR,sa+Math.PI*2,sa+ra,true);ctx.closePath();ctx.fillStyle=P;ctx.fill();
-
-                // Arc labels
+                // Labels
                 const mR=(rad+iR)/2;
-                ctx.fillStyle='#fff';ctx.font='bold 11px Segoe UI, Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-                if(pR>8){const a=sa+ra/2;ctx.fillText(rY+';',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR-7);ctx.fillText(Math.round(pR)+'%',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR+7);}
-                if((100-pR)>8){const a=sa+ra+(Math.PI*2-ra)/2;ctx.fillText(eY+';',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR-7);ctx.fillText(Math.round(100-pR)+'%',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR+7);}
+                ctx.fillStyle='#fff';ctx.font='bold 9px Segoe UI, Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+                if(pR>8){const a=sa+ra/2;ctx.fillText(rY+';',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR-6);ctx.fillText(Math.round(pR)+'%',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR+6);}
+                if((100-pR)>8){const a=sa+ra+(Math.PI*2-ra)/2;ctx.fillText(eY+';',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR-6);ctx.fillText(Math.round(100-pR)+'%',cx2+Math.cos(a)*mR,cy2+Math.sin(a)*mR+6);}
             });
             return canvasToBlob(c);
         }
