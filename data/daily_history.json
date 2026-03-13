@@ -5016,12 +5016,12 @@
     }
   },
   "2026-03-13": {
-    "current_hour": 11,
-    "pv": 1316.91,
-    "import": 1851.26,
-    "export": 74.8,
-    "self_consumption": 1242.11,
-    "consumption": 3093.37,
+    "current_hour": 12,
+    "pv": 1787.32,
+    "import": 1897.21,
+    "export": 126.0,
+    "self_consumption": 1661.32,
+    "consumption": 3558.53,
     "hourly": {
       "pv": [
         0.0,
@@ -5036,7 +5036,7 @@
         325.73,
         366.42,
         497.45,
-        0.0,
+        470.41,
         0.0,
         0.0,
         0.0,
@@ -5062,7 +5062,7 @@
         417.0,
         434.83,
         452.67,
-        0.0,
+        465.16,
         0.0,
         0.0,
         0.0,
@@ -5088,7 +5088,7 @@
         91.27,
         89.21,
         9.22,
-        0.0,
+        45.95,
         0.0,
         0.0,
         0.0,
@@ -5114,7 +5114,7 @@
         0.0,
         20.8,
         54.0,
-        0.0,
+        51.2,
         0.0,
         0.0,
         0.0,
@@ -5139,13 +5139,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1190.46,
-        "import": 480.51,
-        "self_consumption": 1115.66,
-        "export": 74.8,
-        "utility_cost": 770.16,
-        "pv_savings": 1788.18,
-        "export_savings": 122.08
+        "generation": 1660.87,
+        "import": 526.46,
+        "self_consumption": 1534.87,
+        "export": 126.0,
+        "utility_cost": 843.81,
+        "pv_savings": 2460.09,
+        "export_savings": 205.64
       },
       "off_peak": {
         "generation": 0.0,
@@ -5159,17 +5159,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 176.57,
-        "standard": 1891.58,
+        "peak": 236.16,
+        "standard": 2529.99,
         "off_peak": 0.0,
-        "total": 2068.16
+        "total": 2766.15
       },
       "export_savings": {
-        "standard": 115.99,
+        "standard": 195.39,
         "off_peak": 0.0,
-        "total": 115.99
+        "total": 195.39
       },
-      "total": 2184.15
+      "total": 2961.54
     }
   }
 }
