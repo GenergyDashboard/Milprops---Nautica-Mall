@@ -5173,12 +5173,12 @@
     }
   },
   "2026-03-14": {
-    "current_hour": 10,
-    "pv": 997.1,
-    "import": 1515.14,
-    "export": 0.4,
-    "self_consumption": 996.7,
-    "consumption": 2511.84,
+    "current_hour": 11,
+    "pv": 1489.45,
+    "import": 1532.8,
+    "export": 3.2,
+    "self_consumption": 1486.25,
+    "consumption": 3019.05,
     "hourly": {
       "pv": [
         0.0,
@@ -5192,7 +5192,7 @@
         188.77,
         330.08,
         430.69,
-        0.0,
+        492.35,
         0.0,
         0.0,
         0.0,
@@ -5218,7 +5218,7 @@
         325.99,
         400.48,
         461.78,
-        0.0,
+        507.21,
         0.0,
         0.0,
         0.0,
@@ -5244,7 +5244,7 @@
         137.22,
         70.4,
         31.49,
-        0.0,
+        17.66,
         0.0,
         0.0,
         0.0,
@@ -5270,7 +5270,7 @@
         0.0,
         0.0,
         0.4,
-        0.0,
+        2.8,
         0.0,
         0.0,
         0.0,
@@ -5296,13 +5296,13 @@
         "export_savings": 0
       },
       "standard": {
-        "generation": 996.11,
-        "import": 466.31,
-        "self_consumption": 995.71,
-        "export": 0.4,
-        "utility_cost": 747.4,
-        "pv_savings": 1595.92,
-        "export_savings": 0.65
+        "generation": 1488.46,
+        "import": 483.97,
+        "self_consumption": 1485.26,
+        "export": 3.2,
+        "utility_cost": 775.71,
+        "pv_savings": 2380.57,
+        "export_savings": 5.22
       },
       "off_peak": {
         "generation": 0.99,
@@ -5317,16 +5317,16 @@
     "savings": {
       "pv_savings": {
         "peak": 0.0,
-        "standard": 767.73,
-        "off_peak": 592.72,
-        "total": 1360.45
+        "standard": 1144.81,
+        "off_peak": 883.85,
+        "total": 2028.67
       },
       "export_savings": {
-        "standard": 0.31,
-        "off_peak": 0.23,
-        "total": 0.54
+        "standard": 2.51,
+        "off_peak": 1.81,
+        "total": 4.32
       },
-      "total": 1360.99
+      "total": 2032.99
     }
   }
 }
