@@ -1983,7 +1983,9 @@
             applyChartDefaults();
         }
 
+        let currentTab = 'overview';
         function switchTab(tab, btn) {
+            currentTab = tab;
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + tab).classList.add('active');
@@ -2049,8 +2051,66 @@
         }
 
         // ══════════════════════════════════════════════════
-        // RENDER: PUBLIC VIEW
+        // AUTO-REFRESH (for TV/kiosk display)
         // ══════════════════════════════════════════════════
+        const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        let autoRefreshTimer = null;
+        let lastRefreshTime = null;
+
+        async function autoRefresh() {
+            try {
+                const [dataRes, histRes, commRes] = await Promise.all([
+                    fetch(cacheBust(DATA_URL)),
+                    fetch(cacheBust(DAILY_HIST_URL)),
+                    fetch(cacheBust(DT_COMMENTS_URL)).catch(() => null)
+                ]);
+                if (dataRes.ok) dashData = await dataRes.json();
+                if (histRes.ok) dailyHist = await histRes.json();
+                if (commRes && commRes.ok) { try { dtCommentsRemote = await commRes.json(); dtComments = Object.assign({}, dtCommentsRemote); } catch(e) {} }
+
+                // Re-render current view
+                renderPublicView();
+                if (isLoggedIn) {
+                    renderClientOverview();
+                    refreshActiveTab();
+                }
+                if (dashData.last_updated) {
+                    document.getElementById('lastUpdated').textContent = 'Last updated: ' + dashData.last_updated;
+                }
+                lastRefreshTime = new Date();
+                updateRefreshIndicator();
+            } catch(e) {
+                console.warn('Auto-refresh failed:', e.message);
+            }
+        }
+
+        function refreshActiveTab() {
+            switch(currentTab) {
+                case 'overview': renderClientOverview(); break;
+                case 'daily':
+                    const dp = document.getElementById('dailyDatePicker');
+                    if (dp && dp.value) loadDailyDate(dp.value);
+                    break;
+                case 'monthly': initMonthSelector(); break;
+                case 'lifetime': renderLifetimeTab(); break;
+                case 'financial': renderFinancialTab(); break;
+                case 'warranty': renderWarrantyTab(); break;
+                case 'downtime': if (typeof renderDowntimeTab === 'function') renderDowntimeTab(); break;
+            }
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            lastRefreshTime = new Date();
+            autoRefreshTimer = setInterval(autoRefresh, AUTO_REFRESH_INTERVAL);
+            updateRefreshIndicator();
+            // Update the countdown every 30 seconds
+            setInterval(updateRefreshIndicator, 30000);
+        }
+
+        function updateRefreshIndicator() {}
+
+
         function renderPublicView() {
             const d = dashData;
             const todayKwh = d.today?.data?.['PV Yield (kWh)'] || 0;
@@ -6491,7 +6551,7 @@
                 isLoggedIn = true;
                 showClientView();
             }
-            loadData();
+            loadData().then(() => startAutoRefresh());
         });
     </script>
 
