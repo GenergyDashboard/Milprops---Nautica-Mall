@@ -5504,6 +5504,8 @@
             const lifePV=dashData.all_time_totals?.['PV Yield (kWh)']||0;
             const envData=calcEnv(lifePV);
             const allM=Object.keys(dashData.monthly).sort();
+            const ymIdx=allM.indexOf(ym);
+            const last12=allM.slice(Math.max(0,ymIdx-11),ymIdx+1);
 
             // ── CAPTURE SCREENSHOTS ──
             const statusEl = document.getElementById('rptDocxStatus');
