@@ -5682,7 +5682,8 @@
             }
             children.push(tbl(dC,dR));
             children.push(sp(80));
-            // Monthly chart screenshot
+            // Monthly chart
+            children.push(h2('Daily Generation & Performance'));
             children.push(img(mCaps.chart, 700, 320));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
@@ -5705,8 +5706,10 @@
             yR.push(row(cel('LIFETIME',yC[0],{bold:true,fill:DARK,color:WHITE}),cel(fN(yA)+' kWh',yC[1],{fill:DARK,color:WHITE,bold:true}),cel(fN(yE)+' kWh',yC[2],{fill:DARK,color:WHITE,bold:true}),cel((yA-yE>=0?'+':'')+fN(yA-yE)+' kWh',yC[3],{fill:DARK,color:'FFD700',bold:true}),cel(yP.toFixed(1)+'%',yC[4],{fill:DARK,color:'FFD700',bold:true})));
             children.push(tbl(yC,yR));
             children.push(sp(80));
+            children.push(h2('Monthly Generation Breakdown'));
             children.push(img(lCaps.genChart, 700, 320));
             children.push(sp(60));
+            children.push(h2('Monthly Savings Breakdown'));
             children.push(img(lCaps.savChart, 700, 320));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
@@ -5724,8 +5727,10 @@
                 ]));
             }
             children.push(sp(80));
+            children.push(h2('Savings Over Time'));
             children.push(img(fCaps.savChart, 700, 320));
             children.push(sp(60));
+            children.push(h2('TOU Generation Distribution'));
             children.push(img(fCaps.genChart, 700, 320));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
