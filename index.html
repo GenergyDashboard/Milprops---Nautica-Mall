@@ -5408,55 +5408,69 @@
             setTimeout(() => statusEl.textContent = '', 5000);
         }
 
-        // Screenshot a DOM element as Uint8Array PNG
+        // Screenshot a DOM element — tries html2canvas, falls back gracefully
         async function screenshotEl(el) {
             if (!el) return null;
-            const canvas = await html2canvas(el, {
-                backgroundColor: null,
-                scale: 2,
-                useCORS: true,
-                logging: false
-            });
+            try {
+                const canvas = await html2canvas(el, {
+                    backgroundColor: '#0d1117',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: true,
+                    ignoreElements: (e) => e.tagName === 'CANVAS' // skip Chart.js canvases in html2canvas
+                });
+                return new Promise(r => canvas.toBlob(b => {
+                    if (!b) { r(null); return; }
+                    b.arrayBuffer().then(ab => r(new Uint8Array(ab)));
+                }, 'image/png'));
+            } catch(e) {
+                console.warn('html2canvas failed for element:', e.message);
+                return null;
+            }
+        }
+
+        // Directly capture a Chart.js canvas by ID — no html2canvas needed
+        function captureChartCanvas(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !canvas.getContext) return Promise.resolve(null);
             return new Promise(r => canvas.toBlob(b => {
                 if (!b) { r(null); return; }
                 b.arrayBuffer().then(ab => r(new Uint8Array(ab)));
             }, 'image/png'));
         }
 
-        // Show a tab silently (no visual flicker), render, screenshot, restore
-        async function captureTab(tabName, renderFn, selectors) {
-            // Save current state
-            const allTabs = document.querySelectorAll('.tab-content');
-            const wasVisible = {};
-            allTabs.forEach(t => { wasVisible[t.id] = t.style.display; });
-
-            // Show target tab
+        // Show a tab off-screen, render it, capture charts + DOM elements, restore
+        async function captureTab(tabName, renderFn, chartIds, domSelectors) {
             const tab = document.getElementById('tab-' + tabName);
             if (!tab) return {};
-            tab.style.display = 'block';
-            tab.style.visibility = 'visible';
-            tab.style.position = 'absolute';
-            tab.style.left = '-9999px';
-            tab.style.width = '1200px';
 
-            // Render
+            // Show off-screen
+            const origStyle = tab.style.cssText;
+            tab.style.cssText = 'display:block !important;visibility:visible;position:absolute;left:-9999px;width:1200px;z-index:-1;';
+
             if (renderFn) renderFn();
             await new Promise(r => setTimeout(r, 800));
 
-            // Capture each selector
             const results = {};
-            for (const [key, sel] of Object.entries(selectors)) {
-                const el = tab.querySelector(sel) || document.querySelector(sel);
-                if (el) results[key] = await screenshotEl(el);
+
+            // Capture Chart.js canvases directly
+            if (chartIds) {
+                for (const [key, id] of Object.entries(chartIds)) {
+                    results[key] = await captureChartCanvas(id);
+                }
+            }
+
+            // Capture DOM elements via html2canvas
+            if (domSelectors) {
+                for (const [key, sel] of Object.entries(domSelectors)) {
+                    const el = tab.querySelector(sel);
+                    if (el) results[key] = await screenshotEl(el);
+                }
             }
 
             // Restore
-            tab.style.display = wasVisible[tab.id] || '';
-            tab.style.visibility = '';
-            tab.style.position = '';
-            tab.style.left = '';
-            tab.style.width = '';
-
+            tab.style.cssText = origStyle;
             return results;
         }
 
@@ -5494,42 +5508,33 @@
             // ── CAPTURE SCREENSHOTS ──
             const statusEl = document.getElementById('rptDocxStatus');
 
-            // Overview tab — slabs are already rendered
+            // Overview tab — slabs and env are DOM, charts captured directly
             statusEl.textContent = 'Capturing Overview...';
             const ovSlabs = document.querySelector('[data-block="slabs"]');
             const ovEnv = document.querySelector('[data-block="env"]');
-            const ovPvDist = document.querySelector('[data-block="pvdist"]');
             const ovSlabsPng = ovSlabs ? await screenshotEl(ovSlabs) : null;
             const ovEnvPng = ovEnv ? await screenshotEl(ovEnv) : null;
-            const ovPvDistPng = ovPvDist ? await screenshotEl(ovPvDist) : null;
+            const ovPvDistPng = await captureChartCanvas('pvDistChart');
 
-            // Monthly tab
+            // Monthly tab — chart canvases captured directly
             statusEl.textContent = 'Capturing Monthly...';
-            const mCaps = await captureTab('monthly', () => renderMonthlyTab(ym), {
-                chart: '.chart-wrap:has(#monthlyDailyChart)',
-                touChart: '.chart-wrap:has(#monthlyTOUChart)'
-            });
+            const mCaps = await captureTab('monthly', () => renderMonthlyTab(ym),
+                { chart: 'monthlyDailyChart', touChart: 'monthlyTOUChart' }, {});
 
             // Lifetime tab
             statusEl.textContent = 'Capturing Lifetime...';
-            const lCaps = await captureTab('lifetime', () => renderLifetimeTab(), {
-                genChart: '.chart-wrap:has(#lifetimeGenChart)',
-                savChart: '.chart-wrap:has(#lifetimeSavChart)'
-            });
+            const lCaps = await captureTab('lifetime', () => renderLifetimeTab(),
+                { genChart: 'lifetimeGenChart', savChart: 'lifetimeSavChart' }, {});
 
             // Financial tab
             statusEl.textContent = 'Capturing Financial...';
-            const fCaps = await captureTab('financial', () => renderFinancialTab(), {
-                savChart: '.chart-wrap:has(#finSavChart)',
-                genChart: '.chart-wrap:has(#finGenChart)'
-            });
+            const fCaps = await captureTab('financial', () => renderFinancialTab(),
+                { savChart: 'finSavChart', genChart: 'finGenChart' }, {});
 
-            // Warranty tab
+            // Warranty tab — donuts are DOM, table is DOM
             statusEl.textContent = 'Capturing Warranties...';
-            const wCaps = await captureTab('warranty', () => renderWarrantyTab(), {
-                donuts: '#warrantyDonuts',
-                table: '#warrantyTable'
-            });
+            const wCaps = await captureTab('warranty', () => renderWarrantyTab(),
+                {}, { donuts: '.warranty-grid', table: '.env-table-wrap' });
 
             statusEl.textContent = 'Building document...';
 
