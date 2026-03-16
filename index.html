@@ -5508,28 +5508,33 @@
             // ── CAPTURE SCREENSHOTS ──
             const statusEl = document.getElementById('rptDocxStatus');
 
-            // Overview tab — slabs and env are DOM, charts captured directly
+            // Overview tab — slabs and env are DOM
             statusEl.textContent = 'Capturing Overview...';
             const ovSlabs = document.querySelector('[data-block="slabs"]');
             const ovEnv = document.querySelector('[data-block="env"]');
             const ovSlabsPng = ovSlabs ? await screenshotEl(ovSlabs) : null;
             const ovEnvPng = ovEnv ? await screenshotEl(ovEnv) : null;
-            const ovPvDistPng = await captureChartCanvas('pvDistChart');
 
             // Monthly tab — chart canvases captured directly
             statusEl.textContent = 'Capturing Monthly...';
             const mCaps = await captureTab('monthly', () => renderMonthlyTab(ym),
                 { chart: 'monthlyDailyChart', touChart: 'monthlyTOUChart' }, {});
 
-            // Lifetime tab
-            statusEl.textContent = 'Capturing Lifetime...';
+            // Lifetime tab — force 12M range before capturing
+            statusEl.textContent = 'Capturing Lifetime (12M)...';
+            const origLtRange = lifetimeRange;
+            lifetimeRange = 12;
             const lCaps = await captureTab('lifetime', () => renderLifetimeTab(),
                 { genChart: 'lifetimeGenChart', savChart: 'lifetimeSavChart' }, {});
+            lifetimeRange = origLtRange; // restore
 
-            // Financial tab
-            statusEl.textContent = 'Capturing Financial...';
+            // Financial tab — force 12M range before capturing
+            statusEl.textContent = 'Capturing Financial (12M)...';
+            const origFinRange = finRange;
+            finRange = 12;
             const fCaps = await captureTab('financial', () => renderFinancialTab(),
                 { savChart: 'finSavChart', genChart: 'finGenChart' }, {});
+            finRange = origFinRange; // restore
 
             // Warranty tab — donuts are DOM, table is DOM
             statusEl.textContent = 'Capturing Warranties...';
