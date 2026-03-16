@@ -709,6 +709,28 @@
             .dt-summary-grid { grid-template-columns: repeat(2, 1fr); }
             .dt-hm-cell { min-height: 14px; }
         }
+
+        /* TAB REORDER (edit mode) */
+        body.edit-mode .tab-nav button { cursor: grab; position: relative; }
+        body.edit-mode .tab-nav button::before { content: '⠿'; position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 0.7em; opacity: 0.4; }
+        body.edit-mode .tab-nav button { padding-left: 18px; }
+        body.edit-mode .tab-nav button.tab-drag-over { border-color: var(--gold); background: rgba(255,215,0,0.2); }
+        body.edit-mode .tab-nav button.tab-dragging { opacity: 0.4; }
+        /* Chart defaults panel */
+        .chart-defaults-panel { display:none; position:fixed; top:0; right:0; bottom:0; width:360px; background:#0d1117; border-left:2px solid rgba(255,215,0,0.3); z-index:10000; overflow-y:auto; box-shadow:-8px 0 30px rgba(0,0,0,0.5); }
+        .chart-defaults-panel.open { display:block; }
+        .cdp-header { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .cdp-header h3 { margin:0; color:var(--gold); font-size:0.95em; }
+        .cdp-section { padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .cdp-section h4 { color:#94a3b8; font-size:0.78em; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 10px 0; }
+        .cdp-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .cdp-row label { color:#cbd5e1; font-size:0.82em; }
+        .cdp-row select { background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#fff; padding:5px 8px; font-size:0.8em; }
+        .cdp-legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .cdp-legend-item { display:flex; align-items:center; gap:6px; }
+        .cdp-legend-item input[type=checkbox] { accent-color:var(--gold); }
+        .cdp-legend-item label { color:#94a3b8; font-size:0.75em; cursor:pointer; }
+        .cdp-actions { padding:14px 20px; display:flex; gap:10px; }
         /* WARRANTY TAB */
         .warranty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 10px; }
         .warranty-card { background: var(--card-bg); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); padding: 20px; text-align: center; }
@@ -770,6 +792,7 @@
                     <button class="fs-md" onclick="setFontScale(1)" title="Default">A</button>
                     <button class="fs-lg" onclick="setFontScale(1.15)" title="Larger">A</button>
                     <button class="edit-layout-btn" id="editLayoutBtn" onclick="toggleEditMode()" title="Edit Layout">✎ Edit</button>
+                    <button class="edit-layout-btn" id="chartDefaultsBtn" onclick="toggleChartDefaults()" title="Chart & Tab Defaults" style="display:none;">⚙ Defaults</button>
                     <button class="edit-layout-btn" id="calcConfigBtn" onclick="toggleCalcPanel()" title="Calculation Settings" style="background:rgba(96,165,250,0.15);border-color:#60a5fa;color:#60a5fa;">⚙ Calc</button>
                 </div>
                 <div id="loginSection">
@@ -849,14 +872,14 @@
             </div>
 
             <div class="tab-nav">
-                <button class="active" onclick="switchTab('overview', this)">Overview</button>
-                <button onclick="switchTab('daily', this)">Daily Generation</button>
-                <button onclick="switchTab('monthly', this)">Monthly Overview</button>
-                <button onclick="switchTab('lifetime', this)">Lifetime Stats</button>
-                <button onclick="switchTab('financial', this)">Financial Overview</button>
-                <button onclick="switchTab('report', this)">Report</button>
-                <button onclick="switchTab('warranty', this)">Warranty</button>
-                <button onclick="switchTab('downtime', this)">Downtime</button>
+                <button class="active" onclick="switchTab('overview', this)" data-tab="overview">Overview</button>
+                <button onclick="switchTab('daily', this)" data-tab="daily">Daily Generation</button>
+                <button onclick="switchTab('monthly', this)" data-tab="monthly">Monthly Overview</button>
+                <button onclick="switchTab('lifetime', this)" data-tab="lifetime">Lifetime Stats</button>
+                <button onclick="switchTab('financial', this)" data-tab="financial">Financial Overview</button>
+                <button onclick="switchTab('report', this)" data-tab="report">Report</button>
+                <button onclick="switchTab('warranty', this)" data-tab="warranty">Warranty</button>
+                <button onclick="switchTab('downtime', this)" data-tab="downtime">Downtime</button>
             </div>
 
             <!-- OVERVIEW TAB -->
@@ -1956,6 +1979,8 @@
             document.getElementById('editLayoutBtn').style.display = 'inline-block';
             document.getElementById('calcConfigBtn').style.display = 'inline-block';
             loadLayout();
+            loadTabOrder();
+            applyChartDefaults();
         }
 
         function switchTab(tab, btn) {
@@ -6065,6 +6090,175 @@
             return layout ? layout.id : 'overviewLayout';
         }
 
+
+        // ══════════════════════════════════════════════════
+        // TAB REORDER & CHART DEFAULTS
+        // ══════════════════════════════════════════════════
+        const TAB_ORDER_KEY = 'nautica-tab-order';
+        const CHART_DEFAULTS_KEY = 'nautica-chart-defaults';
+        let tabDragSrc = null;
+
+        // ── Tab Drag & Drop ──
+        function initTabDrag() {
+            const nav = document.querySelector('.tab-nav');
+            if (!nav) return;
+            nav.querySelectorAll('button[data-tab]').forEach(btn => {
+                btn.draggable = editMode;
+                if (editMode) {
+                    btn.addEventListener('dragstart', tabDragStart);
+                    btn.addEventListener('dragend', tabDragEnd);
+                    btn.addEventListener('dragover', tabDragOver);
+                    btn.addEventListener('dragleave', tabDragLeave);
+                    btn.addEventListener('drop', tabDrop);
+                } else {
+                    btn.removeEventListener('dragstart', tabDragStart);
+                    btn.removeEventListener('dragend', tabDragEnd);
+                    btn.removeEventListener('dragover', tabDragOver);
+                    btn.removeEventListener('dragleave', tabDragLeave);
+                    btn.removeEventListener('drop', tabDrop);
+                    btn.draggable = false;
+                }
+            });
+        }
+        function tabDragStart(e) { tabDragSrc = this; this.classList.add('tab-dragging'); e.dataTransfer.effectAllowed = 'move'; }
+        function tabDragEnd() { this.classList.remove('tab-dragging'); document.querySelectorAll('.tab-drag-over').forEach(b => b.classList.remove('tab-drag-over')); tabDragSrc = null; }
+        function tabDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; this.classList.add('tab-drag-over'); }
+        function tabDragLeave() { this.classList.remove('tab-drag-over'); }
+        function tabDrop(e) {
+            e.preventDefault();
+            this.classList.remove('tab-drag-over');
+            if (tabDragSrc === this) return;
+            const nav = this.parentNode;
+            const allBtns = [...nav.querySelectorAll('button[data-tab]')];
+            const fromIdx = allBtns.indexOf(tabDragSrc);
+            const toIdx = allBtns.indexOf(this);
+            if (fromIdx < toIdx) nav.insertBefore(tabDragSrc, this.nextSibling);
+            else nav.insertBefore(tabDragSrc, this);
+            saveTabOrder();
+        }
+        function saveTabOrder() {
+            const nav = document.querySelector('.tab-nav');
+            const order = [...nav.querySelectorAll('button[data-tab]')].map(b => b.dataset.tab);
+            localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(order));
+        }
+        function loadTabOrder() {
+            try {
+                const order = JSON.parse(localStorage.getItem(TAB_ORDER_KEY));
+                if (!order || !order.length) return;
+                const nav = document.querySelector('.tab-nav');
+                if (!nav) return;
+                const btns = {};
+                nav.querySelectorAll('button[data-tab]').forEach(b => { btns[b.dataset.tab] = b; });
+                order.forEach(tabId => { if (btns[tabId]) nav.appendChild(btns[tabId]); });
+            } catch(e) {}
+        }
+
+        // ── Chart Defaults ──
+        const CHART_DEFAULTS = {
+            ovView: 'today', pvdPeriod: 'month', ltRange: 0, finRange: 0,
+            ovLegends: { predicted:true, pvGen:true, irrad:true, load:false, expLoad:false, grid:false, expGrid:false, avgPV:false },
+            pvdLegends: { 'pvd-median':true, 'pvd-p50':true, 'pvd-p80':true, 'pvd-min':true, 'pvd-max':true, 'pvd-load':true },
+            dailyLegends: { 'd-predicted':true, 'd-pvGen':true, 'd-irrad':true, 'd-load':false, 'd-expLoad':false, 'd-grid':false, 'd-expGrid':false }
+        };
+        let chartDefaults = Object.assign({}, CHART_DEFAULTS);
+        try { const saved = JSON.parse(localStorage.getItem(CHART_DEFAULTS_KEY)); if (saved) chartDefaults = Object.assign({}, CHART_DEFAULTS, saved); } catch(e) {}
+
+        function applyChartDefaults() {
+            // Apply view defaults
+            if (chartDefaults.ovView !== 'today') {
+                ovChartView = chartDefaults.ovView;
+                const btns = document.querySelectorAll('[onclick*="setOvChartView"]');
+                btns.forEach(b => { b.classList.toggle('active', b.textContent.toLowerCase().includes(chartDefaults.ovView === 'month' ? 'month' : chartDefaults.ovView)); });
+            }
+            if (chartDefaults.pvdPeriod !== 'month') pvdPeriod = chartDefaults.pvdPeriod;
+            if (chartDefaults.ltRange !== 0) lifetimeRange = chartDefaults.ltRange;
+            if (chartDefaults.finRange !== 0) finRange = chartDefaults.finRange;
+
+            // Apply legend defaults
+            if (chartDefaults.ovLegends) Object.assign(dsVisibility, chartDefaults.ovLegends);
+            if (chartDefaults.pvdLegends) Object.assign(pvdDsVis, chartDefaults.pvdLegends);
+            if (chartDefaults.dailyLegends) Object.assign(dailyDsVis, chartDefaults.dailyLegends);
+        }
+
+        function toggleChartDefaults() {
+            const panel = document.getElementById('chartDefaultsPanel');
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) populateDefaultsPanel();
+        }
+
+        function populateDefaultsPanel() {
+            document.getElementById('cdp-ovView').value = chartDefaults.ovView;
+            document.getElementById('cdp-pvdPeriod').value = chartDefaults.pvdPeriod;
+            document.getElementById('cdp-ltRange').value = String(chartDefaults.ltRange);
+            document.getElementById('cdp-finRange').value = String(chartDefaults.finRange);
+
+            // Overview legends
+            const ovLabels = { predicted:'Predicted PV', pvGen:'PV Generation', irrad:'Irradiation', load:'Load', expLoad:'Expected Load', grid:'Grid', expGrid:'Expected Grid', avgPV:'Avg PV' };
+            const ovDiv = document.getElementById('cdp-ovLegends');
+            ovDiv.innerHTML = '';
+            Object.entries(ovLabels).forEach(([key, label]) => {
+                const checked = chartDefaults.ovLegends?.[key] !== false;
+                ovDiv.innerHTML += '<div class="cdp-legend-item"><input type="checkbox" id="cdp-ov-'+key+'" '+(checked?'checked':'')+' onchange="saveChartDefaults()"><label for="cdp-ov-'+key+'">'+label+'</label></div>';
+            });
+
+            // PVD legends
+            const pvdLabels = { 'pvd-median':'Median (P50)', 'pvd-p50':'50% Band', 'pvd-p80':'80% Band', 'pvd-min':'Min', 'pvd-max':'Max', 'pvd-load':'Median Load' };
+            const pvdDiv = document.getElementById('cdp-pvdLegends');
+            pvdDiv.innerHTML = '';
+            Object.entries(pvdLabels).forEach(([key, label]) => {
+                const checked = chartDefaults.pvdLegends?.[key] !== false;
+                pvdDiv.innerHTML += '<div class="cdp-legend-item"><input type="checkbox" id="cdp-'+key+'" '+(checked?'checked':'')+' onchange="saveChartDefaults()"><label for="cdp-'+key+'">'+label+'</label></div>';
+            });
+
+            // Daily legends
+            const dLabels = { 'd-predicted':'Predicted PV', 'd-pvGen':'PV Generation', 'd-irrad':'Irradiation', 'd-load':'Load', 'd-expLoad':'Expected Load', 'd-grid':'Grid', 'd-expGrid':'Expected Grid' };
+            const dDiv = document.getElementById('cdp-dailyLegends');
+            dDiv.innerHTML = '';
+            Object.entries(dLabels).forEach(([key, label]) => {
+                const checked = chartDefaults.dailyLegends?.[key] !== false;
+                dDiv.innerHTML += '<div class="cdp-legend-item"><input type="checkbox" id="cdp-'+key+'" '+(checked?'checked':'')+' onchange="saveChartDefaults()"><label for="cdp-'+key+'">'+label+'</label></div>';
+            });
+        }
+
+        function saveChartDefaults() {
+            chartDefaults.ovView = document.getElementById('cdp-ovView').value;
+            chartDefaults.pvdPeriod = document.getElementById('cdp-pvdPeriod').value;
+            chartDefaults.ltRange = parseInt(document.getElementById('cdp-ltRange').value);
+            chartDefaults.finRange = parseInt(document.getElementById('cdp-finRange').value);
+
+            // Read legend checkboxes
+            const ovLegends = {};
+            ['predicted','pvGen','irrad','load','expLoad','grid','expGrid','avgPV'].forEach(k => {
+                const cb = document.getElementById('cdp-ov-'+k);
+                if (cb) ovLegends[k] = cb.checked;
+            });
+            chartDefaults.ovLegends = ovLegends;
+
+            const pvdLegends = {};
+            ['pvd-median','pvd-p50','pvd-p80','pvd-min','pvd-max','pvd-load'].forEach(k => {
+                const cb = document.getElementById('cdp-'+k);
+                if (cb) pvdLegends[k] = cb.checked;
+            });
+            chartDefaults.pvdLegends = pvdLegends;
+
+            const dailyLegends = {};
+            ['d-predicted','d-pvGen','d-irrad','d-load','d-expLoad','d-grid','d-expGrid'].forEach(k => {
+                const cb = document.getElementById('cdp-'+k);
+                if (cb) dailyLegends[k] = cb.checked;
+            });
+            chartDefaults.dailyLegends = dailyLegends;
+
+            localStorage.setItem(CHART_DEFAULTS_KEY, JSON.stringify(chartDefaults));
+            applyChartDefaults();
+        }
+
+        function resetChartDefaults() {
+            chartDefaults = Object.assign({}, CHART_DEFAULTS);
+            localStorage.removeItem(CHART_DEFAULTS_KEY);
+            populateDefaultsPanel();
+            applyChartDefaults();
+        }
+
         function toggleEditMode() {
             editMode = !editMode;
             document.body.classList.toggle('edit-mode', editMode);
@@ -6094,6 +6288,9 @@
                 });
             });
             updateAllHiddenSidebars();
+            initTabDrag();
+            // Show/hide defaults button
+            document.getElementById('chartDefaultsBtn').style.display = editMode ? '' : 'none';
         }
 
         function dndDragStart(e) {
@@ -6331,6 +6528,74 @@
                 <button id="ghSetupSaveBtn" onclick="saveGhSetup()" class="calc-btn calc-btn-apply" style="flex:1;">Save & Test</button>
                 <button onclick="closeGhSetup()" class="calc-btn calc-btn-reset">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <!-- CHART DEFAULTS PANEL -->
+    <div class="chart-defaults-panel" id="chartDefaultsPanel">
+        <div class="cdp-header">
+            <h3>⚙ Dashboard Defaults</h3>
+            <button onclick="toggleChartDefaults()" class="calc-close">✕</button>
+        </div>
+
+        <div class="cdp-section">
+            <h4>Default Views</h4>
+            <div class="cdp-row">
+                <label>Overview Chart</label>
+                <select id="cdp-ovView" onchange="saveChartDefaults()">
+                    <option value="today">Today</option>
+                    <option value="month">This Month</option>
+                    <option value="lifetime">Lifetime</option>
+                </select>
+            </div>
+            <div class="cdp-row">
+                <label>PV Distribution</label>
+                <select id="cdp-pvdPeriod" onchange="saveChartDefaults()">
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                    <option value="lifetime">Lifetime</option>
+                </select>
+            </div>
+            <div class="cdp-row">
+                <label>Lifetime Tab Range</label>
+                <select id="cdp-ltRange" onchange="saveChartDefaults()">
+                    <option value="3">3 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="9">9 Months</option>
+                    <option value="12">12 Months</option>
+                    <option value="0">All</option>
+                </select>
+            </div>
+            <div class="cdp-row">
+                <label>Financial Tab Range</label>
+                <select id="cdp-finRange" onchange="saveChartDefaults()">
+                    <option value="3">3 Months</option>
+                    <option value="6">6 Months</option>
+                    <option value="9">9 Months</option>
+                    <option value="12">12 Months</option>
+                    <option value="0">All</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="cdp-section">
+            <h4>Overview — Today Chart Legends</h4>
+            <div class="cdp-legend-grid" id="cdp-ovLegends"></div>
+        </div>
+
+        <div class="cdp-section">
+            <h4>PV Distribution Legends</h4>
+            <div class="cdp-legend-grid" id="cdp-pvdLegends"></div>
+        </div>
+
+        <div class="cdp-section">
+            <h4>Daily Tab Legends</h4>
+            <div class="cdp-legend-grid" id="cdp-dailyLegends"></div>
+        </div>
+
+        <div class="cdp-actions">
+            <button onclick="saveChartDefaults()" class="calc-btn calc-btn-apply" style="flex:1;">Apply</button>
+            <button onclick="resetChartDefaults()" class="calc-btn calc-btn-reset">Reset</button>
         </div>
     </div>
 </body>
