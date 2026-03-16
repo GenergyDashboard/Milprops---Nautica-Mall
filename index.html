@@ -5103,7 +5103,18 @@
             const factor = degradationFactor(yr);
             const events = [];
             const hourStatus = []; // per-hour: 'ok','night','pv_down','grid_loss','no_data'
-            const scraperCutoff = 20; // Last scraper run hour — no reliable data after this
+            const scraperCutoff = 20;
+
+            // Check if we actually have hourly data for this day
+            const hasPvData = pvArr && pvArr.length >= 24 && pvArr.some(v => v > 0);
+            const hasLoadData = loadArr && loadArr.length >= 24 && loadArr.some(v => v > 0);
+            const hasGridData = gridArr && gridArr.length >= 24;
+
+            // If no hourly data at all, mark everything as no_data — NOT downtime
+            if (!hasPvData && !hasLoadData) {
+                for (let h = 0; h < 24; h++) hourStatus.push('no_data');
+                return { hourStatus, events };
+            }
 
             for (let h = 0; h <= (maxHour !== undefined ? maxHour : 23); h++) {
                 const expPV = getExpectedPvHour(yr, mo, day, h);
@@ -5111,31 +5122,44 @@
                 const actLoad = loadArr?.[h] || 0;
                 const actGrid = gridArr?.[h] || 0;
 
-                // After scraper cutoff: no reliable data, treat as night
+                // After scraper cutoff: treat as night (no reliable data)
                 if (h >= scraperCutoff && expPV < 2) {
                     hourStatus.push('night');
                     continue;
                 }
 
-                // Nighttime: PVSyst expects < 2 kW
+                // Nighttime: PVSyst expects < 2 kW — only flag grid loss if we have load data
                 if (expPV < 2) {
-                    // Check for grid loss at night (only before scraper cutoff)
-                    if (actLoad < 1 && actGrid < 1 && h < scraperCutoff) {
-                        hourStatus.push('grid_loss');
+                    if (hasLoadData && actLoad < 1 && actGrid < 1 && h < scraperCutoff && h >= 1) {
+                        // Only flag grid loss at night if surrounding hours have load (confirms data exists)
+                        const prevLoad = (loadArr?.[h-1] || 0);
+                        const nextLoad = (loadArr?.[Math.min(h+1, 23)] || 0);
+                        if (prevLoad > 5 || nextLoad > 5) {
+                            hourStatus.push('grid_loss');
+                        } else {
+                            hourStatus.push('night');
+                        }
                     } else {
                         hourStatus.push('night');
                     }
                     continue;
                 }
 
-                // Grid loss: no load, no grid, no PV — total blackout
-                if (actLoad < 1 && actGrid < 1 && actPV < 1) {
+                // Daytime — only flag if we have PV data for this day
+                if (!hasPvData) {
+                    hourStatus.push('no_data');
+                    continue;
+                }
+
+                // Grid loss: no load, no grid, no PV — but only if load data exists
+                if (hasLoadData && actLoad < 1 && actGrid < 1 && actPV < 1) {
                     hourStatus.push('grid_loss');
                     continue;
                 }
 
                 // PV Downtime: expected significant PV but got nothing
-                if (actPV < 1 && expPV >= 2) {
+                // Use higher threshold (< 5 kW instead of < 1) to avoid false positives from rounding
+                if (actPV < 5 && expPV >= 20) {
                     hourStatus.push('pv_down');
                     continue;
                 }
