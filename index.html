@@ -7,6 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         // Fix blurry text on high-DPI screens
         Chart.defaults.devicePixelRatio = Math.max(window.devicePixelRatio || 2, 2);
@@ -5380,18 +5381,18 @@
 
 
         // ══════════════════════════════════════════════════
-        // MONTHLY DOCX REPORT GENERATOR v3 — captures live dashboard charts
+        // MONTHLY DOCX REPORT GENERATOR v4 — screenshots dashboard UI
         // ══════════════════════════════════════════════════
         function initReportDocx() {
             const sel = document.getElementById('rptDocxMonth');
             if (!sel || sel.options.length > 1) return;
             sel.innerHTML = '';
             const months = Object.keys(dashData.monthly || {}).sort().reverse();
-            const mNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const mN = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             months.forEach((ym, i) => {
-                const opt = document.createElement('option');
                 const [y,m] = ym.split('-');
-                opt.value = ym; opt.textContent = mNames[parseInt(m)] + ' ' + y;
+                const opt = document.createElement('option');
+                opt.value = ym; opt.textContent = mN[parseInt(m)] + ' ' + y;
                 if (i === 0) opt.selected = true;
                 sel.appendChild(opt);
             });
@@ -5400,40 +5401,69 @@
         async function generateMonthlyDocx() {
             const statusEl = document.getElementById('rptDocxStatus');
             const btn = document.getElementById('rptDocxBtn');
-            statusEl.textContent = 'Rendering charts...'; btn.disabled = true;
-            try {
-                await _buildDocxReport();
-                statusEl.textContent = '✓ Report downloaded';
-            } catch(e) {
-                console.error('Report generation failed:', e);
-                statusEl.textContent = '✕ ' + e.message;
-            }
+            statusEl.textContent = 'Capturing dashboard...'; btn.disabled = true;
+            try { await _buildDocxReport(); statusEl.textContent = '✓ Downloaded'; }
+            catch(e) { console.error(e); statusEl.textContent = '✕ ' + e.message; }
             btn.disabled = false;
-            setTimeout(() => { statusEl.textContent = ''; }, 5000);
+            setTimeout(() => statusEl.textContent = '', 5000);
         }
 
-        // Capture a canvas element as Uint8Array PNG
-        function captureCanvas(canvasId) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas || !canvas.getContext) return null;
+        // Screenshot a DOM element as Uint8Array PNG
+        async function screenshotEl(el) {
+            if (!el) return null;
+            const canvas = await html2canvas(el, {
+                backgroundColor: null,
+                scale: 2,
+                useCORS: true,
+                logging: false
+            });
             return new Promise(r => canvas.toBlob(b => {
                 if (!b) { r(null); return; }
                 b.arrayBuffer().then(ab => r(new Uint8Array(ab)));
             }, 'image/png'));
         }
 
-        // Trigger a tab render and wait for charts
-        async function renderTabAndWait(tabName, renderFn) {
+        // Show a tab silently (no visual flicker), render, screenshot, restore
+        async function captureTab(tabName, renderFn, selectors) {
+            // Save current state
+            const allTabs = document.querySelectorAll('.tab-content');
+            const wasVisible = {};
+            allTabs.forEach(t => { wasVisible[t.id] = t.style.display; });
+
+            // Show target tab
             const tab = document.getElementById('tab-' + tabName);
-            if (tab) tab.style.display = 'block';
+            if (!tab) return {};
+            tab.style.display = 'block';
+            tab.style.visibility = 'visible';
+            tab.style.position = 'absolute';
+            tab.style.left = '-9999px';
+            tab.style.width = '1200px';
+
+            // Render
             if (renderFn) renderFn();
-            await new Promise(r => setTimeout(r, 600)); // let Chart.js animate
+            await new Promise(r => setTimeout(r, 800));
+
+            // Capture each selector
+            const results = {};
+            for (const [key, sel] of Object.entries(selectors)) {
+                const el = tab.querySelector(sel) || document.querySelector(sel);
+                if (el) results[key] = await screenshotEl(el);
+            }
+
+            // Restore
+            tab.style.display = wasVisible[tab.id] || '';
+            tab.style.visibility = '';
+            tab.style.position = '';
+            tab.style.left = '';
+            tab.style.width = '';
+
+            return results;
         }
 
         async function _buildDocxReport() {
             const D = docx;
             const ym = document.getElementById('rptDocxMonth').value;
-            if (!ym || !dashData?.monthly?.[ym]) throw new Error('No data for selected month');
+            if (!ym || !dashData?.monthly?.[ym]) throw new Error('No data for ' + ym);
 
             const [yr, mo] = ym.split('-').map(Number);
             const mm = String(mo).padStart(2,'0');
@@ -5442,135 +5472,105 @@
             const monthName = mFull[mo];
             const now = new Date();
             const isCurrentMonth = yr === now.getFullYear() && mo === (now.getMonth()+1);
-            const daysInMonth = new Date(yr, mo, 0).getDate();
-            const numDays = isCurrentMonth ? now.getDate() : daysInMonth;
+            const numDays = isCurrentMonth ? now.getDate() : new Date(yr, mo, 0).getDate();
             const curH = isCurrentMonth ? (dashData.hourly?.current_hour ?? now.getHours()) : 23;
             const md = dashData.monthly[ym];
             const factor = degradationFactor(yr);
             const fN = v => v==null||isNaN(v)?'--':Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 
-            // ── Calculations ──
-            const actPV = md['PV Yield (kWh)']||0;
-            const actLoad = md['Consumption (kWh)']||0;
-            const actGrid = md['Import (kWh)']||0;
-            const actSC = md['Self-consumption (kWh)']||0;
-            const actExp = md['Export (kWh)']||0;
-            const expPV = calcMonthExpFor(yr, mo, numDays, curH);
-            const perf = expPV > 0 ? actPV/expPV*100 : 0;
-            const coverage = actLoad > 0 ? actSC/actLoad*100 : 0;
-            const sav = calcMonthTOUSavings(yr, mo, actSC, actExp, numDays, actGrid);
-            const totalSav = sav ? sav.total : 0;
-            const pvSav = sav ? (sav.pv_savings?.total||0) : 0;
-            const expSav = sav ? (sav.export_savings?.total||0) : 0;
-            const lifePV = dashData.all_time_totals?.['PV Yield (kWh)']||0;
-            const envData = calcEnv(lifePV);
-            const allM = Object.keys(dashData.monthly).sort();
-            const ymIdx = allM.indexOf(ym);
-            const last12 = allM.slice(Math.max(0, ymIdx-11), ymIdx+1);
+            // Calculations
+            const actPV=md['PV Yield (kWh)']||0, actLoad=md['Consumption (kWh)']||0;
+            const actGrid=md['Import (kWh)']||0, actSC=md['Self-consumption (kWh)']||0;
+            const actExp=md['Export (kWh)']||0;
+            const expPV=calcMonthExpFor(yr,mo,numDays,curH);
+            const perf=expPV>0?actPV/expPV*100:0;
+            const coverage=actLoad>0?actSC/actLoad*100:0;
+            const sav=calcMonthTOUSavings(yr,mo,actSC,actExp,numDays,actGrid);
+            const totalSav=sav?sav.total:0, pvSav=sav?(sav.pv_savings?.total||0):0, expSav=sav?(sav.export_savings?.total||0):0;
+            const lifePV=dashData.all_time_totals?.['PV Yield (kWh)']||0;
+            const envData=calcEnv(lifePV);
+            const allM=Object.keys(dashData.monthly).sort();
 
-            // ── Step 1: Trigger tab renders to get charts ──
-            const activeTab = document.querySelector('.tab-content[style*="block"]');
+            // ── CAPTURE SCREENSHOTS ──
             const statusEl = document.getElementById('rptDocxStatus');
 
-            statusEl.textContent = 'Rendering Monthly chart...';
-            await renderTabAndWait('monthly', () => renderMonthlyTab(ym));
-            const monthlyChartPng = await captureCanvas('monthlyDailyChart');
-            const touChartPng = await captureCanvas('monthlyTOUChart');
+            // Overview tab — slabs are already rendered
+            statusEl.textContent = 'Capturing Overview...';
+            const ovSlabs = document.querySelector('[data-block="slabs"]');
+            const ovEnv = document.querySelector('[data-block="env"]');
+            const ovPvDist = document.querySelector('[data-block="pvdist"]');
+            const ovSlabsPng = ovSlabs ? await screenshotEl(ovSlabs) : null;
+            const ovEnvPng = ovEnv ? await screenshotEl(ovEnv) : null;
+            const ovPvDistPng = ovPvDist ? await screenshotEl(ovPvDist) : null;
 
-            statusEl.textContent = 'Rendering Lifetime chart...';
-            await renderTabAndWait('lifetime', () => renderLifetimeTab());
-            const lifetimeGenPng = await captureCanvas('lifetimeGenChart');
-            const lifetimeSavPng = await captureCanvas('lifetimeSavChart');
+            // Monthly tab
+            statusEl.textContent = 'Capturing Monthly...';
+            const mCaps = await captureTab('monthly', () => renderMonthlyTab(ym), {
+                chart: '.chart-wrap:has(#monthlyDailyChart)',
+                touChart: '.chart-wrap:has(#monthlyTOUChart)'
+            });
 
-            statusEl.textContent = 'Rendering Financial charts...';
-            await renderTabAndWait('financial', () => renderFinancialTab());
-            const finSavPng = await captureCanvas('finSavChart');
-            const finGenPng = await captureCanvas('finGenChart');
+            // Lifetime tab
+            statusEl.textContent = 'Capturing Lifetime...';
+            const lCaps = await captureTab('lifetime', () => renderLifetimeTab(), {
+                genChart: '.chart-wrap:has(#lifetimeGenChart)',
+                savChart: '.chart-wrap:has(#lifetimeSavChart)'
+            });
 
-            statusEl.textContent = 'Rendering PV Distribution...';
-            // Overview charts should already be rendered
-            const pvDistPng = await captureCanvas('pvDistChart');
+            // Financial tab
+            statusEl.textContent = 'Capturing Financial...';
+            const fCaps = await captureTab('financial', () => renderFinancialTab(), {
+                savChart: '.chart-wrap:has(#finSavChart)',
+                genChart: '.chart-wrap:has(#finGenChart)'
+            });
+
+            // Warranty tab
+            statusEl.textContent = 'Capturing Warranties...';
+            const wCaps = await captureTab('warranty', () => renderWarrantyTab(), {
+                donuts: '#warrantyDonuts',
+                table: '#warrantyTable'
+            });
 
             statusEl.textContent = 'Building document...';
 
-            // Restore original tab
-            document.querySelectorAll('.tab-content').forEach(t => t.style.display = '');
-            if (activeTab) activeTab.style.display = 'block';
+            // ── STYLES ──
+            const DARK='0F172A'; const NAVY='1E293B'; const GREEN='16A34A'; const GOLD='C5961A';
+            const LIME='8BC34A'; const LIGHT='F1F5F9'; const WHITE='FFFFFF'; const GRAY='64748B'; const DTEXT='1E293B';
+            const border={style:D.BorderStyle.SINGLE,size:1,color:'E2E8F0'};
+            const borders={top:border,bottom:border,left:border,right:border};
+            const noBorders={top:{style:D.BorderStyle.NONE,size:0},bottom:{style:D.BorderStyle.NONE,size:0},left:{style:D.BorderStyle.NONE,size:0},right:{style:D.BorderStyle.NONE,size:0}};
+            const cm={top:50,bottom:50,left:80,right:80};
+            const TW=9638;
 
-            // ── Styles ──
-            const DARK = '0F172A';
-            const NAVY = '1E293B';
-            const GREEN = '16A34A';
-            const GOLD = 'C5961A';
-            const LIME = '8BC34A';
-            const LIGHT = 'F1F5F9';
-            const WHITE = 'FFFFFF';
-            const GRAY = '64748B';
-            const DTEXT = '1E293B';
-
-            const border = {style:D.BorderStyle.SINGLE,size:1,color:'E2E8F0'};
-            const borders = {top:border,bottom:border,left:border,right:border};
-            const noBorders = {top:{style:D.BorderStyle.NONE,size:0},bottom:{style:D.BorderStyle.NONE,size:0},left:{style:D.BorderStyle.NONE,size:0},right:{style:D.BorderStyle.NONE,size:0}};
-            const cellMg = {top:50,bottom:50,left:80,right:80};
-            const TW = 9638;
-
-            function hdr(text,width,opts={}) {
-                return new D.TableCell({width:{size:width,type:D.WidthType.DXA},borders,
-                    shading:{fill:DARK,type:D.ShadingType.CLEAR},margins:cellMg,verticalAlign:D.VerticalAlign.CENTER,
-                    children:[new D.Paragraph({alignment:opts.align||D.AlignmentType.CENTER,
-                        children:[new D.TextRun({text,bold:true,color:WHITE,font:'Segoe UI',size:17})]})]});
-            }
-            function cel(text,width,opts={}) {
-                return new D.TableCell({width:{size:width,type:D.WidthType.DXA},borders,
-                    shading:opts.fill?{fill:opts.fill,type:D.ShadingType.CLEAR}:undefined,
-                    margins:cellMg,verticalAlign:D.VerticalAlign.CENTER,
-                    children:[new D.Paragraph({alignment:opts.align||D.AlignmentType.CENTER,
-                        children:[new D.TextRun({text:String(text),font:'Segoe UI',size:opts.sz||17,
-                            bold:!!opts.bold,color:opts.color||DTEXT})]})]});
-            }
-            function stat(label,value,unit,width,bgFill) {
-                return new D.TableCell({width:{size:width,type:D.WidthType.DXA},borders:noBorders,
-                    shading:{fill:bgFill||LIGHT,type:D.ShadingType.CLEAR},
-                    margins:{top:100,bottom:100,left:120,right:120},
-                    children:[
-                        new D.Paragraph({spacing:{after:30},children:[new D.TextRun({text:label,font:'Segoe UI',size:15,color:GRAY,bold:true})]}),
-                        new D.Paragraph({children:[new D.TextRun({text:value,font:'Segoe UI',size:26,bold:true,color:DTEXT}),
-                            new D.TextRun({text:' '+unit,font:'Segoe UI',size:15,color:GRAY})]})
-                    ]});
-            }
-            function h1(text) { return new D.Paragraph({heading:D.HeadingLevel.HEADING_1,children:[new D.TextRun(text)]}); }
-            function h2(text) { return new D.Paragraph({heading:D.HeadingLevel.HEADING_2,children:[new D.TextRun(text)]}); }
-            function body(text) { return new D.Paragraph({spacing:{after:100},children:[new D.TextRun({text,font:'Segoe UI',size:20,color:DTEXT})]}); }
-            function accent() { return new D.Paragraph({border:{bottom:{style:D.BorderStyle.SINGLE,size:5,color:GOLD,space:1}},spacing:{after:160}}); }
-            function sp(n) { return new D.Paragraph({spacing:{before:n||80}}); }
-            function row(...cells) { return new D.TableRow({children:cells}); }
-            function tbl(cols,rows) { return new D.Table({width:{size:TW,type:D.WidthType.DXA},columnWidths:cols,rows}); }
-            function img(data,w,h) {
-                if (!data) return new D.Paragraph({children:[new D.TextRun({text:'[Chart not available]',font:'Segoe UI',size:18,color:GRAY,italics:true})]});
+            function hdr(t,w,o={}){return new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders,shading:{fill:DARK,type:D.ShadingType.CLEAR},margins:cm,verticalAlign:D.VerticalAlign.CENTER,children:[new D.Paragraph({alignment:o.align||D.AlignmentType.CENTER,children:[new D.TextRun({text:t,bold:true,color:WHITE,font:'Segoe UI',size:17})]})]})}
+            function cel(t,w,o={}){return new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders,shading:o.fill?{fill:o.fill,type:D.ShadingType.CLEAR}:undefined,margins:cm,verticalAlign:D.VerticalAlign.CENTER,children:[new D.Paragraph({alignment:o.align||D.AlignmentType.CENTER,children:[new D.TextRun({text:String(t),font:'Segoe UI',size:o.sz||17,bold:!!o.bold,color:o.color||DTEXT})]})]})}
+            function stat(label,value,unit,w,bg){return new D.TableCell({width:{size:w,type:D.WidthType.DXA},borders:noBorders,shading:{fill:bg||LIGHT,type:D.ShadingType.CLEAR},margins:{top:100,bottom:100,left:120,right:120},children:[new D.Paragraph({spacing:{after:30},children:[new D.TextRun({text:label,font:'Segoe UI',size:15,color:GRAY,bold:true})]}),new D.Paragraph({children:[new D.TextRun({text:value,font:'Segoe UI',size:26,bold:true,color:DTEXT}),new D.TextRun({text:' '+unit,font:'Segoe UI',size:15,color:GRAY})]})]})}
+            function h1(t){return new D.Paragraph({heading:D.HeadingLevel.HEADING_1,children:[new D.TextRun(t)]})}
+            function h2(t){return new D.Paragraph({heading:D.HeadingLevel.HEADING_2,children:[new D.TextRun(t)]})}
+            function txt(t){return new D.Paragraph({spacing:{after:100},children:[new D.TextRun({text:t,font:'Segoe UI',size:20,color:DTEXT})]})}
+            function accent(){return new D.Paragraph({border:{bottom:{style:D.BorderStyle.SINGLE,size:5,color:GOLD,space:1}},spacing:{after:160}})}
+            function sp(n){return new D.Paragraph({spacing:{before:n||80}})}
+            function row(...c){return new D.TableRow({children:c})}
+            function tbl(cols,rows){return new D.Table({width:{size:TW,type:D.WidthType.DXA},columnWidths:cols,rows})}
+            function img(data,w,h){
+                if(!data)return new D.Paragraph({children:[new D.TextRun({text:'[Screenshot unavailable]',font:'Segoe UI',size:16,color:GRAY,italics:true})]});
                 return new D.Paragraph({alignment:D.AlignmentType.CENTER,children:[new D.ImageRun({data,transformation:{width:w,height:h},type:'png'})]});
             }
 
             const children = [];
 
-            // ════ COVER PAGE ════
+            // ════ COVER ════
             children.push(new D.Paragraph({spacing:{before:3600}}));
-            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:80},
-                children:[new D.TextRun({text:'GENERGY',font:'Segoe UI',size:72,bold:true,color:'2E3557'})]}));
-            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:250},
-                children:[new D.TextRun({text:'INSPIRED SUSTAINABILITY',font:'Segoe UI',size:24,italics:true,color:LIME})]}));
-            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,
-                border:{bottom:{style:D.BorderStyle.SINGLE,size:4,color:LIME,space:6}},spacing:{after:350},
-                children:[new D.TextRun({text:'MONTHLY PERFORMANCE REPORT',font:'Segoe UI',size:36,bold:true,color:DTEXT})]}));
-            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:50},
-                children:[new D.TextRun({text:'NAUTICA SHOPPING CENTRE',font:'Segoe UI',size:22,color:GRAY})]}));
-            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:350},
-                children:[new D.TextRun({text:monthName.toUpperCase()+' '+yr,font:'Segoe UI',size:22,color:GRAY})]}));
+            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:80},children:[new D.TextRun({text:'GENERGY',font:'Segoe UI',size:72,bold:true,color:'2E3557'})]}));
+            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:250},children:[new D.TextRun({text:'INSPIRED SUSTAINABILITY',font:'Segoe UI',size:24,italics:true,color:LIME})]}));
+            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,border:{bottom:{style:D.BorderStyle.SINGLE,size:4,color:LIME,space:6}},spacing:{after:350},children:[new D.TextRun({text:'MONTHLY PERFORMANCE REPORT',font:'Segoe UI',size:36,bold:true,color:DTEXT})]}));
+            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:50},children:[new D.TextRun({text:'NAUTICA SHOPPING CENTRE',font:'Segoe UI',size:22,color:GRAY})]}));
+            children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:350},children:[new D.TextRun({text:monthName.toUpperCase()+' '+yr,font:'Segoe UI',size:22,color:GRAY})]}));
             children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,border:{top:{style:D.BorderStyle.SINGLE,size:2,color:LIME,space:6}},spacing:{before:150}}));
             ['PREPARED FOR: MILPROPS','SITE: NAUTICA SHOPPING CENTRE','SYSTEM SIZE: 770KWP 600KVA',
-             'DATE: '+now.toLocaleDateString('en-ZA',{day:'2-digit',month:'2-digit',year:'numeric'}),
+             'DATE: '+now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+String(now.getDate()).padStart(2,'0'),
              'PREPARED BY: BRANDON FEINAUER','CHECKED BY: BETHANY LAFFORD'
-            ].forEach(d=>children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:20},
-                children:[new D.TextRun({text:d,font:'Segoe UI',size:17,color:GRAY})]})));
+            ].forEach(d=>children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{after:20},children:[new D.TextRun({text:d,font:'Segoe UI',size:17,color:GRAY})]})));
             children.push(new D.Paragraph({alignment:D.AlignmentType.CENTER,border:{bottom:{style:D.BorderStyle.SINGLE,size:2,color:LIME,space:6}}}));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
@@ -5579,197 +5579,120 @@
             children.push(accent());
             const cw4=Math.floor(TW/4);
             children.push(tbl([cw4,cw4,cw4,cw4],[row(
-                stat('PV GENERATION',fN(actPV),'kWh',cw4),
-                stat('EXPECTED',fN(expPV),'kWh',cw4),
+                stat('PV GENERATION',fN(actPV),'kWh',cw4),stat('EXPECTED',fN(expPV),'kWh',cw4),
                 stat('PERFORMANCE',perf.toFixed(1),'%',cw4,perf>=95?'DCFCE7':perf>=80?'FEF9C3':'FEE2E2'),
-                stat('PV COVERAGE',coverage.toFixed(1),'%',cw4)
-            )]));
-            children.push(sp(40));
+                stat('PV COVERAGE',coverage.toFixed(1),'%',cw4))]));
+            children.push(sp(30));
             children.push(tbl([cw4,cw4,cw4,cw4],[row(
-                stat('SELF-CONSUMPTION',fN(actSC),'kWh',cw4),
-                stat('EXPORT TO GRID',fN(actExp),'kWh',cw4),
-                stat('GRID IMPORT',fN(actGrid),'kWh',cw4),
-                stat('TOTAL LOAD',fN(actLoad),'kWh',cw4)
-            )]));
-            children.push(sp(80));
-            const cw3=Math.floor(TW/3);
-            children.push(h2('Savings'));
-            children.push(tbl([cw3,cw3,cw3],[row(
-                stat('TOTAL SAVINGS','R '+fN(totalSav),'',cw3,'DCFCE7'),
-                stat('PV SAVINGS','R '+fN(pvSav),'',cw3),
-                stat('EXPORT SAVINGS','R '+fN(expSav),'',cw3)
-            )]));
-            children.push(sp(80));
-            children.push(h2('Environmental Impact (Lifetime)'));
-            children.push(tbl([cw4,cw4,cw4,cw4],[row(
-                stat('🌳 TREES',fN(envData.trees),'equiv.',cw4),
-                stat('🏠 HOMES',fN(envData.homes),'powered',cw4),
-                stat('⛏️ COAL',fN(envData.coal),'kg saved',cw4),
-                stat('💧 WATER',fN(envData.water),'litres',cw4)
-            )]));
+                stat('SELF-CONSUMPTION',fN(actSC),'kWh',cw4),stat('EXPORT TO GRID',fN(actExp),'kWh',cw4),
+                stat('GRID IMPORT',fN(actGrid),'kWh',cw4),stat('TOTAL LOAD',fN(actLoad),'kWh',cw4))]));
+            children.push(sp(60));
+
+            // Dashboard overview screenshot
+            children.push(img(ovSlabsPng, 700, 280));
+            children.push(sp(60));
+
+            // Environmental
+            children.push(h2('Environmental Impact'));
+            const cw4e=Math.floor(TW/4);
+            children.push(tbl([cw4e,cw4e,cw4e,cw4e],[row(
+                stat('🌳 TREES',fN(envData.trees),'equiv.',cw4e),stat('🏠 HOMES',fN(envData.homes),'powered',cw4e),
+                stat('⛏️ COAL',fN(envData.coal),'kg saved',cw4e),stat('💧 WATER',fN(envData.water),'litres',cw4e))]));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
-            // ════ MONTHLY ENERGY FLOW ════
+            // ════ MONTHLY GENERATION ════
             children.push(h1('2. Monthly Generation — '+monthName+' '+yr));
             children.push(accent());
-            children.push(body('Daily generation vs expected performance for the month.'));
-            children.push(img(monthlyChartPng, 700, 300));
-            children.push(sp(80));
             // Day table
-            const dCols=[600,1000,1100,1100,1100,1100,1100,1200,1338];
-            const dRows=[row(hdr('#',dCols[0]),hdr('Date',dCols[1]),hdr('PV Gen',dCols[2]),hdr('Expected',dCols[3]),hdr('To Load',dCols[4]),hdr('To Grid',dCols[5]),hdr('Grid Import',dCols[6]),hdr('Load',dCols[7]),hdr('Perf.',dCols[8]))];
+            const dC=[600,950,1050,1050,1050,1050,1050,1050,1788];
+            const dR=[row(hdr('#',dC[0]),hdr('Date',dC[1]),hdr('PV Gen',dC[2]),hdr('Expected',dC[3]),hdr('To Load',dC[4]),hdr('To Grid',dC[5]),hdr('Grid Import',dC[6]),hdr('Load',dC[7]),hdr('Perf.',dC[8]))];
             for(let d=1;d<=numDays;d++){
                 const ds=yr+'-'+mm+'-'+String(d).padStart(2,'0');
                 const dh=dailyHist?.[ds]||{};
-                const mmdd=mm+'-'+String(d).padStart(2,'0');
-                const dayPvs=getPvsystDay(mmdd);
+                const dayPvs=getPvsystDay(mm+'-'+String(d).padStart(2,'0'));
                 let dayExp=dayPvs.reduce((a,b)=>a+b,0)*factor;
                 if(isCurrentMonth&&d===numDays){dayExp=0;for(let hh=0;hh<=curH;hh++)dayExp+=(dayPvs[hh]||0);dayExp*=factor;}
-                const dayAct=dh.pv||0,daySC=dh.sc||dh['self_consumption']||0,dayExport=dh.export||0,dayGridImp=dh.grid||dh.import||0,dayLoad=dh.consumption||0;
-                const dayPerf=dayExp>0?dayAct/dayExp*100:0;
+                const dA=dh.pv||0,dSC=dh.sc||dh['self_consumption']||0,dEx=dh.export||0,dGI=dh.grid||dh.import||0,dL=dh.consumption||0;
+                const dp=dayExp>0?dA/dayExp*100:0;
                 const fl=d%2===0?LIGHT:undefined;
-                dRows.push(row(
-                    cel(d,dCols[0],{fill:fl,sz:15}),cel(ds,dCols[1],{fill:fl,sz:15}),
-                    cel(fN(dayAct),dCols[2],{fill:fl,sz:15}),cel(fN(dayExp),dCols[3],{fill:fl,sz:15}),
-                    cel(fN(daySC),dCols[4],{fill:fl,sz:15}),cel(fN(dayExport),dCols[5],{fill:fl,sz:15}),
-                    cel(fN(dayGridImp),dCols[6],{fill:fl,sz:15}),cel(fN(dayLoad),dCols[7],{fill:fl,sz:15}),
-                    cel(dayPerf.toFixed(1)+'%',dCols[8],{fill:fl,bold:true,sz:15,color:dayPerf>=95?GREEN:dayPerf>=80?'CA8A04':'DC2626'})
-                ));
+                dR.push(row(cel(d,dC[0],{fill:fl,sz:15}),cel(ds,dC[1],{fill:fl,sz:15}),cel(fN(dA),dC[2],{fill:fl,sz:15}),cel(fN(dayExp),dC[3],{fill:fl,sz:15}),cel(fN(dSC),dC[4],{fill:fl,sz:15}),cel(fN(dEx),dC[5],{fill:fl,sz:15}),cel(fN(dGI),dC[6],{fill:fl,sz:15}),cel(fN(dL),dC[7],{fill:fl,sz:15}),cel(dp.toFixed(1)+'%',dC[8],{fill:fl,bold:true,sz:15,color:dp>=95?GREEN:dp>=80?'CA8A04':'DC2626'})));
             }
-            children.push(tbl(dCols,dRows));
+            children.push(tbl(dC,dR));
+            children.push(sp(80));
+            // Monthly chart screenshot
+            children.push(img(mCaps.chart, 700, 320));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
-            // ════ PV DISTRIBUTION ════
-            if (pvDistPng) {
-                children.push(h1('3. PV Distribution — Upper & Lower Yield'));
-                children.push(accent());
-                children.push(body('Statistical distribution of hourly PV output showing median, P25-P75 and P10-P90 bands.'));
-                children.push(img(pvDistPng, 700, 300));
-                children.push(new D.Paragraph({children:[new D.PageBreak()]}));
-            }
-
-            // ════ LIFETIME OVERVIEW ════
-            children.push(h1(pvDistPng ? '4. Lifetime Overview' : '3. Lifetime Overview'));
+            // ════ LIFETIME ════
+            children.push(h1('3. Lifetime Overview'));
             children.push(accent());
-            children.push(body('Cumulative generation performance across all months of operation.'));
-            children.push(img(lifetimeGenPng, 700, 300));
-            children.push(sp(80));
-            children.push(h2('Lifetime Savings'));
-            children.push(img(lifetimeSavPng, 700, 300));
-            children.push(sp(60));
             // Yearly table
             const yearMap={};
             allM.forEach(m=>{const[yy]=m.split('-').map(Number);if(!yearMap[yy])yearMap[yy]={a:0,e:0};yearMap[yy].a+=dashData.monthly[m]['PV Yield (kWh)']||0;});
-            Object.keys(yearMap).forEach(yy=>{
-                const y=parseInt(yy),f2=degradationFactor(y);
+            Object.keys(yearMap).forEach(yy=>{const y=parseInt(yy),f2=degradationFactor(y);
                 if(y===CC.system_start_year){const mt=pvsyst?.monthly_totals_kwh||{};let e=0;for(let m=CC.system_start_month;m<=12;m++)e+=(mt[String(m)]||0)*f2;yearMap[yy].e=e;}
                 else if(y===now.getFullYear()){let e=0;for(let m3=1;m3<=now.getMonth()+1;m3++){const k=y+'-'+String(m3).padStart(2,'0');if(dashData.monthly[k]){const ic=m3===now.getMonth()+1;e+=calcMonthExpFor(y,m3,ic?now.getDate():new Date(y,m3,0).getDate(),ic?curH:23);}}yearMap[yy].e=e;}
-                else{yearMap[yy].e=(pvsyst?.annual_total_kwh||0)*f2;}
-            });
-            const yCols=[TW*0.2,TW*0.2,TW*0.2,TW*0.2,TW*0.2].map(Math.floor);
-            const yRows=[row(hdr('Year',yCols[0]),hdr('Generated',yCols[1]),hdr('Expected',yCols[2]),hdr('Variance',yCols[3]),hdr('Performance',yCols[4]))];
-            let yltA=0,yltE=0;
-            Object.keys(yearMap).sort().forEach((yy,i)=>{
-                const yd=yearMap[yy],yp=yd.e>0?yd.a/yd.e*100:0,diff=yd.a-yd.e;
-                yltA+=yd.a;yltE+=yd.e;
-                const fl=i%2===0?undefined:LIGHT;
-                yRows.push(row(cel(yy,yCols[0],{bold:true,fill:fl}),cel(fN(yd.a)+' kWh',yCols[1],{fill:fl}),
-                    cel(fN(yd.e)+' kWh',yCols[2],{fill:fl}),
-                    cel((diff>=0?'+':'')+fN(diff)+' kWh',yCols[3],{fill:fl,color:diff>=0?GREEN:'DC2626'}),
-                    cel(yp.toFixed(1)+'%',yCols[4],{fill:fl,bold:true,color:yp>=95?GREEN:yp>=80?'CA8A04':'DC2626'})));
-            });
-            const yltP=yltE>0?yltA/yltE*100:0;
-            yRows.push(row(cel('LIFETIME',yCols[0],{bold:true,fill:DARK,color:WHITE}),
-                cel(fN(yltA)+' kWh',yCols[1],{fill:DARK,color:WHITE,bold:true}),
-                cel(fN(yltE)+' kWh',yCols[2],{fill:DARK,color:WHITE,bold:true}),
-                cel((yltA-yltE>=0?'+':'')+fN(yltA-yltE)+' kWh',yCols[3],{fill:DARK,color:'FFD700',bold:true}),
-                cel(yltP.toFixed(1)+'%',yCols[4],{fill:DARK,color:'FFD700',bold:true})));
-            children.push(tbl(yCols,yRows));
+                else{yearMap[yy].e=(pvsyst?.annual_total_kwh||0)*f2;}});
+            const yC=[TW*0.2,TW*0.2,TW*0.2,TW*0.2,TW*0.2].map(Math.floor);
+            const yR=[row(hdr('Year',yC[0]),hdr('Generated',yC[1]),hdr('Expected',yC[2]),hdr('Variance',yC[3]),hdr('Performance',yC[4]))];
+            let yA=0,yE=0;
+            Object.keys(yearMap).sort().forEach((yy,i)=>{const d=yearMap[yy],p=d.e>0?d.a/d.e*100:0,diff=d.a-d.e;yA+=d.a;yE+=d.e;const fl=i%2===0?undefined:LIGHT;
+                yR.push(row(cel(yy,yC[0],{bold:true,fill:fl}),cel(fN(d.a)+' kWh',yC[1],{fill:fl}),cel(fN(d.e)+' kWh',yC[2],{fill:fl}),cel((diff>=0?'+':'')+fN(diff)+' kWh',yC[3],{fill:fl,color:diff>=0?GREEN:'DC2626'}),cel(p.toFixed(1)+'%',yC[4],{fill:fl,bold:true,color:p>=95?GREEN:p>=80?'CA8A04':'DC2626'})));});
+            const yP=yE>0?yA/yE*100:0;
+            yR.push(row(cel('LIFETIME',yC[0],{bold:true,fill:DARK,color:WHITE}),cel(fN(yA)+' kWh',yC[1],{fill:DARK,color:WHITE,bold:true}),cel(fN(yE)+' kWh',yC[2],{fill:DARK,color:WHITE,bold:true}),cel((yA-yE>=0?'+':'')+fN(yA-yE)+' kWh',yC[3],{fill:DARK,color:'FFD700',bold:true}),cel(yP.toFixed(1)+'%',yC[4],{fill:DARK,color:'FFD700',bold:true})));
+            children.push(tbl(yC,yR));
+            children.push(sp(80));
+            children.push(img(lCaps.genChart, 700, 320));
+            children.push(sp(60));
+            children.push(img(lCaps.savChart, 700, 320));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
             // ════ FINANCIAL ════
-            const secNum = pvDistPng ? 5 : 4;
-            children.push(h1(secNum+'. Financial Overview'));
+            children.push(h1('4. Financial Overview'));
             children.push(accent());
-            if (sav) {
-                children.push(h2('TOU Savings — '+monthName+' '+yr));
-                const fCols=[TW*0.25,TW*0.25,TW*0.25,TW*0.25].map(Math.floor);
-                children.push(tbl(fCols,[
-                    row(hdr('TOU Period',fCols[0]),hdr('PV Savings',fCols[1]),hdr('Export Savings',fCols[2]),hdr('Total',fCols[3])),
-                    row(cel('Peak',fCols[0],{bold:true,align:D.AlignmentType.LEFT}),
-                        cel('R '+fN(sav.pv_savings?.peak),fCols[1]),cel('R '+fN(sav.export_savings?.peak),fCols[2]),
-                        cel('R '+fN((sav.pv_savings?.peak||0)+(sav.export_savings?.peak||0)),fCols[3],{bold:true,color:GREEN})),
-                    row(cel('Standard',fCols[0],{bold:true,align:D.AlignmentType.LEFT,fill:LIGHT}),
-                        cel('R '+fN(sav.pv_savings?.standard),fCols[1],{fill:LIGHT}),cel('R '+fN(sav.export_savings?.standard),fCols[2],{fill:LIGHT}),
-                        cel('R '+fN((sav.pv_savings?.standard||0)+(sav.export_savings?.standard||0)),fCols[3],{fill:LIGHT,bold:true,color:GREEN})),
-                    row(cel('Off-Peak',fCols[0],{bold:true,align:D.AlignmentType.LEFT}),
-                        cel('R '+fN(sav.pv_savings?.off_peak),fCols[1]),cel('R '+fN(sav.export_savings?.off_peak),fCols[2]),
-                        cel('R '+fN((sav.pv_savings?.off_peak||0)+(sav.export_savings?.off_peak||0)),fCols[3],{bold:true,color:GREEN})),
-                    row(cel('TOTAL',fCols[0],{bold:true,fill:DARK,color:WHITE}),
-                        cel('R '+fN(pvSav),fCols[1],{fill:DARK,color:'FFD700',bold:true}),
-                        cel('R '+fN(expSav),fCols[2],{fill:DARK,color:'FFD700',bold:true}),
-                        cel('R '+fN(totalSav),fCols[3],{fill:DARK,color:'FFD700',bold:true}))
+            if(sav){
+                const fC=[TW*0.17,TW*0.17,TW*0.17,TW*0.17,TW*0.16,TW*0.16].map(Math.floor);
+                children.push(tbl(fC,[
+                    row(hdr('TOU Period',fC[0]),hdr('Generation',fC[1]),hdr('Utility Cost',fC[2]),hdr('PV Savings',fC[3]),hdr('Export Savings',fC[4]),hdr('Total Savings',fC[5])),
+                    row(cel('Peak',fC[0],{bold:true,align:D.AlignmentType.LEFT}),cel(fN(sav.generation?.peak)+' kWh',fC[1]),cel('R'+fN(sav.utility_cost?.peak),fC[2]),cel('R'+fN(sav.pv_savings?.peak),fC[3]),cel('R'+fN(sav.export_savings?.peak),fC[4]),cel('R'+fN((sav.pv_savings?.peak||0)+(sav.export_savings?.peak||0)),fC[5],{bold:true,color:GREEN})),
+                    row(cel('Standard',fC[0],{bold:true,align:D.AlignmentType.LEFT,fill:LIGHT}),cel(fN(sav.generation?.standard)+' kWh',fC[1],{fill:LIGHT}),cel('R'+fN(sav.utility_cost?.standard),fC[2],{fill:LIGHT}),cel('R'+fN(sav.pv_savings?.standard),fC[3],{fill:LIGHT}),cel('R'+fN(sav.export_savings?.standard),fC[4],{fill:LIGHT}),cel('R'+fN((sav.pv_savings?.standard||0)+(sav.export_savings?.standard||0)),fC[5],{fill:LIGHT,bold:true,color:GREEN})),
+                    row(cel('Off-Peak',fC[0],{bold:true,align:D.AlignmentType.LEFT}),cel(fN(sav.generation?.off_peak)+' kWh',fC[1]),cel('R'+fN(sav.utility_cost?.off_peak),fC[2]),cel('R'+fN(sav.pv_savings?.off_peak),fC[3]),cel('R'+fN(sav.export_savings?.off_peak),fC[4]),cel('R'+fN((sav.pv_savings?.off_peak||0)+(sav.export_savings?.off_peak||0)),fC[5],{bold:true,color:GREEN})),
+                    row(cel('Total',fC[0],{bold:true,fill:DARK,color:WHITE}),cel(fN(sav.generation?.total)+' kWh',fC[1],{fill:DARK,color:WHITE,bold:true}),cel('R'+fN(sav.utility_cost?.total),fC[2],{fill:DARK,color:WHITE,bold:true}),cel('R'+fN(pvSav),fC[3],{fill:DARK,color:'FFD700',bold:true}),cel('R'+fN(expSav),fC[4],{fill:DARK,color:'FFD700',bold:true}),cel('R'+fN(totalSav),fC[5],{fill:DARK,color:'FFD700',bold:true}))
                 ]));
             }
             children.push(sp(80));
-            children.push(h2('Savings Over Time'));
-            children.push(img(finSavPng, 700, 300));
+            children.push(img(fCaps.savChart, 700, 320));
             children.push(sp(60));
-            children.push(h2('TOU Generation Distribution'));
-            children.push(img(finGenPng, 700, 300));
+            children.push(img(fCaps.genChart, 700, 320));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
             // ════ WARRANTIES ════
-            children.push(h1((secNum+1)+'. System Warranties'));
+            children.push(h1('5. System Warranties'));
             children.push(accent());
-            const wCols=[TW*0.22,TW*0.15,TW*0.15,TW*0.16,TW*0.16,TW*0.16].map(Math.floor);
-            const wRows=[row(hdr('Component',wCols[0]),hdr('Start',wCols[1]),hdr('Duration',wCols[2]),hdr('Expiry',wCols[3]),hdr('Remaining',wCols[4]),hdr('Status',wCols[5]))];
-            WARRANTY_DATA.forEach((w,i)=>{
-                const start2=new Date(w.start+'T00:00:00');
-                const exp2=new Date(start2);exp2.setFullYear(exp2.getFullYear()+w.years);
-                const remYrs=Math.max(0,(exp2-now)/(365.25*24*60*60*1000));
-                const isExp=now>=exp2;
-                const fl=i%2===0?undefined:LIGHT;
-                wRows.push(row(
-                    cel(w.item,wCols[0],{bold:true,align:D.AlignmentType.LEFT,fill:fl,sz:15}),
-                    cel('19 Dec 2023',wCols[1],{fill:fl,sz:15}),cel(w.years+' yrs',wCols[2],{fill:fl,sz:15}),
-                    cel(exp2.getDate()+' '+mShort[exp2.getMonth()+1]+' '+exp2.getFullYear(),wCols[3],{fill:fl,sz:15}),
-                    cel(isExp?'Expired':remYrs.toFixed(1)+' yrs',wCols[4],{fill:fl,sz:15,bold:true,color:isExp?'DC2626':GREEN}),
-                    cel(isExp?'Expired':remYrs<2?'Expiring':'Active',wCols[5],{fill:fl,sz:15,color:isExp?'DC2626':remYrs<2?'CA8A04':GREEN})
-                ));
-            });
-            children.push(tbl(wCols,wRows));
+            children.push(img(wCaps.donuts, 700, 380));
+            children.push(sp(60));
+            children.push(img(wCaps.table, 700, 250));
             children.push(sp(200));
 
             // ════ CONCLUSION ════
-            children.push(h1((secNum+2)+'. Conclusion'));
+            children.push(h1('6. Conclusion'));
             children.push(accent());
-            children.push(body(perf>=90?'The system is performing as designed and continues to operate as expected.':'System performance requires attention during this period. Continued monitoring and corrective actions are being implemented.'));
-            children.push(body('The system will continue to be monitored on weekdays, with all performance data logged to the online portal. Should any error alarms occur or performance drop, a technician may conduct an unscheduled site visit. Please note that such visits will be chargeable at the call-out rates specified in the maintenance agreement.'));
-            children.push(body('If you have any questions regarding this report or require further assistance, please do not hesitate to contact us at maintenance@genergy.co.za.'));
+            children.push(txt(perf>=90?'The system is performing as designed and continues to operate as expected.':'System performance requires attention. Continued monitoring and corrective actions are being implemented.'));
+            children.push(txt('The system will continue to be monitored on weekdays, with all performance data logged to the online portal. Should any error alarms occur or performance drop, a technician may conduct an unscheduled site visit.'));
+            children.push(txt('If you have any questions, please contact us at maintenance@genergy.co.za.'));
 
             // ══ BUILD ══
             const doc = new D.Document({
                 styles:{default:{document:{run:{font:'Segoe UI',size:20}}},
                     paragraphStyles:[
-                        {id:'Heading1',name:'Heading 1',basedOn:'Normal',next:'Normal',quickFormat:true,
-                            run:{size:30,bold:true,font:'Segoe UI',color:DARK},paragraph:{spacing:{before:250,after:60},outlineLevel:0}},
-                        {id:'Heading2',name:'Heading 2',basedOn:'Normal',next:'Normal',quickFormat:true,
-                            run:{size:24,bold:true,font:'Segoe UI',color:'374151'},paragraph:{spacing:{before:180,after:60},outlineLevel:1}}
+                        {id:'Heading1',name:'Heading 1',basedOn:'Normal',next:'Normal',quickFormat:true,run:{size:30,bold:true,font:'Segoe UI',color:DARK},paragraph:{spacing:{before:250,after:60},outlineLevel:0}},
+                        {id:'Heading2',name:'Heading 2',basedOn:'Normal',next:'Normal',quickFormat:true,run:{size:24,bold:true,font:'Segoe UI',color:'374151'},paragraph:{spacing:{before:180,after:60},outlineLevel:1}}
                     ]},
                 features:{updateFields:true},
                 sections:[{
                     properties:{page:{size:{width:11906,height:16838},margin:{top:1134,right:1134,bottom:1134,left:1134}}},
-                    headers:{default:new D.Header({children:[
-                        new D.Paragraph({alignment:D.AlignmentType.RIGHT,children:[
-                            new D.TextRun({text:'Nautica Shopping Centre — '+monthName+' '+yr,font:'Segoe UI',size:16,color:GRAY,italics:true})]})
-                    ]})},
-                    footers:{default:new D.Footer({children:[
-                        new D.Paragraph({alignment:D.AlignmentType.CENTER,
-                            border:{top:{style:D.BorderStyle.SINGLE,size:1,color:'E2E8F0',space:4}},
-                            children:[new D.TextRun({text:'Genergy (Pty) Ltd  |  All Rights Reserved  |  Page ',font:'Segoe UI',size:15,color:GRAY}),
-                                new D.TextRun({children:[D.PageNumber.CURRENT],font:'Segoe UI',size:15,color:GRAY})]})
-                    ]})},
+                    headers:{default:new D.Header({children:[new D.Paragraph({alignment:D.AlignmentType.RIGHT,children:[new D.TextRun({text:'Nautica Shopping Centre — '+monthName+' '+yr,font:'Segoe UI',size:16,color:GRAY,italics:true})]})]})},
+                    footers:{default:new D.Footer({children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,border:{top:{style:D.BorderStyle.SINGLE,size:1,color:'E2E8F0',space:4}},children:[new D.TextRun({text:'Genergy (Pty) Ltd  |  All Rights Reserved  |  Page ',font:'Segoe UI',size:15,color:GRAY}),new D.TextRun({children:[D.PageNumber.CURRENT],font:'Segoe UI',size:15,color:GRAY})]})]})},
                     children
                 }]
             });
