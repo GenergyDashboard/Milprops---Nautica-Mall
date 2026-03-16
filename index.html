@@ -5510,10 +5510,7 @@
 
             // Overview tab — slabs and env are DOM
             statusEl.textContent = 'Capturing Overview...';
-            const ovSlabs = document.querySelector('[data-block="slabs"]');
-            const ovEnv = document.querySelector('[data-block="env"]');
-            const ovSlabsPng = ovSlabs ? await screenshotEl(ovSlabs) : null;
-            const ovEnvPng = ovEnv ? await screenshotEl(ovEnv) : null;
+            // Overview stats are built from data directly — no screenshots needed
 
             // Monthly tab — chart canvases captured directly
             statusEl.textContent = 'Capturing Monthly...';
@@ -5535,11 +5532,6 @@
             const fCaps = await captureTab('financial', () => renderFinancialTab(),
                 { savChart: 'finSavChart', genChart: 'finGenChart' }, {});
             finRange = origFinRange; // restore
-
-            // Warranty tab — donuts are DOM, table is DOM
-            statusEl.textContent = 'Capturing Warranties...';
-            const wCaps = await captureTab('warranty', () => renderWarrantyTab(),
-                {}, { donuts: '.warranty-grid', table: '.env-table-wrap' });
 
             statusEl.textContent = 'Building document...';
 
@@ -5588,26 +5580,85 @@
             children.push(h1('1. Executive Overview'));
             children.push(accent());
             const cw4=Math.floor(TW/4);
+            // Row 1: Generation
             children.push(tbl([cw4,cw4,cw4,cw4],[row(
                 stat('PV GENERATION',fN(actPV),'kWh',cw4),stat('EXPECTED',fN(expPV),'kWh',cw4),
                 stat('PERFORMANCE',perf.toFixed(1),'%',cw4,perf>=95?'DCFCE7':perf>=80?'FEF9C3':'FEE2E2'),
                 stat('PV COVERAGE',coverage.toFixed(1),'%',cw4))]));
             children.push(sp(30));
+            // Row 2: Energy Flow
             children.push(tbl([cw4,cw4,cw4,cw4],[row(
                 stat('SELF-CONSUMPTION',fN(actSC),'kWh',cw4),stat('EXPORT TO GRID',fN(actExp),'kWh',cw4),
                 stat('GRID IMPORT',fN(actGrid),'kWh',cw4),stat('TOTAL LOAD',fN(actLoad),'kWh',cw4))]));
-            children.push(sp(60));
-
-            // Dashboard overview screenshot
-            children.push(img(ovSlabsPng, 700, 280));
+            children.push(sp(30));
+            // Row 3: Financial
+            const utilityCost = sav ? (sav.utility_cost?.total||0) : 0;
+            children.push(tbl([cw4,cw4,cw4,cw4],[row(
+                stat('UTILITY COST','R '+fN(utilityCost),'',cw4,'FEE2E2'),
+                stat('PV SAVINGS','R '+fN(pvSav),'',cw4,'DCFCE7'),
+                stat('EXPORT SAVINGS','R '+fN(expSav),'',cw4,'DCFCE7'),
+                stat('TOTAL SAVINGS','R '+fN(totalSav),'',cw4,'DCFCE7'))]));
             children.push(sp(60));
 
             // Environmental
-            children.push(h2('Environmental Impact'));
+            children.push(h2('Environmental Impact (Lifetime)'));
             const cw4e=Math.floor(TW/4);
             children.push(tbl([cw4e,cw4e,cw4e,cw4e],[row(
                 stat('🌳 TREES',fN(envData.trees),'equiv.',cw4e),stat('🏠 HOMES',fN(envData.homes),'powered',cw4e),
                 stat('⛏️ COAL',fN(envData.coal),'kg saved',cw4e),stat('💧 WATER',fN(envData.water),'litres',cw4e))]));
+            children.push(sp(60));
+
+            // Past 12 Month Summary Table
+            children.push(h2('Past 12 Month Summary'));
+            const l12Cols=[TW*0.10,TW*0.12,TW*0.12,TW*0.10,TW*0.10,TW*0.10,TW*0.12,TW*0.12,TW*0.12].map(Math.floor);
+            const l12Rows=[row(hdr('Month',l12Cols[0]),hdr('PV Gen',l12Cols[1]),hdr('Expected',l12Cols[2]),hdr('Perf.',l12Cols[3]),hdr('Coverage',l12Cols[4]),hdr('Export',l12Cols[5]),hdr('Grid Cost',l12Cols[6]),hdr('PV Savings',l12Cols[7]),hdr('Total Savings',l12Cols[8]))];
+            let l12TotPV=0,l12TotExp=0,l12TotExport=0,l12TotCost=0,l12TotPVSav=0,l12TotSav=0;
+            last12.forEach((m,i)=>{
+                const mmd=dashData.monthly[m];const[my,mm2]=m.split('-').map(Number);
+                const ic=my===now.getFullYear()&&mm2===(now.getMonth()+1);
+                const nd=ic?now.getDate():new Date(my,mm2,0).getDate();
+                const ch=ic?curH:23;
+                const mPV=mmd['PV Yield (kWh)']||0;
+                const mExp2=calcMonthExpFor(my,mm2,nd,ch);
+                const mPerf=mExp2>0?mPV/mExp2*100:0;
+                const mLoad=mmd['Consumption (kWh)']||0;
+                const mSC=mmd['Self-consumption (kWh)']||0;
+                const mExport=mmd['Export (kWh)']||0;
+                const mGrid=mmd['Import (kWh)']||0;
+                const mCov=mLoad>0?mSC/mLoad*100:0;
+                const mSav=calcMonthTOUSavings(my,mm2,mSC,mExport,nd,mGrid);
+                const mCost=mSav?(mSav.utility_cost?.total||0):0;
+                const mPVS=mSav?(mSav.pv_savings?.total||0):0;
+                const mTotS=mSav?mSav.total:0;
+                l12TotPV+=mPV;l12TotExp+=mExp2;l12TotExport+=mExport;l12TotCost+=mCost;l12TotPVSav+=mPVS;l12TotSav+=mTotS;
+                const fl=i%2===0?undefined:LIGHT;
+                const pc=mPerf>=95?GREEN:mPerf>=80?'CA8A04':'DC2626';
+                l12Rows.push(row(
+                    cel(mShort[mm2]+' '+String(my).slice(2),l12Cols[0],{fill:fl,bold:true,sz:15}),
+                    cel(fN(mPV),l12Cols[1],{fill:fl,sz:15}),
+                    cel(fN(mExp2),l12Cols[2],{fill:fl,sz:15}),
+                    cel(mPerf.toFixed(1)+'%',l12Cols[3],{fill:fl,sz:15,bold:true,color:pc}),
+                    cel(mCov.toFixed(1)+'%',l12Cols[4],{fill:fl,sz:15}),
+                    cel(fN(mExport),l12Cols[5],{fill:fl,sz:15}),
+                    cel('R'+fN(mCost),l12Cols[6],{fill:fl,sz:15}),
+                    cel('R'+fN(mPVS),l12Cols[7],{fill:fl,sz:15,color:GREEN}),
+                    cel('R'+fN(mTotS),l12Cols[8],{fill:fl,sz:15,bold:true,color:GREEN})
+                ));
+            });
+            // Totals row
+            const l12Perf=l12TotExp>0?l12TotPV/l12TotExp*100:0;
+            l12Rows.push(row(
+                cel('TOTAL',l12Cols[0],{bold:true,fill:DARK,color:WHITE,sz:15}),
+                cel(fN(l12TotPV),l12Cols[1],{fill:DARK,color:WHITE,bold:true,sz:15}),
+                cel(fN(l12TotExp),l12Cols[2],{fill:DARK,color:WHITE,bold:true,sz:15}),
+                cel(l12Perf.toFixed(1)+'%',l12Cols[3],{fill:DARK,color:'FFD700',bold:true,sz:15}),
+                cel('--',l12Cols[4],{fill:DARK,color:WHITE,sz:15}),
+                cel(fN(l12TotExport),l12Cols[5],{fill:DARK,color:WHITE,bold:true,sz:15}),
+                cel('R'+fN(l12TotCost),l12Cols[6],{fill:DARK,color:WHITE,bold:true,sz:15}),
+                cel('R'+fN(l12TotPVSav),l12Cols[7],{fill:DARK,color:'FFD700',bold:true,sz:15}),
+                cel('R'+fN(l12TotSav),l12Cols[8],{fill:DARK,color:'FFD700',bold:true,sz:15})
+            ));
+            children.push(tbl(l12Cols,l12Rows));
             children.push(new D.Paragraph({children:[new D.PageBreak()]}));
 
             // ════ MONTHLY GENERATION ════
@@ -5679,9 +5730,24 @@
             // ════ WARRANTIES ════
             children.push(h1('5. System Warranties'));
             children.push(accent());
-            children.push(img(wCaps.donuts, 700, 380));
-            children.push(sp(60));
-            children.push(img(wCaps.table, 700, 250));
+            const wC=[TW*0.22,TW*0.14,TW*0.14,TW*0.16,TW*0.16,TW*0.18].map(Math.floor);
+            const wR=[row(hdr('Component',wC[0]),hdr('Start',wC[1]),hdr('Duration',wC[2]),hdr('Expiry',wC[3]),hdr('Remaining',wC[4]),hdr('Status',wC[5]))];
+            WARRANTY_DATA.forEach((w,i)=>{
+                const st=new Date(w.start+'T00:00:00');
+                const ex=new Date(st);ex.setFullYear(ex.getFullYear()+w.years);
+                const remYrs=Math.max(0,(ex-now)/(365.25*24*60*60*1000));
+                const isExp=now>=ex;
+                const fl=i%2===0?undefined:LIGHT;
+                wR.push(row(
+                    cel(w.item,wC[0],{bold:true,align:D.AlignmentType.LEFT,fill:fl,sz:16}),
+                    cel('19 Dec 2023',wC[1],{fill:fl,sz:16}),
+                    cel(w.years+' years',wC[2],{fill:fl,sz:16}),
+                    cel(ex.getDate()+' '+mShort[ex.getMonth()+1]+' '+ex.getFullYear(),wC[3],{fill:fl,sz:16}),
+                    cel(isExp?'Expired':remYrs.toFixed(1)+' yrs',wC[4],{fill:fl,sz:16,bold:true,color:isExp?'DC2626':GREEN}),
+                    cel(isExp?'Expired':remYrs<2?'Expiring':'Active',wC[5],{fill:fl,sz:16,color:isExp?'DC2626':remYrs<2?'CA8A04':GREEN})
+                ));
+            });
+            children.push(tbl(wC,wR));
             children.push(sp(200));
 
             // ════ CONCLUSION ════
