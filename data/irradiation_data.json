@@ -901,9 +901,41 @@
       "daily_total_wh_m2": 4473.0,
       "daily_total_kwh_m2": 4.473,
       "sun_hours": 12
+    },
+    "2026-03-17": {
+      "hourly_wm2": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.0,
+        11.0,
+        95.0,
+        142.0,
+        48.0,
+        28.0,
+        1.0,
+        24.0,
+        29.0,
+        14.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "peak_wm2": 142.0,
+      "daily_total_wh_m2": 395.0,
+      "daily_total_kwh_m2": 0.395,
+      "sun_hours": 8
     }
   },
-  "last_updated": "2026-03-16 21:50",
+  "last_updated": "2026-03-17 06:48",
   "monthly_summary": {
     "2026-02": {
       "days_recorded": 12,
@@ -912,10 +944,10 @@
       "avg_sun_hours": 12.0
     },
     "2026-03": {
-      "days_recorded": 16,
-      "total_kwh_m2": 85.746,
-      "avg_peak_wm2": 764.4,
-      "avg_sun_hours": 12.0
+      "days_recorded": 17,
+      "total_kwh_m2": 86.141,
+      "avg_peak_wm2": 727.8,
+      "avg_sun_hours": 11.8
     }
   }
 }
