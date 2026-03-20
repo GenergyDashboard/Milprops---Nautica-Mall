@@ -6115,12 +6115,12 @@
     }
   },
   "2026-03-20": {
-    "current_hour": 11,
-    "pv": 1359.41,
-    "import": 1639.55,
-    "export": 145.6,
-    "self_consumption": 1213.81,
-    "consumption": 2853.36,
+    "current_hour": 12,
+    "pv": 1850.58,
+    "import": 1665.54,
+    "export": 254.8,
+    "self_consumption": 1595.78,
+    "consumption": 3261.32,
     "hourly": {
       "pv": [
         0.0,
@@ -6135,7 +6135,7 @@
         256.39,
         435.96,
         480.99,
-        0.0,
+        491.17,
         0.0,
         0.0,
         0.0,
@@ -6161,7 +6161,7 @@
         378.42,
         387.56,
         398.97,
-        0.0,
+        407.96,
         0.0,
         0.0,
         0.0,
@@ -6187,7 +6187,7 @@
         124.03,
         3.2,
         9.98,
-        0.0,
+        25.99,
         0.0,
         0.0,
         0.0,
@@ -6213,7 +6213,7 @@
         2.0,
         51.6,
         92.0,
-        0.0,
+        109.2,
         0.0,
         0.0,
         0.0,
@@ -6238,13 +6238,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1173.92,
-        "import": 401.15,
-        "self_consumption": 1028.32,
-        "export": 145.6,
-        "utility_cost": 642.96,
-        "pv_savings": 1648.19,
-        "export_savings": 237.63
+        "generation": 1665.09,
+        "import": 427.14,
+        "self_consumption": 1410.29,
+        "export": 254.8,
+        "utility_cost": 684.62,
+        "pv_savings": 2260.41,
+        "export_savings": 415.86
       },
       "off_peak": {
         "generation": 0.0,
@@ -6258,17 +6258,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 222.12,
-        "standard": 1820.62,
+        "peak": 292.02,
+        "standard": 2393.54,
         "off_peak": 0.0,
-        "total": 2042.74
+        "total": 2685.56
       },
       "export_savings": {
-        "standard": 222.38,
+        "standard": 389.17,
         "off_peak": 0.0,
-        "total": 222.38
+        "total": 389.17
       },
-      "total": 2265.12
+      "total": 3074.73
     }
   }
 }
