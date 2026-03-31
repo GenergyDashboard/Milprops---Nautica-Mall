@@ -7842,12 +7842,12 @@
     }
   },
   "2026-03-31": {
-    "current_hour": 11,
-    "pv": 1337.1,
-    "import": 1431.55,
-    "export": 99.6,
-    "self_consumption": 1237.5,
-    "consumption": 2669.05,
+    "current_hour": 12,
+    "pv": 1817.71,
+    "import": 1432.06,
+    "export": 166.8,
+    "self_consumption": 1650.91,
+    "consumption": 3082.97,
     "hourly": {
       "pv": [
         0.0,
@@ -7862,7 +7862,7 @@
         301.39,
         397.77,
         456.34,
-        0.0,
+        480.61,
         0.0,
         0.0,
         0.0,
@@ -7888,7 +7888,7 @@
         336.54,
         362.99,
         395.54,
-        0.0,
+        413.92,
         0.0,
         0.0,
         0.0,
@@ -7914,7 +7914,7 @@
         36.35,
         2.82,
         0.0,
-        0.0,
+        0.51,
         0.0,
         0.0,
         0.0,
@@ -7940,7 +7940,7 @@
         1.2,
         37.6,
         60.8,
-        0.0,
+        67.2,
         0.0,
         0.0,
         0.0,
@@ -7965,13 +7965,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1155.72,
-        "import": 278.4,
-        "self_consumption": 1056.12,
-        "export": 99.6,
-        "utility_cost": 446.22,
-        "pv_savings": 1692.75,
-        "export_savings": 162.56
+        "generation": 1636.33,
+        "import": 278.91,
+        "self_consumption": 1469.53,
+        "export": 166.8,
+        "utility_cost": 447.04,
+        "pv_savings": 2355.36,
+        "export_savings": 272.23
       },
       "off_peak": {
         "generation": 0.0,
@@ -7985,17 +7985,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 179.95,
-        "standard": 1882.3,
+        "peak": 240.06,
+        "standard": 2511.11,
         "off_peak": 0.0,
-        "total": 2062.24
+        "total": 2751.18
       },
       "export_savings": {
-        "standard": 154.27,
+        "standard": 258.35,
         "off_peak": 0.0,
-        "total": 154.27
+        "total": 258.35
       },
-      "total": 2216.51
+      "total": 3009.53
     }
   }
 }
