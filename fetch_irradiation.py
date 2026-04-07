@@ -13,8 +13,9 @@ Location: Nautica Shopping Centre, Saldanha Bay, Western Cape
 
 import json
 import sys
+import time
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -27,6 +28,34 @@ FORECAST_API = "https://api.open-meteo.com/v1/forecast"
 
 DATA_DIR = Path("data")
 IRRADIATION_FILE = DATA_DIR / "irradiation_data.json"
+
+MAX_RETRIES = 3
+RETRY_DELAYS = [5, 15, 30]  # seconds between retries
+
+
+def fetch_with_retry(url, timeout=30):
+    """Fetch URL with retry logic for transient failures (502, 503, 504)."""
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            req = urllib.request.Request(url, headers={
+                'User-Agent': 'Genergy-Solar-Dashboard/1.0'
+            })
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return json.loads(response.read())
+        except Exception as e:
+            last_error = e
+            error_str = str(e)
+            # Retry on server errors (502, 503, 504) and timeouts
+            if any(code in error_str for code in ['502', '503', '504', 'timed out', 'Timeout', 'Gateway']):
+                if attempt < MAX_RETRIES - 1:
+                    delay = RETRY_DELAYS[attempt]
+                    print(f"  ⚠️  Attempt {attempt+1} failed ({error_str}), retrying in {delay}s...")
+                    time.sleep(delay)
+                    continue
+            # Non-retryable error — raise immediately
+            raise
+    raise last_error
 
 
 def fetch_today_irradiation():
@@ -44,11 +73,9 @@ def fetch_today_irradiation():
     print(f"📍 Location: {LATITUDE}, {LONGITUDE}")
 
     try:
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=30) as response:
-            data = json.loads(response.read())
+        data = fetch_with_retry(url)
     except Exception as e:
-        print(f"❌ API request failed: {e}")
+        print(f"❌ API request failed after {MAX_RETRIES} attempts: {e}")
         return None
 
     # Parse response
@@ -66,10 +93,10 @@ def fetch_today_irradiation():
 
     # Calculate daily summary
     values = [h["direct_radiation_wm2"] for h in hourly]
-    daily_total_wh = round(sum(values), 1)          # Wh/m² (since each reading is 1hr)
-    daily_total_kwh = round(daily_total_wh / 1000, 3)  # kWh/m²
+    daily_total_wh = round(sum(values), 1)
+    daily_total_kwh = round(daily_total_wh / 1000, 3)
     peak_wm2 = round(max(values), 1)
-    sun_hours = sum(1 for v in values if v > 10)     # Hours with meaningful radiation
+    sun_hours = sum(1 for v in values if v > 10)
 
     date_str = timestamps[0].split("T")[0]
 
@@ -97,72 +124,57 @@ def load_existing_data():
         "plant": "Nautica Shopping Centre",
         "location": {
             "latitude": LATITUDE,
-            "longitude": LONGITUDE
+            "longitude": LONGITUDE,
+            "timezone": TIMEZONE
         },
-        "timezone": TIMEZONE,
         "daily_records": {}
     }
+
+
+def save_data(data):
+    """Save irradiation data to file."""
+    DATA_DIR.mkdir(exist_ok=True)
+    with open(IRRADIATION_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"💾 Saved to {IRRADIATION_FILE}")
 
 
 def main():
     print("🌤️  Nautica Shopping Centre - Irradiation Data")
     print("=" * 50)
 
-    DATA_DIR.mkdir(exist_ok=True)
+    today_data = fetch_today_irradiation()
 
-    # Fetch today's data
-    today = fetch_today_irradiation()
-    if today is None:
-        print("❌ Failed to fetch irradiation data")
-        sys.exit(1)
+    if today_data is None:
+        # Don't fail the workflow — just skip today's irradiation
+        print("⚠️  Skipping irradiation update (API unavailable)")
+        print("ℹ️  Dashboard will use last available irradiation data")
+        sys.exit(0)  # Exit 0 so the workflow continues
 
-    # Load existing history
-    data = load_existing_data()
+    # Load existing and merge
+    existing = load_existing_data()
+    date_str = today_data["date"]
 
-    # Add/update today's record
-    date_key = today["date"]
-    data["daily_records"][date_key] = {
-        "hourly_wm2": today["hourly"],
-        "peak_wm2": today["peak_wm2"],
-        "daily_total_wh_m2": today["daily_total_wh_m2"],
-        "daily_total_kwh_m2": today["daily_total_kwh_m2"],
-        "sun_hours": today["sun_hours"]
+    # Store in daily_records with hourly_wm2 array for dashboard compatibility
+    existing["daily_records"][date_str] = {
+        "hourly_wm2": today_data["hourly"],
+        "peak_wm2": today_data["peak_wm2"],
+        "daily_total_wh_m2": today_data["daily_total_wh_m2"],
+        "daily_total_kwh_m2": today_data["daily_total_kwh_m2"],
+        "sun_hours": today_data["sun_hours"]
     }
 
-    data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    # Prune records older than 90 days to keep file size manageable
+    cutoff_date = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
+    existing["daily_records"] = {
+        k: v for k, v in existing["daily_records"].items()
+        if k >= cutoff_date
+    }
 
-    # Calculate monthly summary for current month
-    now = datetime.now()
-    month_key = now.strftime("%Y-%m")
-    month_days = {k: v for k, v in data["daily_records"].items() if k.startswith(month_key)}
+    existing["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    if month_days:
-        month_total_kwh = round(sum(d["daily_total_kwh_m2"] for d in month_days.values()), 3)
-        month_avg_peak = round(sum(d["peak_wm2"] for d in month_days.values()) / len(month_days), 1)
-        month_avg_sun = round(sum(d["sun_hours"] for d in month_days.values()) / len(month_days), 1)
-
-        if "monthly_summary" not in data:
-            data["monthly_summary"] = {}
-
-        data["monthly_summary"][month_key] = {
-            "days_recorded": len(month_days),
-            "total_kwh_m2": month_total_kwh,
-            "avg_peak_wm2": month_avg_peak,
-            "avg_sun_hours": month_avg_sun
-        }
-
-        print(f"\n📊 Month summary ({month_key}):")
-        print(f"  📅 Days recorded: {len(month_days)}")
-        print(f"  ⚡ Total: {month_total_kwh} kWh/m²")
-        print(f"  ☀️  Avg peak: {month_avg_peak} W/m²")
-        print(f"  🕐 Avg sun hours: {month_avg_sun}h")
-
-    # Save
-    with open(IRRADIATION_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
-    print(f"\n✅ Saved to {IRRADIATION_FILE}")
-    print(f"📊 Total days in history: {len(data['daily_records'])}")
+    save_data(existing)
+    print(f"✅ Irradiation data updated ({len(existing['daily_records'])} days in history)")
 
 
 if __name__ == "__main__":
