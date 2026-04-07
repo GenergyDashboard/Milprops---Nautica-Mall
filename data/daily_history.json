@@ -8941,12 +8941,12 @@
     }
   },
   "2026-04-07": {
-    "current_hour": 11,
-    "pv": 1234.83,
-    "import": 1491.58,
-    "export": 84.8,
-    "self_consumption": 1150.03,
-    "consumption": 2641.61,
+    "current_hour": 12,
+    "pv": 1694.18,
+    "import": 1491.97,
+    "export": 152.8,
+    "self_consumption": 1541.38,
+    "consumption": 3033.35,
     "hourly": {
       "pv": [
         0.0,
@@ -8961,7 +8961,7 @@
         268.4,
         369.8,
         435.59,
-        0.0,
+        459.35,
         0.0,
         0.0,
         0.0,
@@ -8987,7 +8987,7 @@
         322.86,
         352.07,
         380.87,
-        0.0,
+        391.74,
         0.0,
         0.0,
         0.0,
@@ -9013,7 +9013,7 @@
         56.06,
         9.47,
         1.28,
-        0.0,
+        0.39,
         0.0,
         0.0,
         0.0,
@@ -9039,7 +9039,7 @@
         1.6,
         27.2,
         56.0,
-        0.0,
+        68.0,
         0.0,
         0.0,
         0.0,
@@ -9064,13 +9064,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1073.84,
-        "import": 318.45,
-        "self_consumption": 989.04,
-        "export": 84.8,
-        "utility_cost": 510.41,
-        "pv_savings": 1585.23,
-        "export_savings": 138.4
+        "generation": 1533.19,
+        "import": 318.84,
+        "self_consumption": 1380.39,
+        "export": 152.8,
+        "utility_cost": 511.04,
+        "pv_savings": 2212.49,
+        "export_savings": 249.38
       },
       "off_peak": {
         "generation": 0.0,
@@ -9084,17 +9084,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 155.84,
-        "standard": 1755.65,
+        "peak": 208.87,
+        "standard": 2353.09,
         "off_peak": 0.0,
-        "total": 1911.49
+        "total": 2561.97
       },
       "export_savings": {
-        "standard": 131.82,
+        "standard": 237.53,
         "off_peak": 0.0,
-        "total": 131.82
+        "total": 237.53
       },
-      "total": 2043.31
+      "total": 2799.5
     }
   }
 }
