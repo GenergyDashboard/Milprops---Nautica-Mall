@@ -8941,12 +8941,12 @@
     }
   },
   "2026-04-07": {
-    "current_hour": 12,
-    "pv": 1694.18,
-    "import": 1491.97,
-    "export": 152.8,
-    "self_consumption": 1541.38,
-    "consumption": 3033.35,
+    "current_hour": 13,
+    "pv": 2149.49,
+    "import": 1492.73,
+    "export": 219.2,
+    "self_consumption": 1930.29,
+    "consumption": 3423.02,
     "hourly": {
       "pv": [
         0.0,
@@ -8962,7 +8962,7 @@
         369.8,
         435.59,
         459.35,
-        0.0,
+        455.31,
         0.0,
         0.0,
         0.0,
@@ -8988,7 +8988,7 @@
         352.07,
         380.87,
         391.74,
-        0.0,
+        389.67,
         0.0,
         0.0,
         0.0,
@@ -9014,7 +9014,7 @@
         9.47,
         1.28,
         0.39,
-        0.0,
+        0.76,
         0.0,
         0.0,
         0.0,
@@ -9040,7 +9040,7 @@
         27.2,
         56.0,
         68.0,
-        0.0,
+        66.4,
         0.0,
         0.0,
         0.0,
@@ -9064,13 +9064,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1533.19,
-        "import": 318.84,
-        "self_consumption": 1380.39,
-        "export": 152.8,
-        "utility_cost": 511.04,
-        "pv_savings": 2212.49,
-        "export_savings": 249.38
+        "generation": 1988.5,
+        "import": 319.6,
+        "self_consumption": 1769.3,
+        "export": 219.2,
+        "utility_cost": 512.25,
+        "pv_savings": 2835.83,
+        "export_savings": 357.76
       },
       "off_peak": {
         "generation": 0.0,
@@ -9084,17 +9084,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 208.87,
-        "standard": 2353.09,
+        "peak": 261.57,
+        "standard": 2946.81,
         "off_peak": 0.0,
-        "total": 2561.97
+        "total": 3208.38
       },
       "export_savings": {
-        "standard": 237.53,
+        "standard": 340.75,
         "off_peak": 0.0,
-        "total": 237.53
+        "total": 340.75
       },
-      "total": 2799.5
+      "total": 3549.13
     }
   }
 }
