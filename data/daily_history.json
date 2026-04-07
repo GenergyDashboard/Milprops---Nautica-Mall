@@ -8941,12 +8941,12 @@
     }
   },
   "2026-04-07": {
-    "current_hour": 13,
-    "pv": 2149.49,
-    "import": 1492.73,
-    "export": 219.2,
-    "self_consumption": 1930.29,
-    "consumption": 3423.02,
+    "current_hour": 15,
+    "pv": 2900.7,
+    "import": 1530.37,
+    "export": 276.0,
+    "self_consumption": 2624.7,
+    "consumption": 4155.07,
     "hourly": {
       "pv": [
         0.0,
@@ -8963,8 +8963,8 @@
         435.59,
         459.35,
         455.31,
-        0.0,
-        0.0,
+        416.76,
+        334.45,
         0.0,
         0.0,
         0.0,
@@ -8989,8 +8989,8 @@
         380.87,
         391.74,
         389.67,
-        0.0,
-        0.0,
+        366.35,
+        365.7,
         0.0,
         0.0,
         0.0,
@@ -9015,8 +9015,8 @@
         1.28,
         0.39,
         0.76,
-        0.0,
-        0.0,
+        0.39,
+        37.25,
         0.0,
         0.0,
         0.0,
@@ -9041,8 +9041,8 @@
         56.0,
         68.0,
         66.4,
-        0.0,
-        0.0,
+        50.8,
+        6.0,
         0.0,
         0.0,
         0.0,
@@ -9064,13 +9064,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1988.5,
-        "import": 319.6,
-        "self_consumption": 1769.3,
-        "export": 219.2,
-        "utility_cost": 512.25,
-        "pv_savings": 2835.83,
-        "export_savings": 357.76
+        "generation": 2739.71,
+        "import": 357.24,
+        "self_consumption": 2463.71,
+        "export": 276.0,
+        "utility_cost": 572.58,
+        "pv_savings": 3948.83,
+        "export_savings": 450.46
       },
       "off_peak": {
         "generation": 0.0,
@@ -9084,17 +9084,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 261.57,
-        "standard": 2946.81,
+        "peak": 355.67,
+        "standard": 4006.91,
         "off_peak": 0.0,
-        "total": 3208.38
+        "total": 4362.58
       },
       "export_savings": {
-        "standard": 340.75,
+        "standard": 429.05,
         "off_peak": 0.0,
-        "total": 340.75
+        "total": 429.05
       },
-      "total": 3549.13
+      "total": 4791.63
     }
   }
 }
