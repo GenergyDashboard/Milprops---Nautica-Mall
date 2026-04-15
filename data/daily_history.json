@@ -10197,12 +10197,12 @@
     }
   },
   "2026-04-15": {
-    "current_hour": 11,
-    "pv": 921.49,
-    "import": 1802.37,
-    "export": 19.2,
-    "self_consumption": 902.29,
-    "consumption": 2704.66,
+    "current_hour": 12,
+    "pv": 1287.57,
+    "import": 1808.0,
+    "export": 62.4,
+    "self_consumption": 1225.17,
+    "consumption": 3033.17,
     "hourly": {
       "pv": [
         0.0,
@@ -10217,7 +10217,7 @@
         208.36,
         298.35,
         325.95,
-        0.0,
+        366.08,
         0.0,
         0.0,
         0.0,
@@ -10243,7 +10243,7 @@
         340.45,
         354.77,
         351.84,
-        0.0,
+        328.51,
         0.0,
         0.0,
         0.0,
@@ -10269,7 +10269,7 @@
         132.09,
         57.22,
         44.29,
-        0.0,
+        5.63,
         0.0,
         0.0,
         0.0,
@@ -10295,7 +10295,7 @@
         0.0,
         0.8,
         18.4,
-        0.0,
+        43.2,
         0.0,
         0.0,
         0.0,
@@ -10320,13 +10320,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 832.66,
-        "import": 499.2,
-        "self_consumption": 813.46,
-        "export": 19.2,
-        "utility_cost": 800.12,
-        "pv_savings": 1303.81,
-        "export_savings": 31.34
+        "generation": 1198.74,
+        "import": 504.83,
+        "self_consumption": 1136.34,
+        "export": 62.4,
+        "utility_cost": 809.14,
+        "pv_savings": 1821.33,
+        "export_savings": 101.84
       },
       "off_peak": {
         "generation": 0.0,
@@ -10340,17 +10340,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 136.3,
-        "standard": 1369.56,
+        "peak": 185.07,
+        "standard": 1859.65,
         "off_peak": 0.0,
-        "total": 1505.86
+        "total": 2044.73
       },
       "export_savings": {
-        "standard": 29.68,
+        "standard": 96.45,
         "off_peak": 0.0,
-        "total": 29.68
+        "total": 96.45
       },
-      "total": 1535.54
+      "total": 2141.18
     }
   }
 }
