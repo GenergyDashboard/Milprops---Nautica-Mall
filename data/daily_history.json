@@ -10668,12 +10668,12 @@
     }
   },
   "2026-04-18": {
-    "current_hour": 9,
-    "pv": 168.01,
-    "import": 1658.37,
-    "export": 0.0,
-    "self_consumption": 168.01,
-    "consumption": 1826.38,
+    "current_hour": 10,
+    "pv": 272.51,
+    "import": 1888.77,
+    "export": 0.8,
+    "self_consumption": 271.71,
+    "consumption": 2160.48,
     "hourly": {
       "pv": [
         0.0,
@@ -10686,7 +10686,7 @@
         12.2,
         37.05,
         118.76,
-        0.0,
+        104.5,
         0.0,
         0.0,
         0.0,
@@ -10712,7 +10712,7 @@
         252.97,
         309.43,
         332.78,
-        0.0,
+        334.1,
         0.0,
         0.0,
         0.0,
@@ -10738,7 +10738,7 @@
         240.77,
         272.38,
         214.02,
-        0.0,
+        230.4,
         0.0,
         0.0,
         0.0,
@@ -10764,7 +10764,7 @@
         0.0,
         0.0,
         0.0,
-        0.0,
+        0.8,
         0.0,
         0.0,
         0.0,
@@ -10791,13 +10791,13 @@
         "export_savings": 0
       },
       "standard": {
-        "generation": 168.01,
-        "import": 727.17,
-        "self_consumption": 168.01,
-        "export": 0.0,
-        "utility_cost": 1165.51,
-        "pv_savings": 269.29,
-        "export_savings": 0.0
+        "generation": 272.51,
+        "import": 957.57,
+        "self_consumption": 271.71,
+        "export": 0.8,
+        "utility_cost": 1534.79,
+        "pv_savings": 435.5,
+        "export_savings": 1.31
       },
       "off_peak": {
         "generation": 0.0,
@@ -10812,16 +10812,16 @@
     "savings": {
       "pv_savings": {
         "peak": 0.0,
-        "standard": 104.16,
-        "off_peak": 117.95,
-        "total": 222.11
+        "standard": 168.46,
+        "off_peak": 190.75,
+        "total": 359.21
       },
       "export_savings": {
-        "standard": 0.0,
-        "off_peak": 0.0,
-        "total": 0.0
+        "standard": 0.51,
+        "off_peak": 0.53,
+        "total": 1.04
       },
-      "total": 222.11
+      "total": 360.25
     }
   }
 }
