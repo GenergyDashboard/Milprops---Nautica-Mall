@@ -11610,12 +11610,12 @@
     }
   },
   "2026-04-24": {
-    "current_hour": 11,
-    "pv": 1110.27,
-    "import": 1479.17,
-    "export": 30.8,
-    "self_consumption": 1079.47,
-    "consumption": 2558.64,
+    "current_hour": 12,
+    "pv": 1543.14,
+    "import": 1480.83,
+    "export": 78.8,
+    "self_consumption": 1464.34,
+    "consumption": 2945.17,
     "hourly": {
       "pv": [
         0.0,
@@ -11630,7 +11630,7 @@
         242.6,
         345.51,
         402.02,
-        0.0,
+        432.87,
         0.0,
         0.0,
         0.0,
@@ -11656,7 +11656,7 @@
         331.05,
         351.04,
         383.61,
-        0.0,
+        386.53,
         0.0,
         0.0,
         0.0,
@@ -11682,7 +11682,7 @@
         88.45,
         14.33,
         3.59,
-        0.0,
+        1.66,
         0.0,
         0.0,
         0.0,
@@ -11708,7 +11708,7 @@
         0.0,
         8.8,
         22.0,
-        0.0,
+        48.0,
         0.0,
         0.0,
         0.0,
@@ -11733,13 +11733,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 990.13,
-        "import": 356.74,
-        "self_consumption": 959.33,
-        "export": 30.8,
-        "utility_cost": 571.78,
-        "pv_savings": 1537.61,
-        "export_savings": 50.27
+        "generation": 1423.0,
+        "import": 358.4,
+        "self_consumption": 1344.2,
+        "export": 78.8,
+        "utility_cost": 574.44,
+        "pv_savings": 2154.48,
+        "export_savings": 128.61
       },
       "off_peak": {
         "generation": 0.0,
@@ -11753,17 +11753,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 156.71,
-        "standard": 1642.07,
+        "peak": 212.59,
+        "standard": 2227.53,
         "off_peak": 0.0,
-        "total": 1798.78
+        "total": 2440.11
       },
       "export_savings": {
-        "standard": 47.71,
+        "standard": 122.06,
         "off_peak": 0.0,
-        "total": 47.71
+        "total": 122.06
       },
-      "total": 1846.49
+      "total": 2562.17
     }
   }
 }
