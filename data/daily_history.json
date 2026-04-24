@@ -11610,12 +11610,12 @@
     }
   },
   "2026-04-24": {
-    "current_hour": 10,
-    "pv": 708.25,
-    "import": 1475.58,
-    "export": 8.8,
-    "self_consumption": 699.45,
-    "consumption": 2175.03,
+    "current_hour": 11,
+    "pv": 1110.27,
+    "import": 1479.17,
+    "export": 30.8,
+    "self_consumption": 1079.47,
+    "consumption": 2558.64,
     "hourly": {
       "pv": [
         0.0,
@@ -11629,7 +11629,7 @@
         105.81,
         242.6,
         345.51,
-        0.0,
+        402.02,
         0.0,
         0.0,
         0.0,
@@ -11655,7 +11655,7 @@
         297.04,
         331.05,
         351.04,
-        0.0,
+        383.61,
         0.0,
         0.0,
         0.0,
@@ -11681,7 +11681,7 @@
         191.23,
         88.45,
         14.33,
-        0.0,
+        3.59,
         0.0,
         0.0,
         0.0,
@@ -11707,7 +11707,7 @@
         0.0,
         0.0,
         8.8,
-        0.0,
+        22.0,
         0.0,
         0.0,
         0.0,
@@ -11733,13 +11733,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 588.11,
-        "import": 353.15,
-        "self_consumption": 579.31,
-        "export": 8.8,
-        "utility_cost": 566.03,
-        "pv_savings": 928.52,
-        "export_savings": 14.36
+        "generation": 990.13,
+        "import": 356.74,
+        "self_consumption": 959.33,
+        "export": 30.8,
+        "utility_cost": 571.78,
+        "pv_savings": 1537.61,
+        "export_savings": 50.27
       },
       "off_peak": {
         "generation": 0.0,
@@ -11753,17 +11753,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 101.54,
-        "standard": 1063.99,
+        "peak": 156.71,
+        "standard": 1642.07,
         "off_peak": 0.0,
-        "total": 1165.53
+        "total": 1798.78
       },
       "export_savings": {
-        "standard": 13.63,
+        "standard": 47.71,
         "off_peak": 0.0,
-        "total": 13.63
+        "total": 47.71
       },
-      "total": 1179.16
+      "total": 1846.49
     }
   }
 }
