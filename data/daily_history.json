@@ -15221,12 +15221,12 @@
     }
   },
   "2026-05-17": {
-    "current_hour": 13,
-    "pv": 1676.9,
-    "import": 1437.95,
-    "export": 280.0,
-    "self_consumption": 1396.9,
-    "consumption": 2834.85,
+    "current_hour": 15,
+    "pv": 2244.12,
+    "import": 1438.84,
+    "export": 423.2,
+    "self_consumption": 1820.92,
+    "consumption": 3259.76,
     "hourly": {
       "pv": [
         0.0,
@@ -15243,8 +15243,8 @@
         362.86,
         387.64,
         380.16,
-        0.0,
-        0.0,
+        329.11,
+        238.11,
         0.0,
         0.0,
         0.0,
@@ -15269,8 +15269,8 @@
         296.86,
         286.44,
         280.16,
-        0.0,
-        0.0,
+        232.31,
+        192.6,
         0.0,
         0.0,
         0.0,
@@ -15296,7 +15296,7 @@
         0.0,
         0.0,
         0.0,
-        0.0,
+        0.89,
         0.0,
         0.0,
         0.0,
@@ -15321,8 +15321,8 @@
         66.0,
         101.2,
         100.0,
-        0.0,
-        0.0,
+        96.8,
+        46.4,
         0.0,
         0.0,
         0.0,
@@ -15353,28 +15353,28 @@
         "export_savings": 0.0
       },
       "off_peak": {
-        "generation": 1676.9,
-        "import": 1437.95,
-        "self_consumption": 1396.9,
-        "export": 280.0,
-        "utility_cost": 1646.31,
-        "pv_savings": 1599.31,
-        "export_savings": 304.7
+        "generation": 2244.12,
+        "import": 1438.84,
+        "self_consumption": 1820.92,
+        "export": 423.2,
+        "utility_cost": 1647.33,
+        "pv_savings": 2084.77,
+        "export_savings": 460.53
       }
     },
     "savings": {
       "pv_savings": {
         "peak": 0.0,
         "standard": 0.0,
-        "off_peak": 1599.31,
-        "total": 1599.31
+        "off_peak": 2084.77,
+        "total": 2084.77
       },
       "export_savings": {
         "standard": 0.0,
-        "off_peak": 304.7,
-        "total": 304.7
+        "off_peak": 460.53,
+        "total": 460.53
       },
-      "total": 1904.01
+      "total": 2545.3
     }
   }
 }
