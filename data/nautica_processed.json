@@ -1,6 +1,6 @@
 {
   "plant": "Nautica Shopping Centre",
-  "last_updated": "2026-06-04 18:46",
+  "last_updated": "2026-06-04 21:15",
   "yesterday": {
     "date": "2026-06-03",
     "data": {
@@ -27,29 +27,29 @@
       "Global Irradiation (kWh/\u33a1)": 0.0,
       "Average Temperature(\u00b0C)": 0.0,
       "Theoretical Yield (kWh)": 0.0,
-      "PV Yield (kWh)": 2128.19,
-      "Inverter Yield (kWh)": 2128.19,
+      "PV Yield (kWh)": 2128.2,
+      "Inverter Yield (kWh)": 2128.2,
       "Export (kWh)": 126.8,
-      "Import (kWh)": 2189.57,
+      "Import (kWh)": 2585.21,
       "Loss Due to Export Limitation (kWh)": 0.0,
       "Loss Due to Export Limitation(R.)": 0.0,
       "Charge (kWh)": 0.0,
       "Discharge (kWh)": 0.0,
       "Revenue (R.)": 187.66,
-      "Consumption (kWh)": 4190.96,
-      "Self-consumption (kWh)": 2001.39,
+      "Consumption (kWh)": 4586.61,
+      "Self-consumption (kWh)": 2001.4,
       "Self-consumption Rate (%)": 94.04
     }
   },
   "current_month": {
     "period": "2026-06",
     "data": {
-      "PV Yield (kWh)": 6507.67,
-      "Inverter Yield (kWh)": 6507.67,
+      "PV Yield (kWh)": 6507.68,
+      "Inverter Yield (kWh)": 6507.68,
       "Export (kWh)": 332.4,
-      "Import (kWh)": 12608.78,
-      "Consumption (kWh)": 18784.05,
-      "Self-consumption (kWh)": 6175.27,
+      "Import (kWh)": 13004.42,
+      "Consumption (kWh)": 19179.7,
+      "Self-consumption (kWh)": 6175.28,
       "CO\u2082 Avoided (t)": 0.0,
       "Standard Coal Saved (t)": 0.0,
       "Revenue (R.)": 491.94,
@@ -739,12 +739,12 @@
       "Self-consumption Rate (%)": 91.42
     },
     "2026-06": {
-      "PV Yield (kWh)": 6507.67,
-      "Inverter Yield (kWh)": 6507.67,
+      "PV Yield (kWh)": 6507.68,
+      "Inverter Yield (kWh)": 6507.68,
       "Export (kWh)": 332.4,
-      "Import (kWh)": 12608.78,
-      "Consumption (kWh)": 18784.05,
-      "Self-consumption (kWh)": 6175.27,
+      "Import (kWh)": 13004.42,
+      "Consumption (kWh)": 19179.7,
+      "Self-consumption (kWh)": 6175.28,
       "CO\u2082 Avoided (t)": 0.0,
       "Standard Coal Saved (t)": 0.0,
       "Revenue (R.)": 491.94,
@@ -813,12 +813,12 @@
       "Self-consumption Rate (%)": 86.48
     },
     "2026": {
-      "PV Yield (kWh)": 494982.07,
-      "Inverter Yield (kWh)": 494982.07,
+      "PV Yield (kWh)": 494982.08,
+      "Inverter Yield (kWh)": 494982.08,
       "Export (kWh)": 74978.07,
-      "Import (kWh)": 419589.65,
-      "Consumption (kWh)": 839593.65,
-      "Self-consumption (kWh)": 420004.01,
+      "Import (kWh)": 419985.29,
+      "Consumption (kWh)": 839989.3,
+      "Self-consumption (kWh)": 420004.02,
       "CO\u2082 Avoided (t)": 98.67,
       "Standard Coal Saved (t)": 83.09,
       "Revenue (R.)": 110950.15,
@@ -832,12 +832,12 @@
     }
   },
   "all_time_totals": {
-    "PV Yield (kWh)": 2123976.49,
-    "Inverter Yield (kWh)": 2123976.49,
+    "PV Yield (kWh)": 2123976.5,
+    "Inverter Yield (kWh)": 2123976.5,
     "Export (kWh)": 217492.07,
-    "Import (kWh)": 2014182.95,
-    "Consumption (kWh)": 3919127.69,
-    "Self-consumption (kWh)": 1906484.43,
+    "Import (kWh)": 2014578.59,
+    "Consumption (kWh)": 3919523.34,
+    "Self-consumption (kWh)": 1906484.44,
     "CO\u2082 Avoided (t)": 872.44,
     "Standard Coal Saved (t)": 734.69,
     "Revenue (R.)": 611169543.19,
@@ -853,48 +853,48 @@
     "today": {
       "pv_savings": {
         "peak": 11.64,
-        "standard": 3434.28,
+        "standard": 3434.29,
         "off_peak": 0.0,
-        "total": 3445.92
+        "total": 3445.94
       },
       "export_savings": {
         "standard": 206.78,
         "off_peak": 0.0,
         "total": 206.78
       },
-      "total": 3652.7
+      "total": 3652.72
     },
     "current_month": {
       "pv_savings": {
         "peak": 50.66,
-        "standard": 10592.74,
+        "standard": 10592.77,
         "off_peak": 0.0,
-        "total": 10643.4
+        "total": 10643.43
       },
       "export_savings": {
         "standard": 541.86,
         "off_peak": 0.0,
         "total": 541.86
       },
-      "total": 11185.26
+      "total": 11185.29
     },
     "all_time": {
       "pv_savings": {
         "peak": 320201.06,
-        "standard": 2215987.04,
+        "standard": 2215987.07,
         "off_peak": 490127.31,
-        "total": 3026315.17
+        "total": 3026315.2
       },
       "export_savings": {
         "standard": 251146.24,
         "off_peak": 52709.05,
         "total": 303855.2
       },
-      "total": 3330170.37
+      "total": 3330170.4
     }
   },
   "hourly": {
-    "current_hour": 17,
+    "current_hour": 19,
     "pv": [
       0.0,
       0.0,
@@ -914,7 +914,7 @@
       211.6,
       94.69,
       13.53,
-      0.0,
+      0.01,
       0.0,
       0.0,
       0.0,
@@ -940,8 +940,8 @@
       307.99,
       285.92,
       259.55,
-      0.0,
-      0.0,
+      207.62,
+      188.03,
       0.0,
       0.0,
       0.0,
@@ -966,8 +966,8 @@
       96.39,
       191.23,
       246.02,
-      0.0,
-      0.0,
+      207.61,
+      188.03,
       0.0,
       0.0,
       0.0,
@@ -1018,8 +1018,8 @@
       293.72,
       277.58,
       265.81,
-      153.93,
-      136.44,
+      205.84,
+      183.45,
       113.83,
       34.88,
       32.61,
@@ -1044,8 +1044,8 @@
       133.79,
       190.08,
       253.34,
-      153.92,
-      136.44,
+      205.83,
+      183.45,
       113.83,
       34.88,
       32.61,
