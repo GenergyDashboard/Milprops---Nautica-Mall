@@ -23699,12 +23699,12 @@
     }
   },
   "2026-07-10": {
-    "current_hour": 13,
-    "pv": 1342.61,
-    "import": 1880.32,
-    "export": 65.6,
-    "self_consumption": 1277.01,
-    "consumption": 3157.33,
+    "current_hour": 16,
+    "pv": 1808.16,
+    "import": 2363.91,
+    "export": 70.8,
+    "self_consumption": 1737.36,
+    "consumption": 4101.27,
     "hourly": {
       "pv": [
         0.0,
@@ -23721,9 +23721,9 @@
         322.42,
         348.2,
         315.86,
-        0.0,
-        0.0,
-        0.0,
+        262.19,
+        131.9,
+        71.46,
         0.0,
         0.0,
         0.0,
@@ -23747,9 +23747,9 @@
         325.01,
         334.81,
         317.12,
-        0.0,
-        0.0,
-        0.0,
+        325.34,
+        315.97,
+        302.63,
         0.0,
         0.0,
         0.0,
@@ -23773,9 +23773,9 @@
         20.99,
         11.01,
         24.06,
-        0.0,
-        0.0,
-        0.0,
+        68.35,
+        184.07,
+        231.17,
         0.0,
         0.0,
         0.0,
@@ -23799,7 +23799,7 @@
         18.4,
         24.4,
         22.8,
-        0.0,
+        5.2,
         0.0,
         0.0,
         0.0,
@@ -23822,13 +23822,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 1342.31,
-        "import": 698.37,
-        "self_consumption": 1276.71,
-        "export": 65.6,
-        "utility_cost": 1199.38,
-        "pv_savings": 2192.62,
-        "export_savings": 107.07
+        "generation": 1807.86,
+        "import": 1181.96,
+        "self_consumption": 1737.06,
+        "export": 70.8,
+        "utility_cost": 2029.9,
+        "pv_savings": 2983.23,
+        "export_savings": 115.55
       },
       "off_peak": {
         "generation": 0.0,
@@ -23842,17 +23842,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 23.59,
-        "standard": 2187.24,
+        "peak": 32.1,
+        "standard": 2975.72,
         "off_peak": 0.0,
-        "total": 2210.83
+        "total": 3007.82
       },
       "export_savings": {
-        "standard": 106.78,
+        "standard": 115.24,
         "off_peak": 0.0,
-        "total": 106.78
+        "total": 115.24
       },
-      "total": 2317.61
+      "total": 3123.06
     }
   }
 }
