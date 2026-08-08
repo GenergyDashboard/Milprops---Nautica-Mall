@@ -28252,12 +28252,12 @@
     }
   },
   "2026-08-08": {
-    "current_hour": 10,
-    "pv": 499.22,
-    "import": 1655.55,
-    "export": 4.0,
-    "self_consumption": 495.22,
-    "consumption": 2150.77,
+    "current_hour": 11,
+    "pv": 853.72,
+    "import": 1657.6,
+    "export": 43.2,
+    "self_consumption": 810.52,
+    "consumption": 2468.12,
     "hourly": {
       "pv": [
         0.0,
@@ -28271,7 +28271,7 @@
         65.83,
         163.57,
         266.4,
-        0.0,
+        354.5,
         0.0,
         0.0,
         0.0,
@@ -28297,7 +28297,7 @@
         311.59,
         305.14,
         332.8,
-        0.0,
+        317.35,
         0.0,
         0.0,
         0.0,
@@ -28323,7 +28323,7 @@
         245.76,
         141.57,
         70.4,
-        0.0,
+        2.05,
         0.0,
         0.0,
         0.0,
@@ -28349,7 +28349,7 @@
         0.0,
         0.0,
         4.0,
-        0.0,
+        39.2,
         0.0,
         0.0,
         0.0,
@@ -28375,13 +28375,13 @@
         "export_savings": 0
       },
       "standard": {
-        "generation": 499.22,
-        "import": 706.56,
-        "self_consumption": 495.22,
-        "export": 4.0,
-        "utility_cost": 1213.45,
-        "pv_savings": 850.49,
-        "export_savings": 6.53
+        "generation": 853.72,
+        "import": 708.61,
+        "self_consumption": 810.52,
+        "export": 43.2,
+        "utility_cost": 1216.97,
+        "pv_savings": 1391.99,
+        "export_savings": 70.51
       },
       "off_peak": {
         "generation": 0.0,
@@ -28396,16 +28396,16 @@
     "savings": {
       "pv_savings": {
         "peak": 0.0,
-        "standard": 328.04,
-        "off_peak": 348.29,
-        "total": 676.33
+        "standard": 536.9,
+        "off_peak": 570.04,
+        "total": 1106.94
       },
       "export_savings": {
-        "standard": 2.52,
-        "off_peak": 2.67,
-        "total": 5.19
+        "standard": 27.19,
+        "off_peak": 28.88,
+        "total": 56.07
       },
-      "total": 681.52
+      "total": 1163.01
     }
   }
 }
