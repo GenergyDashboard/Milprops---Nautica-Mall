@@ -29351,12 +29351,12 @@
     }
   },
   "2026-08-15": {
-    "current_hour": 9,
-    "pv": 141.46,
-    "import": 1715.45,
-    "export": 0.0,
-    "self_consumption": 141.46,
-    "consumption": 1856.91,
+    "current_hour": 10,
+    "pv": 382.19,
+    "import": 1829.12,
+    "export": 10.0,
+    "self_consumption": 372.19,
+    "consumption": 2201.31,
     "hourly": {
       "pv": [
         0.0,
@@ -29369,7 +29369,7 @@
         5.78,
         38.09,
         97.59,
-        0.0,
+        240.73,
         0.0,
         0.0,
         0.0,
@@ -29395,7 +29395,7 @@
         258.96,
         314.83,
         337.97,
-        0.0,
+        344.4,
         0.0,
         0.0,
         0.0,
@@ -29421,7 +29421,7 @@
         253.18,
         276.74,
         240.38,
-        0.0,
+        113.67,
         0.0,
         0.0,
         0.0,
@@ -29447,7 +29447,7 @@
         0.0,
         0.0,
         0.0,
-        0.0,
+        10.0,
         0.0,
         0.0,
         0.0,
@@ -29474,13 +29474,13 @@
         "export_savings": 0
       },
       "standard": {
-        "generation": 141.46,
-        "import": 770.3,
-        "self_consumption": 141.46,
-        "export": 0.0,
-        "utility_cost": 1322.91,
-        "pv_savings": 242.94,
-        "export_savings": 0.0
+        "generation": 382.19,
+        "import": 883.97,
+        "self_consumption": 372.19,
+        "export": 10.0,
+        "utility_cost": 1518.13,
+        "pv_savings": 639.2,
+        "export_savings": 16.32
       },
       "off_peak": {
         "generation": 0.0,
@@ -29495,16 +29495,16 @@
     "savings": {
       "pv_savings": {
         "peak": 0.0,
-        "standard": 95.05,
-        "off_peak": 98.59,
-        "total": 193.64
+        "standard": 250.09,
+        "off_peak": 259.4,
+        "total": 509.49
       },
       "export_savings": {
-        "standard": 0.0,
-        "off_peak": 0.0,
-        "total": 0.0
+        "standard": 6.39,
+        "off_peak": 6.62,
+        "total": 13.01
       },
-      "total": 193.64
+      "total": 522.5
     }
   }
 }
