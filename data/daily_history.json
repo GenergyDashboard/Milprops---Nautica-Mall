@@ -29665,12 +29665,12 @@
     }
   },
   "2026-08-17": {
-    "current_hour": 13,
-    "pv": 885.29,
-    "import": 2337.28,
-    "export": 19.6,
-    "self_consumption": 865.69,
-    "consumption": 3202.97,
+    "current_hour": 14,
+    "pv": 1122.66,
+    "import": 2387.97,
+    "export": 24.4,
+    "self_consumption": 1098.26,
+    "consumption": 3486.23,
     "hourly": {
       "pv": [
         0.0,
@@ -29687,7 +29687,7 @@
         133.27,
         227.62,
         272.2,
-        0.0,
+        237.37,
         0.0,
         0.0,
         0.0,
@@ -29713,7 +29713,7 @@
         313.75,
         300.53,
         306.92,
-        0.0,
+        283.26,
         0.0,
         0.0,
         0.0,
@@ -29739,7 +29739,7 @@
         180.48,
         77.31,
         49.92,
-        0.0,
+        50.69,
         0.0,
         0.0,
         0.0,
@@ -29765,7 +29765,7 @@
         0.0,
         4.4,
         15.2,
-        0.0,
+        4.8,
         0.0,
         0.0,
         0.0,
@@ -29788,13 +29788,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 883.01,
-        "import": 991.49,
-        "self_consumption": 863.41,
-        "export": 19.6,
-        "utility_cost": 1702.78,
-        "pv_savings": 1482.82,
-        "export_savings": 31.99
+        "generation": 1120.38,
+        "import": 1042.18,
+        "self_consumption": 1095.98,
+        "export": 24.4,
+        "utility_cost": 1789.84,
+        "pv_savings": 1882.24,
+        "export_savings": 39.82
       },
       "off_peak": {
         "generation": 0.0,
@@ -29808,17 +29808,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 109.56,
-        "standard": 1459.34,
+        "peak": 139.0,
+        "standard": 1851.4,
         "off_peak": 0.0,
-        "total": 1568.91
+        "total": 1990.4
       },
       "export_savings": {
-        "standard": 31.4,
+        "standard": 39.09,
         "off_peak": 0.0,
-        "total": 31.4
+        "total": 39.09
       },
-      "total": 1600.31
+      "total": 2029.49
     }
   }
 }
