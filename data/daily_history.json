@@ -30136,12 +30136,12 @@
     }
   },
   "2026-08-20": {
-    "current_hour": 9,
-    "pv": 314.4,
-    "import": 1473.54,
-    "export": 0.0,
-    "self_consumption": 314.4,
-    "consumption": 1787.94,
+    "current_hour": 10,
+    "pv": 614.28,
+    "import": 1496.32,
+    "export": 14.4,
+    "self_consumption": 599.88,
+    "consumption": 2096.2,
     "hourly": {
       "pv": [
         0.0,
@@ -30154,7 +30154,7 @@
         13.64,
         96.29,
         204.47,
-        0.0,
+        299.88,
         0.0,
         0.0,
         0.0,
@@ -30180,7 +30180,7 @@
         253.0,
         283.17,
         315.83,
-        0.0,
+        308.26,
         0.0,
         0.0,
         0.0,
@@ -30206,7 +30206,7 @@
         239.36,
         186.88,
         111.36,
-        0.0,
+        22.78,
         0.0,
         0.0,
         0.0,
@@ -30232,7 +30232,7 @@
         0.0,
         0.0,
         0.0,
-        0.0,
+        14.4,
         0.0,
         0.0,
         0.0,
@@ -30259,13 +30259,13 @@
         "export_savings": 0.0
       },
       "standard": {
-        "generation": 300.76,
-        "import": 298.24,
-        "self_consumption": 300.76,
-        "export": 0.0,
-        "utility_cost": 512.2,
-        "pv_savings": 516.53,
-        "export_savings": 0.0
+        "generation": 600.64,
+        "import": 321.02,
+        "self_consumption": 586.24,
+        "export": 14.4,
+        "utility_cost": 551.32,
+        "pv_savings": 1006.81,
+        "export_savings": 23.5
       },
       "off_peak": {
         "generation": 0.0,
@@ -30279,17 +30279,17 @@
     },
     "savings": {
       "pv_savings": {
-        "peak": 39.64,
-        "standard": 530.04,
+        "peak": 75.62,
+        "standard": 1011.33,
         "off_peak": 0.0,
-        "total": 569.68
+        "total": 1086.95
       },
       "export_savings": {
-        "standard": 0.0,
+        "standard": 23.07,
         "off_peak": 0.0,
-        "total": 0.0
+        "total": 23.07
       },
-      "total": 569.68
+      "total": 1110.02
     }
   }
 }
