@@ -32648,12 +32648,12 @@
     }
   },
   "2026-09-05": {
-    "current_hour": 14,
-    "pv": 2213.57,
-    "import": 1548.03,
-    "export": 181.6,
-    "self_consumption": 2031.97,
-    "consumption": 3580.0,
+    "current_hour": 17,
+    "pv": 2719.77,
+    "import": 1883.39,
+    "export": 182.8,
+    "self_consumption": 2536.97,
+    "consumption": 4420.36,
     "hourly": {
       "pv": [
         0.0,
@@ -32671,9 +32671,9 @@
         406.69,
         396.83,
         356.07,
-        0.0,
-        0.0,
-        0.0,
+        277.73,
+        168.2,
+        60.27,
         0.0,
         0.0,
         0.0,
@@ -32697,9 +32697,9 @@
         336.69,
         371.99,
         343.76,
-        0.0,
-        0.0,
-        0.0,
+        310.32,
+        318.73,
+        211.31,
         0.0,
         0.0,
         0.0,
@@ -32723,9 +32723,9 @@
         0.0,
         4.36,
         4.09,
-        0.0,
-        0.0,
-        0.0,
+        33.79,
+        150.53,
+        151.04,
         0.0,
         0.0,
         0.0,
@@ -32749,7 +32749,7 @@
         70.0,
         29.2,
         16.4,
-        0.0,
+        1.2,
         0.0,
         0.0,
         0.0,
@@ -32780,28 +32780,28 @@
         "export_savings": 107.72
       },
       "off_peak": {
-        "generation": 1159.6,
-        "import": 1015.3,
-        "self_consumption": 1044.0,
-        "export": 115.6,
-        "utility_cost": 1162.42,
-        "pv_savings": 1195.28,
-        "export_savings": 125.8
+        "generation": 1665.8,
+        "import": 1350.66,
+        "self_consumption": 1549.0,
+        "export": 116.8,
+        "utility_cost": 1546.37,
+        "pv_savings": 1773.45,
+        "export_savings": 127.1
       }
     },
     "savings": {
       "pv_savings": {
         "peak": 0.0,
-        "standard": 1262.72,
-        "off_peak": 1424.43,
-        "total": 2687.15
+        "standard": 1576.54,
+        "off_peak": 1778.44,
+        "total": 3354.97
       },
       "export_savings": {
-        "standard": 114.91,
-        "off_peak": 121.0,
-        "total": 235.91
+        "standard": 115.67,
+        "off_peak": 121.8,
+        "total": 237.47
       },
-      "total": 2923.06
+      "total": 3592.44
     }
   }
 }
